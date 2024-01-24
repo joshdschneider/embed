@@ -21,12 +21,13 @@ export function generateSecreyKey(environment: EnvironmentType, byteLength = 16)
 }
 
 export enum Resource {
-  ACCOUNT = 'acct',
-  API_KEY = 'key',
-  ENVIRONMENT = 'env',
-  ACTIVITY = 'log',
-  ACTIVITY_LOG = 'log_ent',
-  LINKED_ACCOUNT = 'link',
+  Account = 'acc',
+  ApiKey = 'key',
+  Environment = 'env',
+  ActivityLog = 'log',
+  ActivityLogEntry = 'log_ent',
+  LinkedAccount = 'link_acc',
+  LinkToken = 'link_tok',
 }
 
 export function generateId(prefix: Resource, byteLength = 8): string {

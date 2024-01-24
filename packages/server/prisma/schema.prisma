@@ -40,6 +40,7 @@ model Environment {
   api_keys                   ApiKey[]
   integrations               Integration[]
   linked_accounts            LinkedAccount[]
+  link_tokens                LinkToken[]
 
   account Account @relation(fields: [account_id], references: [id])
 }
@@ -70,6 +71,7 @@ model Integration {
   updated_at             Int?
   deleted_at             Int?
   linked_accounts        LinkedAccount[]
+  link_tokens            LinkToken[]
 
   environment Environment @relation(fields: [environment_id], references: [id])
 }
@@ -89,4 +91,19 @@ model LinkedAccount {
 
   environment Environment @relation(fields: [environment_id], references: [id])
   integration Integration @relation(fields: [integration_provider], references: [provider])
+}
+
+model LinkToken {
+  id                   String  @id
+  environment_id       String
+  integration_provider String?
+  expires_at           Int
+  language             String?
+  redirect_url         String?
+  metadata             Json?
+  created_at           Int
+  updated_at           Int?
+
+  environment Environment  @relation(fields: [environment_id], references: [id])
+  integration Integration? @relation(fields: [integration_provider], references: [provider])
 }

@@ -32,7 +32,7 @@ class UserController {
       }
 
       const account = await accountService.createAccount({
-        id: generateId(Resource.ACCOUNT),
+        id: generateId(Resource.Account),
         cloud_organization_id: cloud_organization_id || null,
       });
 
@@ -62,7 +62,7 @@ class UserController {
       }
 
       const stagingEnvironment = await environmentService.createEnvironment({
-        id: generateId(Resource.ENVIRONMENT),
+        id: generateId(Resource.Environment),
         account_id: account.id,
         type: EnvironmentType.Staging,
         duplicate_account_behavior: DuplicateAccountBehavior.CreateNew,
@@ -80,7 +80,7 @@ class UserController {
       }
 
       const apiKey = await apiKeyService.createApiKey({
-        id: generateId(Resource.API_KEY),
+        id: generateId(Resource.ApiKey),
         environment_id: stagingEnvironment.id,
         key: generateSecreyKey(EnvironmentType.Staging),
         key_iv: null,

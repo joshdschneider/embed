@@ -4,6 +4,7 @@ import providerService from '../services/provider.service';
 
 class ProviderController {
   public async listProviders(req: Request, res: Response): Promise<void> {
+    // todo: caching layer
     const providers = await providerService.listProviders();
     if (!providers) {
       return errorService.errorResponse(res, {
@@ -19,7 +20,7 @@ class ProviderController {
   }
 
   public async retrieveProvider(req: Request, res: Response): Promise<void> {
-    const { slug } = req.params;
+    const { provider_slug: slug } = req.params;
     if (!slug) {
       return errorService.errorResponse(res, {
         code: ErrorCode.BadRequest,
