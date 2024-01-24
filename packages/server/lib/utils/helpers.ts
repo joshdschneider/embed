@@ -17,7 +17,7 @@ export function closeWindow(res: Response) {
 
 export function generateSecreyKey(environment: EnvironmentType, byteLength = 16): string {
   const prefix = environment === EnvironmentType.Staging ? 'test' : 'prod';
-  return `$sk_${prefix}_${crypto.randomBytes(byteLength).toString('hex')}`;
+  return `sk_${prefix}_${crypto.randomBytes(byteLength).toString('hex')}`;
 }
 
 export enum Resource {

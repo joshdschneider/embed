@@ -10,6 +10,7 @@ class ApiKeyController {
   public async generateApiKey(req: Request, res: Response) {
     try {
       const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
+      const name = req.body['name'];
       const environment = await environmentService.getEnvironmentById(environmentId);
 
       if (!environment) {
@@ -26,6 +27,7 @@ class ApiKeyController {
         key: generateSecreyKey(type),
         key_iv: null,
         key_tag: null,
+        name: name || null,
         created_at: now(),
         updated_at: now(),
         deleted_at: null,
@@ -43,6 +45,7 @@ class ApiKeyController {
         id: apiKey.id,
         environment_id: apiKey.environment_id,
         key: apiKey.key,
+        name: apiKey.name,
         created_at: apiKey.created_at,
         updated_at: apiKey.updated_at,
       });
@@ -72,6 +75,7 @@ class ApiKeyController {
         id: apiKey.id,
         environment_id: apiKey.environment_id,
         key: apiKey.key,
+        name: apiKey.name,
         created_at: apiKey.created_at,
         updated_at: apiKey.updated_at,
       }));
@@ -79,6 +83,54 @@ class ApiKeyController {
       res.status(200).json({
         object: 'list',
         data: list,
+      });
+    } catch (err) {
+      await errorService.reportError(err);
+
+      return errorService.errorResponse(res, {
+        code: ErrorCode.InternalServerError,
+        message: DEFAULT_ERROR_MESSAGE,
+      });
+    }
+  }
+
+  public async modifyApiKey(req: Request, res: Response) {
+    try {
+      const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
+      const apiKeyId = req.params['api_key_id'];
+      const name = req.body['name'];
+
+      if (!apiKeyId) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.BadRequest,
+          message: 'API key ID missing',
+        });
+      }
+
+      if (name == undefined) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.BadRequest,
+          message: 'Name missing',
+        });
+      }
+
+      const apiKey = await apiKeyService.updateApiKey(apiKeyId, environmentId, name);
+
+      if (!apiKey) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.InternalServerError,
+          message: DEFAULT_ERROR_MESSAGE,
+        });
+      }
+
+      res.status(201).json({
+        object: 'api_key',
+        id: apiKey.id,
+        environment_id: apiKey.environment_id,
+        key: apiKey.key,
+        name: apiKey.name,
+        created_at: apiKey.created_at,
+        updated_at: apiKey.updated_at,
       });
     } catch (err) {
       await errorService.reportError(err);

@@ -9,10 +9,12 @@ import path from 'path';
 import type { WebSocket } from 'ws';
 import { WebSocketServer } from 'ws';
 import publisher from './clients/publisher.client';
+import apiKeyRouter from './routes/apiKey.router';
 import environmentRouter from './routes/environment.router';
 import healthRouter from './routes/health.router';
 import integrationRouter from './routes/integration.router';
 import linkTokenRouter from './routes/linkToken.router';
+import linkedAccountRouter from './routes/linkedAccount.router';
 import providerRouter from './routes/provider.router';
 import userRouter from './routes/user.router';
 import { getServerPort, getWebsocketsPath, isCloud } from './utils/constants';
@@ -33,9 +35,11 @@ function setupExpressApp() {
   app.use('/health', healthRouter);
   app.use('/users', userRouter);
   app.use('/environments', environmentRouter);
+  app.use('/api-keys', apiKeyRouter);
   app.use('/integrations', integrationRouter);
   app.use('/providers', providerRouter);
   app.use('/link-tokens', linkTokenRouter);
+  app.use('/linked-accounts', linkedAccountRouter);
 
   return app;
 }

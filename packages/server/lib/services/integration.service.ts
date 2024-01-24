@@ -57,8 +57,10 @@ class IntegrationService {
     try {
       return await prisma.integration.findUnique({
         where: {
-          provider: integrationProvider,
-          environment_id: environmentId,
+          provider_environment_id: {
+            provider: integrationProvider,
+            environment_id: environmentId,
+          },
           deleted_at: null,
         },
       });
@@ -89,8 +91,10 @@ class IntegrationService {
         ranks.map((integration) => {
           return prisma.integration.update({
             where: {
-              environment_id: environmentId,
-              provider: integration.provider,
+              provider_environment_id: {
+                provider: integration.provider,
+                environment_id: environmentId,
+              },
               deleted_at: null,
             },
             data: { rank: integration.rank },
@@ -119,8 +123,10 @@ class IntegrationService {
         integrations.map((integration) => {
           return prisma.integration.update({
             where: {
-              provider: integration.provider,
-              environment_id: environmentId,
+              provider_environment_id: {
+                provider: integration.provider,
+                environment_id: environmentId,
+              },
               deleted_at: null,
             },
             data: { is_enabled: true },
@@ -149,8 +155,10 @@ class IntegrationService {
         integrations.map((integration) => {
           return prisma.integration.update({
             where: {
-              provider: integration.provider,
-              environment_id: environmentId,
+              provider_environment_id: {
+                provider: integration.provider,
+                environment_id: environmentId,
+              },
               deleted_at: null,
             },
             data: { is_enabled: false },
@@ -172,8 +180,10 @@ class IntegrationService {
     try {
       return await prisma.integration.update({
         where: {
-          provider: integrationProvider,
-          environment_id: environmentId,
+          provider_environment_id: {
+            provider: integrationProvider,
+            environment_id: environmentId,
+          },
           deleted_at: null,
         },
         data,

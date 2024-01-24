@@ -51,6 +51,7 @@ model ApiKey {
   key            String  @unique
   key_iv         String?
   key_tag        String?
+  name           String?
   created_at     Int
   updated_at     Int?
   deleted_at     Int?
@@ -59,7 +60,7 @@ model ApiKey {
 }
 
 model Integration {
-  provider               String          @id
+  provider               String
   environment_id         String
   is_enabled             Boolean
   use_client_credentials Boolean
@@ -70,10 +71,10 @@ model Integration {
   created_at             Int
   updated_at             Int?
   deleted_at             Int?
-  linked_accounts        LinkedAccount[]
-  link_tokens            LinkToken[]
 
   environment Environment @relation(fields: [environment_id], references: [id])
+
+  @@unique([provider, environment_id])
 }
 
 model LinkedAccount {
@@ -90,7 +91,6 @@ model LinkedAccount {
   deleted_at           Int?
 
   environment Environment @relation(fields: [environment_id], references: [id])
-  integration Integration @relation(fields: [integration_provider], references: [provider])
 }
 
 model LinkToken {
@@ -104,6 +104,5 @@ model LinkToken {
   created_at           Int
   updated_at           Int?
 
-  environment Environment  @relation(fields: [environment_id], references: [id])
-  integration Integration? @relation(fields: [integration_provider], references: [provider])
+  environment Environment @relation(fields: [environment_id], references: [id])
 }

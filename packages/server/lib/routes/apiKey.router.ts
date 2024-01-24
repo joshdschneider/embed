@@ -11,6 +11,8 @@ apiKeyRouter.route('/').post(apiKeyController.generateApiKey.bind(linkTokenContr
 
 apiKeyRouter.route('/').get(apiKeyController.listApiKeys.bind(linkTokenController));
 
+apiKeyRouter.route('/:api_key_id').put(apiKeyController.modifyApiKey.bind(linkTokenController));
+
 apiKeyRouter.route('/:api_key_id').delete(apiKeyController.deleteApiKey.bind(linkTokenController));
 
 export default apiKeyRouter;

@@ -85,6 +85,7 @@ class UserController {
         key: generateSecreyKey(EnvironmentType.Staging),
         key_iv: null,
         key_tag: null,
+        name: null,
         created_at: now(),
         updated_at: now(),
         deleted_at: null,

@@ -41,6 +41,7 @@ CREATE TABLE "ApiKey" (
     "key" TEXT NOT NULL,
     "key_iv" TEXT,
     "key_tag" TEXT,
+    "name" TEXT,
     "created_at" INTEGER NOT NULL,
     "updated_at" INTEGER,
     "deleted_at" INTEGER,
@@ -60,9 +61,7 @@ CREATE TABLE "Integration" (
     "rank" INTEGER,
     "created_at" INTEGER NOT NULL,
     "updated_at" INTEGER,
-    "deleted_at" INTEGER,
-
-    CONSTRAINT "Integration_pkey" PRIMARY KEY ("provider")
+    "deleted_at" INTEGER
 );
 
 -- CreateTable
@@ -82,8 +81,26 @@ CREATE TABLE "LinkedAccount" (
     CONSTRAINT "LinkedAccount_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "LinkToken" (
+    "id" TEXT NOT NULL,
+    "environment_id" TEXT NOT NULL,
+    "integration_provider" TEXT,
+    "expires_at" INTEGER NOT NULL,
+    "language" TEXT,
+    "redirect_url" TEXT,
+    "metadata" JSONB,
+    "created_at" INTEGER NOT NULL,
+    "updated_at" INTEGER,
+
+    CONSTRAINT "LinkToken_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "ApiKey_key_key" ON "ApiKey"("key");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Integration_provider_environment_id_key" ON "Integration"("provider", "environment_id");
 
 -- AddForeignKey
 ALTER TABLE "User" ADD CONSTRAINT "User_account_id_fkey" FOREIGN KEY ("account_id") REFERENCES "Account"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -101,4 +118,4 @@ ALTER TABLE "Integration" ADD CONSTRAINT "Integration_environment_id_fkey" FOREI
 ALTER TABLE "LinkedAccount" ADD CONSTRAINT "LinkedAccount_environment_id_fkey" FOREIGN KEY ("environment_id") REFERENCES "Environment"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "LinkedAccount" ADD CONSTRAINT "LinkedAccount_integration_provider_fkey" FOREIGN KEY ("integration_provider") REFERENCES "Integration"("provider") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "LinkToken" ADD CONSTRAINT "LinkToken_environment_id_fkey" FOREIGN KEY ("environment_id") REFERENCES "Environment"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
