@@ -1,0 +1,9 @@
+slug: shopify
+display_name: Shopify
+base_url: https://${configuration.subdomain}.myshopify.com
+auth:
+  scheme: OAUTH2
+  authorization_url: https://${configuration.subdomain}.myshopify.com/admin/oauth/authorize
+  token_url: https://${configuration.subdomain}.myshopify.com/admin/oauth/access_token
+headers:
+  X-Shopify-Access-Token: ${accessToken}

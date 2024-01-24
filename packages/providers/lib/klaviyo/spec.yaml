@@ -1,0 +1,7 @@
+slug: klaviyo
+display_name: Klaviyo
+base_url: https://a.klaviyo.com
+auth:
+  scheme: API_KEY
+headers:
+  Authorization: Klaviyo-API-Key ${apiKey}

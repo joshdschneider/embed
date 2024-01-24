@@ -1,0 +1,16 @@
+{
+  "name": "@beta/providers",
+  "version": "0.1.0",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc && copyfiles -u 1 lib/**/*.yaml dist",
+    "clean": "rimraf tsconfig.tsbuildinfo dist/*"
+  },
+  "dependencies": {
+    "copyfiles": "^2.4.1"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "js-yaml": "^4.1.0"
+  }
+}

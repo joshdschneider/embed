@@ -1,0 +1,14 @@
+slug: github
+display_name: GitHub
+base_url: https://api.github.com
+auth:
+  scheme: OAUTH2
+  authorization_url: https://github.com/login/oauth/authorize
+  token_url: https://github.com/login/oauth/access_token
+retry:
+  at: 'x-ratelimit-reset'
+paginate:
+  type: link
+  limit_name_in_request: per_page
+  link_rel_in_response_header: next
+docs_url: https://docs.github.com/en/rest

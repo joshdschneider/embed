@@ -1,0 +1,92 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id                    String  @id
+  cloud_organization_id String?
+
+  users        User[]
+  environments Environment[]
+}
+
+model User {
+  id         String  @id
+  account_id String
+  email      String
+  first_name String?
+  last_name  String?
+  created_at Int
+  updated_at Int?
+  deleted_at Int?
+
+  account Account @relation(fields: [account_id], references: [id])
+}
+
+model Environment {
+  id                         String          @id
+  account_id                 String
+  type                       String
+  enable_new_integrations    Boolean
+  duplicate_account_behavior String
+  created_at                 Int
+  updated_at                 Int?
+  deleted_at                 Int?
+  api_keys                   ApiKey[]
+  integrations               Integration[]
+  linked_accounts            LinkedAccount[]
+
+  account Account @relation(fields: [account_id], references: [id])
+}
+
+model ApiKey {
+  id             String  @id
+  environment_id String
+  key            String  @unique
+  key_iv         String?
+  key_tag        String?
+  created_at     Int
+  updated_at     Int?
+  deleted_at     Int?
+
+  environment Environment @relation(fields: [environment_id], references: [id])
+}
+
+model Integration {
+  provider               String          @id
+  environment_id         String
+  is_enabled             Boolean
+  use_client_credentials Boolean
+  oauth_client_id        String?
+  oauth_client_secret    String?
+  oauth_scopes           String?
+  rank                   Int?
+  created_at             Int
+  updated_at             Int?
+  deleted_at             Int?
+  linked_accounts        LinkedAccount[]
+
+  environment Environment @relation(fields: [environment_id], references: [id])
+}
+
+model LinkedAccount {
+  id                   String  @id
+  environment_id       String
+  integration_provider String
+  credentials          Json
+  credentials_iv       String?
+  credentials_tag      String?
+  configuration        Json
+  metadata             Json?
+  created_at           Int
+  updated_at           Int?
+  deleted_at           Int?
+
+  environment Environment @relation(fields: [environment_id], references: [id])
+  integration Integration @relation(fields: [integration_provider], references: [provider])
+}

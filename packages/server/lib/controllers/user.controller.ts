@@ -1,0 +1,194 @@
+import { Request, Response } from 'express';
+import accountService from '../services/account.service';
+import apiKeyService from '../services/apiKey.service';
+import environmentService from '../services/environment.service';
+import errorService, { ErrorCode } from '../services/error.service';
+import integrationService from '../services/integration.service';
+import userService from '../services/user.service';
+import { DuplicateAccountBehavior, EnvironmentType } from '../types';
+import { DEFAULT_ERROR_MESSAGE } from '../utils/constants';
+import { Resource, generateId, generateSecreyKey, now } from '../utils/helpers';
+
+class UserController {
+  public async createUser(req: Request, res: Response) {
+    try {
+      const { user, cloud_organization_id } = req.body;
+      if (!user) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.BadRequest,
+          message: 'User missing',
+        });
+      }
+
+      const existingUser = await userService.getUserById(user.id);
+      if (existingUser) {
+        return res.status(200).json({
+          object: 'user',
+          id: existingUser.id,
+          email: existingUser.email,
+          first_name: existingUser.first_name,
+          last_name: existingUser.last_name,
+        });
+      }
+
+      const account = await accountService.createAccount({
+        id: generateId(Resource.ACCOUNT),
+        cloud_organization_id: cloud_organization_id || null,
+      });
+
+      if (!account) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.InternalServerError,
+          message: DEFAULT_ERROR_MESSAGE,
+        });
+      }
+
+      const newUser = await userService.createUser({
+        id: user.id,
+        account_id: account.id,
+        email: user.email,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        created_at: now(),
+        updated_at: now(),
+        deleted_at: null,
+      });
+
+      if (!newUser) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.InternalServerError,
+          message: DEFAULT_ERROR_MESSAGE,
+        });
+      }
+
+      const stagingEnvironment = await environmentService.createEnvironment({
+        id: generateId(Resource.ENVIRONMENT),
+        account_id: account.id,
+        type: EnvironmentType.Staging,
+        duplicate_account_behavior: DuplicateAccountBehavior.CreateNew,
+        enable_new_integrations: true,
+        created_at: now(),
+        updated_at: now(),
+        deleted_at: null,
+      });
+
+      if (!stagingEnvironment) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.InternalServerError,
+          message: DEFAULT_ERROR_MESSAGE,
+        });
+      }
+
+      const apiKey = await apiKeyService.createApiKey({
+        id: generateId(Resource.API_KEY),
+        environment_id: stagingEnvironment.id,
+        key: generateSecreyKey(EnvironmentType.Staging),
+        key_iv: null,
+        key_tag: null,
+        created_at: now(),
+        updated_at: now(),
+        deleted_at: null,
+      });
+
+      if (!apiKey) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.InternalServerError,
+          message: DEFAULT_ERROR_MESSAGE,
+        });
+      }
+
+      await integrationService.createInitialIntegrations(stagingEnvironment.id);
+
+      return res.status(200).json({
+        object: 'user',
+        id: newUser.id,
+        account_id: newUser.account_id,
+        email: newUser.email,
+        first_name: newUser.first_name,
+        last_name: newUser.last_name,
+      });
+    } catch (err) {
+      await errorService.reportError(err);
+
+      return errorService.errorResponse(res, {
+        code: ErrorCode.InternalServerError,
+        message: DEFAULT_ERROR_MESSAGE,
+      });
+    }
+  }
+
+  public async retrieveUser(req: Request, res: Response) {
+    try {
+      const { user_id } = req.params;
+      if (!user_id) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.BadRequest,
+          message: 'User ID missing',
+        });
+      }
+
+      const user = await userService.getUserById(user_id);
+      if (!user) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.NotFound,
+          message: 'User not found',
+        });
+      }
+
+      return res.status(200).json({
+        object: 'user',
+        id: user.id,
+        account_id: user.account_id,
+        email: user.email,
+        first_name: user.first_name,
+        last_name: user.last_name,
+      });
+    } catch (err) {
+      await errorService.reportError(err);
+
+      return errorService.errorResponse(res, {
+        code: ErrorCode.InternalServerError,
+        message: DEFAULT_ERROR_MESSAGE,
+      });
+    }
+  }
+
+  public async retrieveUserAccount(req: Request, res: Response) {
+    try {
+      const { user_id } = req.params;
+      if (!user_id) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.BadRequest,
+          message: 'User ID missing',
+        });
+      }
+
+      const account = await accountService.getAccountByUserId(user_id);
+      if (!account) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.NotFound,
+          message: 'User not found',
+        });
+      }
+
+      return res.status(200).json({
+        object: 'account',
+        id: account.id,
+        cloud_organization_id: account.cloud_organization_id,
+        environments: account.environments.map((environment) => ({
+          object: 'environment',
+          ...environment,
+        })),
+      });
+    } catch (err) {
+      await errorService.reportError(err);
+
+      return errorService.errorResponse(res, {
+        code: ErrorCode.InternalServerError,
+        message: DEFAULT_ERROR_MESSAGE,
+      });
+    }
+  }
+}
+
+export default new UserController();
