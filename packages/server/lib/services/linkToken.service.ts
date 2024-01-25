@@ -25,16 +25,10 @@ class LinkTokenService {
     }
   }
 
-  public async getLinkTokenById(
-    linkTokenId: string,
-    environmentId: string
-  ): Promise<LinkToken | null> {
+  public async getLinkTokenById(linkTokenId: string): Promise<LinkToken | null> {
     try {
       return await prisma.linkToken.findUnique({
-        where: {
-          id: linkTokenId,
-          environment_id: environmentId,
-        },
+        where: { id: linkTokenId },
       });
     } catch (err) {
       await errorService.reportError(err);

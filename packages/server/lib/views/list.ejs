@@ -1,0 +1,17 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Integrations</title>
+  </head>
+  <body>
+    <main>
+      <ul>
+        <% integrations.forEach((integration) => { %>
+          <li>
+            <%= integration.provider %>
+          </li>
+        <% }) %>
+      </ul>
+    </main>
+  </body>
+</html>

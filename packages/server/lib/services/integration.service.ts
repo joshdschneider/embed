@@ -74,7 +74,7 @@ class IntegrationService {
     try {
       return await prisma.integration.findMany({
         where: { environment_id: environmentId, deleted_at: null },
-        orderBy: { rank: 'desc' },
+        orderBy: { rank: 'asc' },
       });
     } catch (err) {
       await errorService.reportError(err);

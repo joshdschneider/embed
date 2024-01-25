@@ -13,6 +13,7 @@ import apiKeyRouter from './routes/apiKey.router';
 import environmentRouter from './routes/environment.router';
 import healthRouter from './routes/health.router';
 import integrationRouter from './routes/integration.router';
+import linkRouter from './routes/link.router';
 import linkTokenRouter from './routes/linkToken.router';
 import linkedAccountRouter from './routes/linkedAccount.router';
 import providerRouter from './routes/provider.router';
@@ -38,6 +39,7 @@ function setupExpressApp() {
   app.use('/api-keys', apiKeyRouter);
   app.use('/integrations', integrationRouter);
   app.use('/providers', providerRouter);
+  app.use('/link', linkRouter);
   app.use('/link-tokens', linkTokenRouter);
   app.use('/linked-accounts', linkedAccountRouter);
 
