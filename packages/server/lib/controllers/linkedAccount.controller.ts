@@ -27,9 +27,14 @@ class LinkedAccountController {
 
       const { linkedAccounts, firstId, lastId, hasMore } = list;
 
+      const linkedAccountsList = linkedAccounts.map((linkedAccount) => {
+        const { credentials, credentials_iv, credentials_tag, deleted_at, ...rest } = linkedAccount;
+        return { ...rest };
+      });
+
       res.status(200).json({
         object: 'list',
-        data: linkedAccounts,
+        data: linkedAccountsList,
         first_id: firstId,
         last_id: lastId,
         has_more: hasMore,

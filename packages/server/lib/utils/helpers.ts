@@ -25,9 +25,9 @@ export enum Resource {
   ApiKey = 'key',
   Environment = 'env',
   ActivityLog = 'log',
-  ActivityLogEntry = 'log_ent',
-  LinkedAccount = 'link_acc',
-  LinkToken = 'link_tok',
+  ActivityLogEntry = 'ent',
+  LinkedAccount = 'link',
+  LinkToken = 'tok',
 }
 
 export function generateId(prefix: Resource, byteLength = 8): string {
@@ -35,5 +35,5 @@ export function generateId(prefix: Resource, byteLength = 8): string {
 }
 
 export function now() {
-  return Date.now() / 1000;
+  return Math.floor(Date.now() / 1000);
 }

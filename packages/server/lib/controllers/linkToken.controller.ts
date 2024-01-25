@@ -5,6 +5,7 @@ import {
   DEFAULT_ERROR_MESSAGE,
   ENVIRONMENT_ID_LOCALS_KEY,
   SUPPORTED_LANGUAGES,
+  getServerUrl,
 } from '../utils/constants';
 import { Resource, generateId, now } from '../utils/helpers';
 
@@ -36,7 +37,7 @@ class LinkTokenController {
         });
       }
 
-      const expiresAt = expires_in_mins ? now() + expires_in_mins * 60 : minMinutes;
+      const expiresAt = expires_in_mins ? now() + expires_in_mins * 60 : now() + minMinutes * 60;
 
       if (language && SUPPORTED_LANGUAGES.indexOf(language) === -1) {
         return errorService.errorResponse(res, {
@@ -84,7 +85,15 @@ class LinkTokenController {
 
       res.status(201).send({
         object: 'link_token',
-        ...linkToken,
+        token: linkToken.id,
+        url: `${getServerUrl()}/link/${linkToken.id}`,
+        expires_in_mins: Math.floor((linkToken.expires_at - now()) / 60),
+        integration: linkToken.integration_provider,
+        redirect_url: linkToken.redirect_url,
+        language: linkToken.language,
+        metadata: linkToken.metadata,
+        created_at: linkToken.created_at,
+        updated_at: linkToken.updated_at,
       });
     } catch (err) {
       await errorService.reportError(err);
@@ -108,9 +117,23 @@ class LinkTokenController {
         });
       }
 
+      const linkTokensList = linkTokens.map((linkToken) => {
+        return {
+          token: linkToken.id,
+          url: `${getServerUrl()}/link/${linkToken.id}`,
+          expires_in_mins: Math.floor((linkToken.expires_at - now()) / 60),
+          integration: linkToken.integration_provider,
+          redirect_url: linkToken.redirect_url,
+          language: linkToken.language,
+          metadata: linkToken.metadata,
+          created_at: linkToken.created_at,
+          updated_at: linkToken.updated_at,
+        };
+      });
+
       res.status(200).json({
         object: 'list',
-        data: linkTokens,
+        data: linkTokensList,
       });
     } catch (err) {
       await errorService.reportError(err);
@@ -141,9 +164,17 @@ class LinkTokenController {
         });
       }
 
-      res.status(200).send({
+      res.status(201).send({
         object: 'link_token',
-        ...linkToken,
+        token: linkToken.id,
+        url: `${getServerUrl()}/link/${linkToken.id}`,
+        expires_in_mins: Math.floor((linkToken.expires_at - now()) / 60),
+        integration: linkToken.integration_provider,
+        redirect_url: linkToken.redirect_url,
+        language: linkToken.language,
+        metadata: linkToken.metadata,
+        created_at: linkToken.created_at,
+        updated_at: linkToken.updated_at,
       });
     } catch (err) {
       await errorService.reportError(err);
@@ -235,7 +266,15 @@ class LinkTokenController {
 
       res.status(201).send({
         object: 'link_token',
-        ...linkToken,
+        token: linkToken.id,
+        url: `${getServerUrl()}/link/${linkToken.id}`,
+        expires_in_mins: Math.floor((linkToken.expires_at - now()) / 60),
+        integration: linkToken.integration_provider,
+        redirect_url: linkToken.redirect_url,
+        language: linkToken.language,
+        metadata: linkToken.metadata,
+        created_at: linkToken.created_at,
+        updated_at: linkToken.updated_at,
       });
     } catch (err) {
       await errorService.reportError(err);
