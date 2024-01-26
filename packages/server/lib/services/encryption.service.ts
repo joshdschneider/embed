@@ -1,4 +1,4 @@
-import { ApiKey, LinkedAccount } from '@prisma/client';
+import { ApiKey, LinkedAccount, Webhook } from '@prisma/client';
 import crypto, { CipherGCMTypes } from 'crypto';
 import { getEncryptonKey } from '../utils/constants';
 
@@ -101,6 +101,38 @@ class EncryptionService {
     };
 
     return decryptedLinkedAccount;
+  }
+
+  public encryptWebhook(webhook: Webhook): Webhook {
+    if (!this.shouldEncrypt()) {
+      return webhook;
+    }
+
+    const [secret, iv, tag] = this.encrypt(webhook.secret);
+
+    const encryptedWebhook: Webhook = {
+      ...webhook,
+      secret: secret,
+      secret_iv: iv,
+      secret_tag: tag,
+    };
+
+    return encryptedWebhook;
+  }
+
+  public decryptWebhook(webhook: Webhook): Webhook {
+    if (!webhook.secret_iv || !webhook.secret_tag) {
+      return webhook;
+    }
+
+    const decrypted = this.decrypt(webhook.secret, webhook.secret_iv, webhook.secret_tag);
+
+    const decryptedWebhook: Webhook = {
+      ...webhook,
+      secret: decrypted,
+    };
+
+    return decryptedWebhook;
   }
 }
 

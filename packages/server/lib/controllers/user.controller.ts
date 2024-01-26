@@ -7,7 +7,7 @@ import integrationService from '../services/integration.service';
 import userService from '../services/user.service';
 import { DuplicateAccountBehavior, EnvironmentType } from '../types';
 import { DEFAULT_ERROR_MESSAGE } from '../utils/constants';
-import { Resource, generateId, generateSecreyKey, now } from '../utils/helpers';
+import { Resource, generateId, generateSecretKey, now } from '../utils/helpers';
 
 class UserController {
   public async createUser(req: Request, res: Response) {
@@ -82,7 +82,7 @@ class UserController {
       const apiKey = await apiKeyService.createApiKey({
         id: generateId(Resource.ApiKey),
         environment_id: stagingEnvironment.id,
-        key: generateSecreyKey(EnvironmentType.Staging),
+        key: generateSecretKey(EnvironmentType.Staging),
         key_iv: null,
         key_tag: null,
         name: null,

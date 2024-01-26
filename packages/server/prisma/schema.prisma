@@ -41,6 +41,7 @@ model Environment {
   integrations               Integration[]
   linked_accounts            LinkedAccount[]
   link_tokens                LinkToken[]
+  webhooks                   Webhook[]
 
   account Account @relation(fields: [account_id], references: [id])
 }
@@ -109,6 +110,22 @@ model LinkToken {
   consent_date         Int?
   created_at           Int
   updated_at           Int?
+
+  environment Environment @relation(fields: [environment_id], references: [id])
+}
+
+model Webhook {
+  id                   String  @id
+  environment_id       String
+  url                  String
+  events               String[]
+  is_enabled           Boolean
+  secret               String
+  secret_iv            String?
+  secret_tag           String?
+  created_at           Int
+  updated_at           Int?
+  deleted_at           Int?
 
   environment Environment @relation(fields: [environment_id], references: [id])
 }

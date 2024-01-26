@@ -18,6 +18,7 @@ import linkTokenRouter from './routes/linkToken.router';
 import linkedAccountRouter from './routes/linkedAccount.router';
 import providerRouter from './routes/provider.router';
 import userRouter from './routes/user.router';
+import webhookRouter from './routes/webhook.router';
 import { getServerPort, getWebsocketsPath, isCloud, isProd } from './utils/constants';
 import { corsOptions } from './utils/cors';
 import { setupSelfHosted } from './utils/selfHosted';
@@ -46,6 +47,7 @@ function setupExpressApp() {
   app.use('/link', linkRouter);
   app.use('/link-tokens', linkTokenRouter);
   app.use('/linked-accounts', linkedAccountRouter);
+  app.use('/webhooks', webhookRouter);
 
   return app;
 }
