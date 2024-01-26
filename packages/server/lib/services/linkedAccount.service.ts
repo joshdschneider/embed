@@ -1,5 +1,6 @@
 import type { LinkedAccount } from '@prisma/client';
 import { DuplicateAccountBehavior } from '../types';
+import { now } from '../utils/helpers';
 import { prisma } from '../utils/prisma';
 import encryptionService from './encryption.service';
 import environmentService from './environment.service';
@@ -151,6 +152,46 @@ class LinkedAccountService {
         firstId: firstId || null,
         lastId: lastId || null,
       };
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
+    }
+  }
+
+  public async getLinkedAccountById(linkedAccountId: string): Promise<LinkedAccount | null> {
+    try {
+      const linkedAccount = await prisma.linkedAccount.findUnique({
+        where: { id: linkedAccountId, deleted_at: null },
+      });
+
+      if (!linkedAccount) {
+        return null;
+      }
+
+      return encryptionService.decryptLinkedAccount(linkedAccount);
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
+    }
+  }
+
+  public async deleteLinkedAccount(linkedAccountId: string): Promise<LinkedAccount | null> {
+    try {
+      const linkedAccount = await prisma.linkedAccount.findUnique({
+        where: { id: linkedAccountId },
+      });
+
+      if (!linkedAccount) {
+        return null;
+      }
+
+      return await prisma.linkedAccount.update({
+        where: {
+          id: linkedAccountId,
+          deleted_at: null,
+        },
+        data: { deleted_at: now() },
+      });
     } catch (err) {
       await errorService.reportError(err);
       return null;
