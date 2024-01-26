@@ -72,11 +72,11 @@ class EncryptionService {
       return linkedAccount;
     }
 
-    const [credentials, iv, tag] = this.encrypt(JSON.stringify(linkedAccount.credentials));
+    const [credentials, iv, tag] = this.encrypt(linkedAccount.credentials);
 
     const encryptedLinkedAccount: LinkedAccount = {
       ...linkedAccount,
-      credentials: { encrypted: credentials },
+      credentials: credentials,
       credentials_iv: iv,
       credentials_tag: tag,
     };
@@ -89,19 +89,15 @@ class EncryptionService {
       return linkedAccount;
     }
 
-    const credentials = linkedAccount.credentials as {
-      encrypted: string;
-    };
-
     const decrypted = this.decrypt(
-      credentials['encrypted'],
+      linkedAccount.credentials,
       linkedAccount.credentials_iv,
       linkedAccount.credentials_tag
     );
 
     const decryptedLinkedAccount: LinkedAccount = {
       ...linkedAccount,
-      credentials: JSON.parse(decrypted),
+      credentials: decrypted,
     };
 
     return decryptedLinkedAccount;

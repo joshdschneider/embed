@@ -1,14 +1,14 @@
 <!doctype html>
 <html>
   <head>
-    <title>Integrations</title>
+    <title>List</title>
   </head>
   <body>
     <main>
       <ul>
         <% integrations.forEach((integration) => { %>
           <li>
-            <%= integration.provider %>
+            <a href="<%= server_url %>/link/<%= link_token %>/i/<%= integration.provider %>"><%= integration.display_name %></a>
           </li>
         <% }) %>
       </ul>

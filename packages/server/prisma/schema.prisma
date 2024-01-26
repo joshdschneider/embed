@@ -81,11 +81,14 @@ model LinkedAccount {
   id                   String  @id
   environment_id       String
   integration_provider String
-  credentials          Json
+  credentials          String
   credentials_iv       String?
   credentials_tag      String?
   configuration        Json
   metadata             Json?
+  consent_given        Boolean @default(false)
+  consent_ip           String?
+  consent_date         Int?
   created_at           Int
   updated_at           Int?
   deleted_at           Int?
@@ -101,6 +104,9 @@ model LinkToken {
   language             String?
   redirect_url         String?
   metadata             Json?
+  consent_given        Boolean @default(false)
+  consent_ip           String?
+  consent_date         Int?
   created_at           Int
   updated_at           Int?
 

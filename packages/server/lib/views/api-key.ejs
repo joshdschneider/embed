@@ -1,0 +1,16 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Api Key</title>
+  </head>
+  <body>
+    <main>
+      <form action="/link/<%= link_token %>/api-key" method="post">
+        <label for="key">Api Key:</label>
+        <input type="password" id="key" name="key" /><br /><br />
+
+        <input type="submit" value="Submit" />
+      </form>
+    </main>
+  </body>
+</html>

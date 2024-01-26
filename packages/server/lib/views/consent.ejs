@@ -1,0 +1,17 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Consent</title>
+  </head>
+  <body>
+    <main>
+      <p>
+        <%= client_name || "This application" %> uses Platform to connect to <%=
+        integration.display_name %>
+      </p>
+      <form action="/link/<%= link_token %>/i/<%= integration.provider %>" method="post">
+        <input type="submit" value="Submit" />
+      </form>
+    </main>
+  </body>
+</html>

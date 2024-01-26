@@ -1,4 +1,4 @@
-import type { LinkedAccount, Prisma } from '@prisma/client';
+import type { LinkedAccount } from '@prisma/client';
 import { DuplicateAccountBehavior } from '../types';
 import { prisma } from '../utils/prisma';
 import encryptionService from './encryption.service';
@@ -19,7 +19,7 @@ class LinkedAccountService {
         where: {
           environment_id: linkedAccount.environment_id,
           integration_provider: linkedAccount.integration_provider,
-          credentials: encryptedLinkedAccount.credentials as Prisma.JsonFilter<'LinkedAccount'>,
+          credentials: encryptedLinkedAccount.credentials,
           deleted_at: null,
         },
       });
@@ -61,7 +61,6 @@ class LinkedAccountService {
       const newLinkedAccount = await prisma.linkedAccount.create({
         data: {
           ...encryptedLinkedAccount,
-          credentials: encryptedLinkedAccount.credentials || {},
           configuration: encryptedLinkedAccount.configuration || {},
           metadata: encryptedLinkedAccount.metadata || undefined,
         },

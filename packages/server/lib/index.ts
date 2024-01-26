@@ -18,7 +18,7 @@ import linkTokenRouter from './routes/linkToken.router';
 import linkedAccountRouter from './routes/linkedAccount.router';
 import providerRouter from './routes/provider.router';
 import userRouter from './routes/user.router';
-import { getServerPort, getWebsocketsPath, isCloud } from './utils/constants';
+import { getServerPort, getWebsocketsPath, isCloud, isProd } from './utils/constants';
 import { corsOptions } from './utils/cors';
 import { setupSelfHosted } from './utils/selfHosted';
 
@@ -32,6 +32,10 @@ function setupExpressApp() {
 
   app.set('view engine', 'ejs');
   app.set('views', path.join(__dirname, 'views'));
+
+  if (isProd()) {
+    app.set('trust proxy', true);
+  }
 
   app.use('/health', healthRouter);
   app.use('/users', userRouter);

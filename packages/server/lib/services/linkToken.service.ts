@@ -54,6 +54,17 @@ class LinkTokenService {
       return null;
     }
   }
+
+  public async deleteLinkToken(linkTokenId: string): Promise<LinkToken | null> {
+    try {
+      return await prisma.linkToken.delete({
+        where: { id: linkTokenId },
+      });
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
+    }
+  }
 }
 
 export default new LinkTokenService();

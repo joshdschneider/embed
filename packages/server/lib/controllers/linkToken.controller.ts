@@ -72,6 +72,9 @@ class LinkTokenController {
         language: language || null,
         redirect_url: redirect_url || null,
         metadata: metadata || null,
+        consent_given: false,
+        consent_ip: null,
+        consent_date: null,
         created_at: now(),
         updated_at: now(),
       });
@@ -286,7 +289,7 @@ class LinkTokenController {
   }
 
   private buildLinkTokenUrl(token: string, integration: string | null) {
-    return `${getServerUrl()}/link/${token}${integration ? `/${integration}` : ''}`;
+    return `${getServerUrl()}/link/${token}${integration ? `/i/${integration}` : ''}`;
   }
 
   private expiresInMinutes(expiresAt: number) {
