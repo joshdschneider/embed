@@ -75,6 +75,7 @@ class LinkTokenController {
         consent_given: false,
         consent_ip: null,
         consent_date: null,
+        configuration: null,
         created_at: now(),
         updated_at: now(),
       });

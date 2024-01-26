@@ -1,0 +1,17 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Api Key</title>
+  </head>
+  <body>
+    <main>
+      <form action="/link/<%= link_token %>/oauth" method="post">
+        <% configuration_fields.forEach((field) => { %>
+          <label for="<%= field.name %>"><%= field.label %></label>
+          <input type="text" id="<%= field.name %>" name="<%= field.name %>" /><br /><br />
+        <% }) %>
+        <input type="submit" value="Submit" />
+      </form>
+    </main>
+  </body>
+</html>

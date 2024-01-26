@@ -16,6 +16,7 @@ import integrationRouter from './routes/integration.router';
 import linkRouter from './routes/link.router';
 import linkTokenRouter from './routes/linkToken.router';
 import linkedAccountRouter from './routes/linkedAccount.router';
+import oauthRouter from './routes/oauth.router';
 import providerRouter from './routes/provider.router';
 import userRouter from './routes/user.router';
 import webhookRouter from './routes/webhook.router';
@@ -44,6 +45,7 @@ function setupExpressApp() {
   app.use('/api-keys', apiKeyRouter);
   app.use('/integrations', integrationRouter);
   app.use('/providers', providerRouter);
+  app.use('/oauth', oauthRouter);
   app.use('/link', linkRouter);
   app.use('/link-tokens', linkTokenRouter);
   app.use('/linked-accounts', linkedAccountRouter);

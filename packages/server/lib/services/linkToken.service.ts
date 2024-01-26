@@ -6,7 +6,11 @@ class LinkTokenService {
   public async createLinkToken(linkToken: LinkToken): Promise<LinkToken | null> {
     try {
       return await prisma.linkToken.create({
-        data: { ...linkToken, metadata: linkToken.metadata || undefined },
+        data: {
+          ...linkToken,
+          metadata: linkToken.metadata || undefined,
+          configuration: linkToken.configuration || undefined,
+        },
       });
     } catch (err) {
       await errorService.reportError(err);
@@ -47,7 +51,11 @@ class LinkTokenService {
           id: linkTokenId,
           environment_id: environmentId,
         },
-        data: { ...data, metadata: data.metadata || undefined },
+        data: {
+          ...data,
+          metadata: data.metadata || undefined,
+          configuration: data.configuration || undefined,
+        },
       });
     } catch (err) {
       await errorService.reportError(err);

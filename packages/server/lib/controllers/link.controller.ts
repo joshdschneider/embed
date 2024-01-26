@@ -7,8 +7,13 @@ import linkTokenService from '../services/linkToken.service';
 import linkedAccountService from '../services/linkedAccount.service';
 import providerService from '../services/provider.service';
 import { DEFAULT_ERROR_MESSAGE, getServerUrl } from '../utils/constants';
-import { Resource, generateId, now } from '../utils/helpers';
-import oauthController from './oauth.controller';
+import {
+  Resource,
+  extractConfigurationKeys,
+  formatKeyToReadableText,
+  generateId,
+  now,
+} from '../utils/helpers';
 
 class LinkController {
   public async listView(req: Request, res: Response) {
@@ -251,7 +256,35 @@ class LinkController {
         case AuthScheme.BASIC:
           return res.redirect(`${baseUrl}/basic`);
         case AuthScheme.NONE:
-          // upsert linked account
+          const response = await linkedAccountService.upsertLinkedAccount({
+            id: generateId(Resource.LinkedAccount),
+            environment_id: linkToken.environment_id,
+            integration_provider: integration.provider,
+            consent_given: linkToken.consent_given,
+            consent_ip: linkToken.consent_ip,
+            consent_date: linkToken.consent_date,
+            configuration: null,
+            credentials: JSON.stringify({ type: AuthScheme.NONE }),
+            credentials_iv: null,
+            credentials_tag: null,
+            metadata: null,
+            created_at: now(),
+            updated_at: now(),
+            deleted_at: null,
+          });
+
+          if (!response.success) {
+            return errorService.errorResponse(res, {
+              code: ErrorCode.InternalServerError,
+              message: DEFAULT_ERROR_MESSAGE,
+            });
+          }
+
+          if (response.action === 'updated') {
+            // TODO: sync index
+          }
+
+          await linkTokenService.deleteLinkToken(linkToken.id);
           return res.redirect(`${baseUrl}/finish`);
         default:
           throw new Error(
@@ -303,7 +336,110 @@ class LinkController {
         });
       }
 
-      return oauthController.authorize(req, res);
+      const providerSpec = await providerService.getProviderSpec(linkToken.integration_provider);
+
+      if (!providerSpec) {
+        throw new Error(`Provider specification not found for ${linkToken.integration_provider}`);
+      }
+
+      if (
+        providerSpec.auth.scheme !== AuthScheme.OAUTH2 &&
+        providerSpec.auth.scheme !== AuthScheme.OAUTH1
+      ) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.BadRequest,
+          message: 'Invalid auth scheme',
+        });
+      }
+
+      const authorizationUrlKeys = extractConfigurationKeys(providerSpec.auth.authorization_url);
+      const tokenUrlKeys = extractConfigurationKeys(providerSpec.auth.token_url);
+      const keys = [...new Set([...authorizationUrlKeys, ...tokenUrlKeys])];
+
+      if (keys.length > 0) {
+        return res.render('config', {
+          server_url: getServerUrl(),
+          link_token: token,
+          integration: {
+            provider: providerSpec.slug,
+            display_name: providerSpec.display_name,
+            logo_url: providerSpec.logo_url,
+          },
+          configuration_fields: keys.map((key) => ({
+            name: key,
+            label: formatKeyToReadableText(key),
+          })),
+        });
+      }
+
+      res.redirect(`${getServerUrl()}/oauth/authorize?token=${token}`);
+    } catch (err) {
+      await errorService.reportError(err);
+
+      return errorService.errorResponse(res, {
+        code: ErrorCode.InternalServerError,
+        message: DEFAULT_ERROR_MESSAGE,
+      });
+    }
+  }
+
+  public async upsertOauthConfig(req: Request, res: Response) {
+    const token = req.params['token'];
+    const config = req.body;
+
+    if (!token) {
+      return errorService.errorResponse(res, {
+        code: ErrorCode.BadRequest,
+        message: 'Invalid link token',
+      });
+    }
+
+    if (!config || typeof config !== 'object') {
+      return errorService.errorResponse(res, {
+        code: ErrorCode.BadRequest,
+        message: 'Invalid configuration',
+      });
+    }
+
+    try {
+      const linkToken = await linkTokenService.getLinkTokenById(token);
+
+      if (!linkToken) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.BadRequest,
+          message: 'Invalid link token',
+        });
+      } else if (linkToken.expires_at < now()) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.BadRequest,
+          message: 'Link token expired',
+        });
+      } else if (!linkToken.consent_given) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.BadRequest,
+          message: 'Consent not given',
+        });
+      } else if (!linkToken.integration_provider) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.BadRequest,
+          message: 'Missing integration provider',
+        });
+      }
+
+      const updatedLinkToken = await linkTokenService.updateLinkToken(
+        linkToken.id,
+        linkToken.environment_id,
+        { configuration: config }
+      );
+
+      if (!updatedLinkToken) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.InternalServerError,
+          message: DEFAULT_ERROR_MESSAGE,
+        });
+      }
+
+      res.redirect(`${getServerUrl()}/oauth/authorize?token=${token}`);
     } catch (err) {
       await errorService.reportError(err);
 

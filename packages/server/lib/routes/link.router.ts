@@ -13,6 +13,8 @@ linkRouter.route('/:token/i/:integration').post(linkController.saveConsent.bind(
 
 linkRouter.route('/:token/oauth').get(linkController.oauthView.bind(linkController));
 
+linkRouter.route('/:token/oauth').post(linkController.upsertOauthConfig.bind(linkController));
+
 linkRouter.route('/:token/api-key').get(linkController.apiKeyAuthView.bind(linkController));
 
 linkRouter.route('/:token/api-key').post(linkController.upsertApiKey.bind(linkController));
