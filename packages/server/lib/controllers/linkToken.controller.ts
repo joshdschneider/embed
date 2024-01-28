@@ -76,6 +76,9 @@ class LinkTokenController {
         consent_ip: null,
         consent_date: null,
         configuration: null,
+        code_verifier: null,
+        request_token_secret: null,
+        websocket_client_id: null,
         created_at: now(),
         updated_at: now(),
       });

@@ -9,6 +9,8 @@ datasource db {
 
 model Account {
   id                    String  @id
+  type                  String
+  name                  String?
   cloud_organization_id String?
 
   users        User[]
@@ -29,7 +31,7 @@ model User {
 }
 
 model Environment {
-  id                         String          @id
+  id                         String  @id
   account_id                 String
   type                       String
   enable_new_integrations    Boolean
@@ -37,11 +39,13 @@ model Environment {
   created_at                 Int
   updated_at                 Int?
   deleted_at                 Int?
-  api_keys                   ApiKey[]
-  integrations               Integration[]
-  linked_accounts            LinkedAccount[]
-  link_tokens                LinkToken[]
-  webhooks                   Webhook[]
+
+  api_keys        ApiKey[]
+  integrations    Integration[]
+  linked_accounts LinkedAccount[]
+  link_tokens     LinkToken[]
+  webhooks        Webhook[]
+  activities      Activity[]
 
   account Account @relation(fields: [account_id], references: [id])
 }
@@ -94,6 +98,8 @@ model LinkedAccount {
   updated_at           Int?
   deleted_at           Int?
 
+  activities Activity[]
+
   environment Environment @relation(fields: [environment_id], references: [id])
 }
 
@@ -109,8 +115,13 @@ model LinkToken {
   consent_ip           String?
   consent_date         Int?
   configuration        Json?
+  websocket_client_id  String?
+  code_verifier        String?
+  request_token_secret String?
   created_at           Int
   updated_at           Int?
+
+  activities Activity[]
 
   environment Environment @relation(fields: [environment_id], references: [id])
 }
@@ -129,4 +140,32 @@ model Webhook {
   deleted_at     Int?
 
   environment Environment @relation(fields: [environment_id], references: [id])
+}
+
+model Activity {
+  id                   String  @id
+  environment_id       String
+  integration_provider String?
+  linked_account_id    String?
+  link_token_id        String?
+  level                String
+  action               String
+  timestamp            Int
+
+  activity_logs ActivityLog[]
+
+  environment    Environment    @relation(fields: [environment_id], references: [id])
+  linked_account LinkedAccount? @relation(fields: [linked_account_id], references: [id])
+  link_token     LinkToken?     @relation(fields: [link_token_id], references: [id])
+}
+
+model ActivityLog {
+  id          String @id
+  activity_id String
+  level       String
+  message     String
+  payload     Json?
+  timestamp   Int
+
+  activity Activity @relation(fields: [activity_id], references: [id])
 }

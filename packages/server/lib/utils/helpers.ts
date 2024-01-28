@@ -26,6 +26,13 @@ export function interpolateString(str: string, replacers: Record<string, any>) {
     return typeof r === 'string' || typeof r === 'number' ? (r as string) : a;
   });
 }
+
+export function missesInterpolationParam(str: string, replacers: Record<string, any>) {
+  const strWithoutConfig = str.replace(/configuration\./g, '');
+  const interpolatedStr = interpolateString(strWithoutConfig, replacers);
+  return /\${([^{}]*)}/g.test(interpolatedStr);
+}
+
 export function closeWindow(res: Response) {
   const nonce = crypto.randomBytes(16).toString('base64');
   res.setHeader('Content-Security-Policy', `script-src 'nonce-${nonce}'`);
@@ -45,8 +52,8 @@ export enum Resource {
   Account = 'acc',
   ApiKey = 'key',
   Environment = 'env',
+  Activity = 'act',
   ActivityLog = 'log',
-  ActivityLogEntry = 'ent',
   LinkedAccount = 'link',
   LinkToken = 'tok',
   Webhook = 'web',

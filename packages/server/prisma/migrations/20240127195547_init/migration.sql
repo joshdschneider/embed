@@ -1,6 +1,8 @@
 -- CreateTable
 CREATE TABLE "Account" (
     "id" TEXT NOT NULL,
+    "type" TEXT NOT NULL,
+    "name" TEXT,
     "cloud_organization_id" TEXT,
 
     CONSTRAINT "Account_pkey" PRIMARY KEY ("id")
@@ -69,11 +71,14 @@ CREATE TABLE "LinkedAccount" (
     "id" TEXT NOT NULL,
     "environment_id" TEXT NOT NULL,
     "integration_provider" TEXT NOT NULL,
-    "credentials" JSONB NOT NULL,
+    "credentials" TEXT NOT NULL,
     "credentials_iv" TEXT,
     "credentials_tag" TEXT,
     "configuration" JSONB NOT NULL,
     "metadata" JSONB,
+    "consent_given" BOOLEAN NOT NULL DEFAULT false,
+    "consent_ip" TEXT,
+    "consent_date" INTEGER,
     "created_at" INTEGER NOT NULL,
     "updated_at" INTEGER,
     "deleted_at" INTEGER,
@@ -90,10 +95,31 @@ CREATE TABLE "LinkToken" (
     "language" TEXT,
     "redirect_url" TEXT,
     "metadata" JSONB,
+    "consent_given" BOOLEAN NOT NULL DEFAULT false,
+    "consent_ip" TEXT,
+    "consent_date" INTEGER,
+    "configuration" JSONB,
     "created_at" INTEGER NOT NULL,
     "updated_at" INTEGER,
 
     CONSTRAINT "LinkToken_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Webhook" (
+    "id" TEXT NOT NULL,
+    "environment_id" TEXT NOT NULL,
+    "url" TEXT NOT NULL,
+    "events" TEXT[],
+    "is_enabled" BOOLEAN NOT NULL,
+    "secret" TEXT NOT NULL,
+    "secret_iv" TEXT,
+    "secret_tag" TEXT,
+    "created_at" INTEGER NOT NULL,
+    "updated_at" INTEGER,
+    "deleted_at" INTEGER,
+
+    CONSTRAINT "Webhook_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
@@ -119,3 +145,6 @@ ALTER TABLE "LinkedAccount" ADD CONSTRAINT "LinkedAccount_environment_id_fkey" F
 
 -- AddForeignKey
 ALTER TABLE "LinkToken" ADD CONSTRAINT "LinkToken_environment_id_fkey" FOREIGN KEY ("environment_id") REFERENCES "Environment"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Webhook" ADD CONSTRAINT "Webhook_environment_id_fkey" FOREIGN KEY ("environment_id") REFERENCES "Environment"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

@@ -5,7 +5,7 @@ import environmentService from '../services/environment.service';
 import errorService, { ErrorCode } from '../services/error.service';
 import integrationService from '../services/integration.service';
 import userService from '../services/user.service';
-import { DuplicateAccountBehavior, EnvironmentType } from '../types';
+import { AccountType, DuplicateAccountBehavior, EnvironmentType } from '../types';
 import { DEFAULT_ERROR_MESSAGE } from '../utils/constants';
 import { Resource, generateId, generateSecretKey, now } from '../utils/helpers';
 
@@ -33,6 +33,8 @@ class UserController {
 
       const account = await accountService.createAccount({
         id: generateId(Resource.Account),
+        name: null,
+        type: AccountType.Personal,
         cloud_organization_id: cloud_organization_id || null,
       });
 
@@ -139,10 +141,13 @@ class UserController {
       return res.status(200).json({
         object: 'user',
         id: user.id,
-        account_id: user.account_id,
         email: user.email,
         first_name: user.first_name,
         last_name: user.last_name,
+        account: {
+          object: 'account',
+          ...user.account,
+        },
       });
     } catch (err) {
       await errorService.reportError(err);
