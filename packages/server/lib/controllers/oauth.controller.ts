@@ -1,4 +1,4 @@
-import { AuthScheme, OAuth1, OAuth2 } from '@beta/providers';
+import { AuthScheme, OAuth, OAuth1, OAuth2 } from '@beta/providers';
 import { Integration, LinkToken } from '@prisma/client';
 import crypto from 'crypto';
 import { Request, Response } from 'express';
@@ -9,11 +9,14 @@ import activityService from '../services/activity.service';
 import errorService, { ErrorCode } from '../services/error.service';
 import integrationService from '../services/integration.service';
 import linkTokenService from '../services/linkToken.service';
+import linkedAccountService from '../services/linkedAccount.service';
 import providerService from '../services/provider.service';
 import { LogLevel } from '../types';
-import { DEFAULT_ERROR_MESSAGE } from '../utils/constants';
+import { DEFAULT_ERROR_MESSAGE, getServerUrl } from '../utils/constants';
 import {
+  Resource,
   extractConfigurationKeys,
+  generateId,
   getOauthCallbackUrl,
   missesInterpolationParam,
   now,
@@ -463,7 +466,108 @@ class OAuthController {
       activityId: string | null;
     }
   ): Promise<void> {
-    //..
+    try {
+      const { code } = req.query;
+
+      if (!code || typeof code !== 'string') {
+        throw new Error('Invalid code parameter received from OAuth callback');
+      }
+
+      const callbackUrl = getOauthCallbackUrl();
+      const callbackMetadata = this.getMetadataFromOAuthCallback(req.query, authSpec);
+
+      const simpleOAuth2ClientConfig = getSimpleOAuth2ClientConfig(
+        integration,
+        authSpec,
+        linkToken.configuration as Record<string, string>
+      );
+
+      const authorizationCode = new SimpleOAuth2.AuthorizationCode(simpleOAuth2ClientConfig);
+
+      let tokenParams: Record<string, string> = {};
+      if (authSpec.token_params !== undefined) {
+        const clone = JSON.parse(JSON.stringify(authSpec.token_params));
+        tokenParams = clone;
+      }
+
+      if (!authSpec.disable_pkce) {
+        tokenParams['code_verifier'] = linkToken.code_verifier!;
+      }
+
+      const headers: Record<string, string> = {};
+      const client = {
+        id: integration.oauth_client_id!,
+        secret: integration.oauth_client_secret!,
+      };
+
+      if (!integration.use_client_credentials) {
+        client.id = 'todo: get default client id';
+        client.secret = 'todo: get default client secret';
+      }
+
+      if (authSpec.token_request_auth_method === 'basic') {
+        headers['Authorization'] =
+          'Basic ' + Buffer.from(client.id + ':' + client.secret).toString('base64');
+      }
+
+      const accessToken = await authorizationCode.getToken(
+        { code: code, redirect_uri: callbackUrl, ...tokenParams },
+        { headers }
+      );
+
+      const rawCredentials = accessToken.token;
+      const parsedCredentials = this.parseRawCredentials(rawCredentials, AuthScheme.OAUTH2);
+      const tokenMetadata = this.getMetadataFromOAuthToken(rawCredentials, authSpec);
+      const config = typeof linkToken.configuration === 'object' ? linkToken.configuration : {};
+
+      const response = await linkedAccountService.upsertLinkedAccount({
+        id: generateId(Resource.LinkedAccount),
+        environment_id: linkToken.environment_id,
+        integration_provider: integration.provider,
+        consent_given: linkToken.consent_given,
+        consent_ip: linkToken.consent_ip,
+        consent_date: linkToken.consent_date,
+        configuration: { ...config, ...tokenMetadata, ...callbackMetadata },
+        credentials: JSON.stringify(parsedCredentials),
+        credentials_iv: null,
+        credentials_tag: null,
+        metadata: null,
+        created_at: now(),
+        updated_at: now(),
+        deleted_at: null,
+      });
+
+      if (!response.success) {
+        throw new Error(`Failed to upsert linked account for link token ${linkToken.id}`);
+      }
+
+      await activityService.updateActivity(activityId, {
+        linked_account_id: response.linkedAccount.id,
+      });
+
+      await activityService.createActivityLog(activityId, {
+        timestamp: now(),
+        level: LogLevel.Info,
+        message: 'Linked account created with OAuth2 credentials',
+      });
+
+      await linkTokenService.deleteLinkToken(linkToken.id);
+
+      res.redirect(`${getServerUrl()}/link/finish`);
+    } catch (err) {
+      await errorService.reportError(err);
+
+      await activityService.createActivityLog(activityId, {
+        timestamp: now(),
+        level: LogLevel.Error,
+        message: 'Internal server error',
+      });
+
+      return res.render('error', {
+        code: ErrorCode.InternalServerError,
+        message: DEFAULT_ERROR_MESSAGE,
+      });
+    }
   }
 
   public async oauth1Callback(
@@ -481,7 +585,185 @@ class OAuthController {
       activityId: string | null;
     }
   ): Promise<void> {
-    //..
+    try {
+      const { oauth_token, oauth_verifier } = req.query;
+
+      const callbackUrl = getOauthCallbackUrl();
+      const callbackMetadata = this.getMetadataFromOAuthCallback(req.query, authSpec);
+
+      if (
+        !oauth_token ||
+        !oauth_verifier ||
+        typeof oauth_token !== 'string' ||
+        typeof oauth_verifier !== 'string'
+      ) {
+        throw new Error('Invalid OAuth1 token/verifier');
+      }
+
+      const oauthTokenSecret = linkToken.request_token_secret!;
+      const oauth1Client = new OAuth1Client({
+        integration,
+        specification: authSpec,
+        callbackUrl: '',
+      });
+
+      const accessTokenResult = await oauth1Client.getOAuthAccessToken({
+        oauthToken: oauth_token,
+        tokenSecret: oauthTokenSecret,
+        tokenVerifier: oauth_verifier,
+      });
+
+      const parsedCredentials = this.parseRawCredentials(accessTokenResult, AuthScheme.OAUTH1);
+      const config = typeof linkToken.configuration === 'object' ? linkToken.configuration : {};
+
+      const response = await linkedAccountService.upsertLinkedAccount({
+        id: generateId(Resource.LinkedAccount),
+        environment_id: linkToken.environment_id,
+        integration_provider: integration.provider,
+        consent_given: linkToken.consent_given,
+        consent_ip: linkToken.consent_ip,
+        consent_date: linkToken.consent_date,
+        configuration: { ...config, ...callbackMetadata },
+        credentials: JSON.stringify(parsedCredentials),
+        credentials_iv: null,
+        credentials_tag: null,
+        metadata: null,
+        created_at: now(),
+        updated_at: now(),
+        deleted_at: null,
+      });
+
+      if (!response.success) {
+        throw new Error(`Failed to upsert linked account for link token ${linkToken.id}`);
+      }
+
+      await activityService.updateActivity(activityId, {
+        linked_account_id: response.linkedAccount.id,
+      });
+
+      await activityService.createActivityLog(activityId, {
+        timestamp: now(),
+        level: LogLevel.Info,
+        message: 'Linked account created with OAuth1 credentials',
+      });
+
+      await linkTokenService.deleteLinkToken(linkToken.id);
+
+      res.redirect(`${getServerUrl()}/link/finish`);
+    } catch (err) {
+      await errorService.reportError(err);
+
+      await activityService.createActivityLog(activityId, {
+        timestamp: now(),
+        level: LogLevel.Error,
+        message: 'Internal server error',
+      });
+
+      return res.render('error', {
+        code: ErrorCode.InternalServerError,
+        message: DEFAULT_ERROR_MESSAGE,
+      });
+    }
+  }
+
+  private getMetadataFromOAuthCallback(queryParams: any, specification: OAuth) {
+    if (!queryParams || !specification.redirect_uri_metadata) {
+      return {};
+    }
+
+    const whitelistedKeys = specification.redirect_uri_metadata;
+    const arr = Object.entries(queryParams).filter(
+      ([k, v]) => typeof v === 'string' && whitelistedKeys.includes(k)
+    );
+
+    return arr != null && arr.length > 0 ? (Object.fromEntries(arr) as Record<string, string>) : {};
+  }
+
+  private getMetadataFromOAuthToken(queryParams: any, specification: OAuth): Record<string, any> {
+    if (!queryParams || !specification.token_response_metadata) {
+      return {};
+    }
+
+    const whitelistedKeys = specification.token_response_metadata;
+    const getValueFromDotNotation = (obj: any, key: string): any => {
+      return key.split('.').reduce((o, k) => (o && o[k] !== undefined ? o[k] : undefined), obj);
+    };
+
+    const arr = Object.entries(queryParams).filter(([k, v]) => {
+      const isStringValueOrBoolean = typeof v === 'string' || typeof v === 'boolean';
+      if (isStringValueOrBoolean && whitelistedKeys.includes(k)) {
+        return true;
+      }
+
+      const dotNotationValue = getValueFromDotNotation(queryParams, k);
+      return isStringValueOrBoolean && whitelistedKeys.includes(dotNotationValue);
+    });
+
+    const dotNotationArr = whitelistedKeys
+      .map((key) => {
+        const value = getValueFromDotNotation(queryParams, key);
+        const isStringValueOrBoolean = typeof value === 'string' || typeof value === 'boolean';
+        return isStringValueOrBoolean ? [key, value] : null;
+      })
+      .filter(Boolean);
+
+    const combinedArr: [string, any][] = [...arr, ...dotNotationArr].filter(
+      (item) => item !== null
+    ) as [string, any][];
+
+    return combinedArr.length > 0 ? (Object.fromEntries(combinedArr) as Record<string, any>) : {};
+  }
+
+  private parseRawCredentials(credentials: Record<string, any>, authScheme: AuthScheme) {
+    if (authScheme === AuthScheme.OAUTH2) {
+      if (!credentials['access_token']) {
+        throw new Error(`Incomplete raw credentials`);
+      }
+
+      let expiresAt: Date | undefined;
+      if (credentials['expires_at']) {
+        expiresAt = this.parseTokenExpiration(credentials['expires_at']);
+      } else if (credentials['expires_in']) {
+        expiresAt = new Date(Date.now() + Number.parseInt(credentials['expires_in'], 10) * 1000);
+      }
+
+      const oauth2Credentials = {
+        type: AuthScheme.OAUTH2,
+        access_token: credentials['access_token'],
+        refresh_token: credentials['refresh_token'],
+        expires_at: expiresAt,
+        raw: credentials,
+      };
+
+      return oauth2Credentials;
+    } else if (authScheme === AuthScheme.OAUTH1) {
+      if (!credentials['oauth_token'] || !credentials['oauth_token_secret']) {
+        throw new Error(`incomplete_raw_credentials`);
+      }
+
+      const oauth1Credentials = {
+        type: AuthScheme.OAUTH1,
+        oauth_token: credentials['oauth_token'],
+        oauth_token_secret: credentials['oauth_token_secret'],
+        raw: credentials,
+      };
+
+      return oauth1Credentials;
+    } else {
+      throw new Error('Failed to parse OAuth credentials');
+    }
+  }
+
+  private parseTokenExpiration(expirationDate: any): Date {
+    if (expirationDate instanceof Date) {
+      return expirationDate;
+    }
+
+    if (typeof expirationDate === 'number') {
+      return new Date(expirationDate * 1000);
+    }
+
+    return new Date(expirationDate);
   }
 }
 
