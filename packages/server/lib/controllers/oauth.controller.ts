@@ -41,12 +41,6 @@ class OAuthController {
 
     const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
 
-    await activityService.createActivityLog(activityId, {
-      timestamp: now(),
-      level: LogLevel.Info,
-      message: 'Initiating OAuth authorization flow',
-    });
-
     try {
       if (linkToken.expires_at < now()) {
         const errorMessage = 'Link token expired';
@@ -75,17 +69,15 @@ class OAuthController {
           message: errorMessage,
         });
       } else if (!linkToken.integration_provider) {
-        const errorMessage = 'Please choose an integration';
-
         await activityService.createActivityLog(activityId, {
           timestamp: now(),
           level: LogLevel.Error,
-          message: errorMessage,
+          message: 'Integration provider missing from link token',
         });
 
         return res.render('error', {
           code: ErrorCode.BadRequest,
-          message: errorMessage,
+          message: 'Please choose an integration',
         });
       }
 
@@ -114,6 +106,12 @@ class OAuthController {
       if (!provider) {
         throw new Error('Failed to retrieve provider specification');
       }
+
+      await activityService.createActivityLog(activityId, {
+        timestamp: now(),
+        level: LogLevel.Info,
+        message: `Initiating OAuth authorization flow for ${provider.display_name}`,
+      });
 
       const updatedLinkToken = await linkTokenService.updateLinkToken(
         linkToken.id,
@@ -185,7 +183,7 @@ class OAuthController {
           await activityService.createActivityLog(activityId, {
             timestamp: now(),
             level: LogLevel.Error,
-            message: 'OAuth client credentials missing',
+            message: `OAuth client credentials missing for ${integration.provider}`,
           });
 
           return res.render('error', {
@@ -212,7 +210,12 @@ class OAuthController {
           await activityService.createActivityLog(activityId, {
             timestamp: now(),
             level: LogLevel.Error,
-            message: 'Missing configuration parameters',
+            message: 'Missing configuration fields',
+            payload: {
+              authorization_url: authSpec.authorization_url,
+              token_url: authSpec.token_url,
+              configuration: linkToken.configuration,
+            },
           });
 
           return res.render('error', {
@@ -265,6 +268,13 @@ class OAuthController {
           ...authParams,
         });
 
+        await activityService.createActivityLog(activityId, {
+          timestamp: now(),
+          level: LogLevel.Info,
+          message: `Redirecting to ${integration.provider} OAuth authorization URL`,
+          payload: { authorization_url: authorizationUri },
+        });
+
         res.redirect(authorizationUri);
       } else {
         throw new Error(`Unsupported grant type: ${authSpec.token_params.grant_type}`);
@@ -301,10 +311,7 @@ class OAuthController {
   ) {
     try {
       const callbackUrl = getOauthCallbackUrl();
-      const callbackParams = new URLSearchParams({
-        state: linkToken.id,
-      });
-
+      const callbackParams = new URLSearchParams({ state: linkToken.id });
       const oauth1CallbackURL = `${callbackUrl}?${callbackParams.toString()}`;
 
       const oauth1Client = new OAuth1Client({
@@ -330,6 +337,13 @@ class OAuthController {
 
       const redirectUrl = oauth1Client.getAuthorizationURL(requestToken);
 
+      await activityService.createActivityLog(activityId, {
+        timestamp: now(),
+        level: LogLevel.Info,
+        message: `Redirecting to ${integration.provider} OAuth authorization URL`,
+        payload: { authorization_url: redirectUrl },
+      });
+
       return res.redirect(redirectUrl);
     } catch (err) {
       await errorService.reportError(err);
@@ -351,7 +365,7 @@ class OAuthController {
     const { state } = req.query;
 
     if (!state || typeof state !== 'string') {
-      const err = new Error('Invalid state parameter');
+      const err = new Error('Invalid state parameter received from OAuth callback');
       await errorService.reportError(err);
 
       return res.render('error', {
@@ -363,7 +377,7 @@ class OAuthController {
     const linkToken = await linkTokenService.getLinkTokenById(state);
 
     if (!linkToken) {
-      const err = new Error('Failed to retrieve link token');
+      const err = new Error('Failed to retrieve link token from OAuth callback');
       await errorService.reportError(err);
 
       return res.render('error', {
@@ -373,12 +387,6 @@ class OAuthController {
     }
 
     const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
-
-    await activityService.createActivityLog(activityId, {
-      timestamp: now(),
-      level: LogLevel.Info,
-      message: 'Callback received from OAuth provider',
-    });
 
     try {
       if (!linkToken.integration_provider) {
@@ -399,6 +407,12 @@ class OAuthController {
       if (!provider) {
         throw new Error('Failed to retrieve provider specification');
       }
+
+      await activityService.createActivityLog(activityId, {
+        timestamp: now(),
+        level: LogLevel.Info,
+        message: `OAuth callback received from ${provider.display_name}`,
+      });
 
       const authSpec = provider.auth;
       if (authSpec.scheme === AuthScheme.OAUTH2) {

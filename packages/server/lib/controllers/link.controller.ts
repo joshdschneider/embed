@@ -1,11 +1,13 @@
 import { AuthScheme, ProviderSpecification } from '@beta/providers';
 import { Integration } from '@prisma/client';
 import { Request, Response } from 'express';
+import activityService from '../services/activity.service';
 import errorService, { ErrorCode } from '../services/error.service';
 import integrationService from '../services/integration.service';
 import linkTokenService from '../services/linkToken.service';
 import linkedAccountService from '../services/linkedAccount.service';
 import providerService from '../services/provider.service';
+import { LogLevel } from '../types';
 import { DEFAULT_ERROR_MESSAGE, getServerUrl } from '../utils/constants';
 import {
   Resource,
@@ -20,36 +22,49 @@ class LinkController {
     const token = req.params['token'];
 
     if (!token) {
-      return errorService.errorResponse(res, {
+      return res.render('error', {
         code: ErrorCode.BadRequest,
         message: 'Invalid link token',
       });
     }
 
+    const linkToken = await linkTokenService.getLinkTokenById(token);
+
+    if (!linkToken) {
+      return res.render('error', {
+        code: ErrorCode.BadRequest,
+        message: 'Invalid link token',
+      });
+    }
+
+    const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
+
+    await activityService.createActivityLog(activityId, {
+      timestamp: now(),
+      level: LogLevel.Info,
+      message: `User viewed select integration screen`,
+    });
+
     try {
-      const linkToken = await linkTokenService.getLinkTokenById(token);
-
-      if (!linkToken) {
-        return errorService.errorResponse(res, {
-          code: ErrorCode.BadRequest,
-          message: 'Invalid link token',
-        });
-      }
-
       if (linkToken.expires_at < now()) {
-        return errorService.errorResponse(res, {
+        const errorMessage = 'Link token expired';
+
+        await activityService.createActivityLog(activityId, {
+          timestamp: now(),
+          level: LogLevel.Error,
+          message: errorMessage,
+        });
+
+        return res.render('error', {
           code: ErrorCode.BadRequest,
-          message: 'Link token expired',
+          message: errorMessage,
         });
       }
 
       const integrations = await integrationService.listIntegrations(linkToken.environment_id);
 
       if (!integrations) {
-        return errorService.errorResponse(res, {
-          code: ErrorCode.InternalServerError,
-          message: DEFAULT_ERROR_MESSAGE,
-        });
+        throw new Error(`Failed to list integrations for environment ${linkToken.environment_id}`);
       }
 
       const enabledIntegrations = integrations.filter((integration) => integration.is_enabled);
@@ -57,10 +72,12 @@ class LinkController {
       const integrationsWithSpec = await Promise.all(
         enabledIntegrations.map(async (integration) => {
           const providerSpec = await providerService.getProviderSpec(integration.provider);
+
           if (!providerSpec) {
             const err = new Error(`Provider specification not found for ${integration.provider}`);
             await errorService.reportError(err);
           }
+
           return { ...integration, provider_spec: providerSpec };
         })
       );
@@ -85,7 +102,13 @@ class LinkController {
     } catch (err) {
       await errorService.reportError(err);
 
-      return errorService.errorResponse(res, {
+      await activityService.createActivityLog(activityId, {
+        timestamp: now(),
+        level: LogLevel.Error,
+        message: 'Internal server error',
+      });
+
+      return res.render('error', {
         code: ErrorCode.InternalServerError,
         message: DEFAULT_ERROR_MESSAGE,
       });
@@ -97,33 +120,55 @@ class LinkController {
     const integrationProvider = req.params['integration'];
 
     if (!token) {
-      return errorService.errorResponse(res, {
+      return res.render('error', {
         code: ErrorCode.BadRequest,
         message: 'Invalid link token',
       });
     }
 
-    if (!integrationProvider) {
-      return errorService.errorResponse(res, {
+    const linkToken = await linkTokenService.getLinkTokenById(token);
+
+    if (!linkToken) {
+      return res.render('error', {
         code: ErrorCode.BadRequest,
-        message: 'Missing integration provider',
+        message: 'Invalid link token',
       });
     }
 
-    try {
-      const linkToken = await linkTokenService.getLinkTokenById(token);
+    const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
 
-      if (!linkToken) {
-        return errorService.errorResponse(res, {
+    await activityService.createActivityLog(activityId, {
+      timestamp: now(),
+      level: LogLevel.Info,
+      message: `User viewed consent screen`,
+    });
+
+    try {
+      if (!integrationProvider) {
+        await activityService.createActivityLog(activityId, {
+          timestamp: now(),
+          level: LogLevel.Error,
+          message: 'Integration provider not selected',
+        });
+
+        return res.render('error', {
           code: ErrorCode.BadRequest,
-          message: 'Invalid link token',
+          message: 'Please select an integration',
         });
       }
 
       if (linkToken.expires_at < now()) {
-        return errorService.errorResponse(res, {
+        const errorMessage = 'Link token expired';
+
+        await activityService.createActivityLog(activityId, {
+          timestamp: now(),
+          level: LogLevel.Error,
+          message: errorMessage,
+        });
+
+        return res.render('error', {
           code: ErrorCode.BadRequest,
-          message: 'Link token expired',
+          message: errorMessage,
         });
       }
 
@@ -133,14 +178,19 @@ class LinkController {
       );
 
       if (!integration) {
-        return errorService.errorResponse(res, {
-          code: ErrorCode.BadRequest,
-          message: 'Invalid integration',
-        });
+        throw new Error(`Failed to retrieve integration ${integrationProvider}`);
       } else if (!integration.is_enabled) {
-        return errorService.errorResponse(res, {
+        const errorMessage = 'Integration is disabled';
+
+        await activityService.createActivityLog(activityId, {
+          timestamp: now(),
+          level: LogLevel.Error,
+          message: errorMessage,
+        });
+
+        return res.render('error', {
           code: ErrorCode.BadRequest,
-          message: 'Integration is disabled',
+          message: errorMessage,
         });
       }
 
@@ -163,7 +213,13 @@ class LinkController {
     } catch (err) {
       await errorService.reportError(err);
 
-      return errorService.errorResponse(res, {
+      await activityService.createActivityLog(activityId, {
+        timestamp: now(),
+        level: LogLevel.Error,
+        message: 'Internal server error',
+      });
+
+      return res.render('error', {
         code: ErrorCode.InternalServerError,
         message: DEFAULT_ERROR_MESSAGE,
       });
@@ -175,31 +231,49 @@ class LinkController {
     const provider = req.params['integration'];
 
     if (!token) {
-      return errorService.errorResponse(res, {
+      return res.render('error', {
         code: ErrorCode.BadRequest,
         message: 'Invalid link token',
       });
     }
 
-    if (!provider) {
-      return errorService.errorResponse(res, {
+    const linkToken = await linkTokenService.getLinkTokenById(token);
+
+    if (!linkToken) {
+      return res.render('error', {
         code: ErrorCode.BadRequest,
-        message: 'Missing integration provider',
+        message: 'Invalid link token',
       });
     }
 
-    try {
-      const linkToken = await linkTokenService.getLinkTokenById(token);
+    const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
 
-      if (!linkToken) {
-        return errorService.errorResponse(res, {
-          code: ErrorCode.BadRequest,
-          message: 'Invalid link token',
+    try {
+      if (!provider) {
+        await activityService.createActivityLog(activityId, {
+          timestamp: now(),
+          level: LogLevel.Error,
+          message: 'Integration provider not received in consent request',
         });
-      } else if (linkToken.expires_at < now()) {
-        return errorService.errorResponse(res, {
+
+        return res.render('error', {
           code: ErrorCode.BadRequest,
-          message: 'Link token expired',
+          message: DEFAULT_ERROR_MESSAGE,
+        });
+      }
+
+      if (linkToken.expires_at < now()) {
+        const errorMessage = 'Link token expired';
+
+        await activityService.createActivityLog(activityId, {
+          timestamp: now(),
+          level: LogLevel.Error,
+          message: errorMessage,
+        });
+
+        return res.render('error', {
+          code: ErrorCode.BadRequest,
+          message: errorMessage,
         });
       }
 
@@ -209,14 +283,19 @@ class LinkController {
       );
 
       if (!integration) {
-        return errorService.errorResponse(res, {
-          code: ErrorCode.BadRequest,
-          message: 'Invalid integration',
-        });
+        throw new Error(`Failed to retrieve integration ${provider}`);
       } else if (!integration.is_enabled) {
-        return errorService.errorResponse(res, {
+        const errorMessage = 'Integration is disabled';
+
+        await activityService.createActivityLog(activityId, {
+          timestamp: now(),
+          level: LogLevel.Error,
+          message: errorMessage,
+        });
+
+        return res.render('error', {
           code: ErrorCode.BadRequest,
-          message: 'Integration is disabled',
+          message: errorMessage,
         });
       }
 
@@ -232,11 +311,12 @@ class LinkController {
       );
 
       if (!updatedLinkToken) {
-        return errorService.errorResponse(res, {
-          code: ErrorCode.InternalServerError,
-          message: DEFAULT_ERROR_MESSAGE,
-        });
+        throw new Error(`Failed to update link token ${linkToken.id}`);
       }
+
+      await activityService.updateActivity(activityId, {
+        integration_provider: integration.provider,
+      });
 
       const providerSpec = await providerService.getProviderSpec(integration.provider);
 
@@ -250,12 +330,42 @@ class LinkController {
       switch (authScheme) {
         case AuthScheme.OAUTH1:
         case AuthScheme.OAUTH2:
-          return res.redirect(`${baseUrl}/oauth`);
+          const oauthUrl = `${baseUrl}/oauth`;
+
+          await activityService.createActivityLog(activityId, {
+            timestamp: now(),
+            level: LogLevel.Info,
+            message: `User consent received; Redirecting to ${oauthUrl}`,
+          });
+
+          return res.redirect(oauthUrl);
         case AuthScheme.API_KEY:
-          return res.redirect(`${baseUrl}/api-key`);
+          const apiKeyUrl = `${baseUrl}/api-key`;
+
+          await activityService.createActivityLog(activityId, {
+            timestamp: now(),
+            level: LogLevel.Info,
+            message: `User consent received; Redirecting to ${apiKeyUrl}`,
+          });
+
+          return res.redirect(apiKeyUrl);
         case AuthScheme.BASIC:
-          return res.redirect(`${baseUrl}/basic`);
+          const basicUrl = `${baseUrl}/basic`;
+
+          await activityService.createActivityLog(activityId, {
+            timestamp: now(),
+            level: LogLevel.Info,
+            message: `User consent received; Redirecting to ${basicUrl}`,
+          });
+
+          return res.redirect(basicUrl);
         case AuthScheme.NONE:
+          await activityService.createActivityLog(activityId, {
+            timestamp: now(),
+            level: LogLevel.Info,
+            message: `User consent received; Upserting linked account without credentials`,
+          });
+
           const response = await linkedAccountService.upsertLinkedAccount({
             id: generateId(Resource.LinkedAccount),
             environment_id: linkToken.environment_id,
@@ -274,17 +384,21 @@ class LinkController {
           });
 
           if (!response.success) {
-            return errorService.errorResponse(res, {
-              code: ErrorCode.InternalServerError,
-              message: DEFAULT_ERROR_MESSAGE,
-            });
+            throw new Error(`Failed to upsert linked account for ${integration.provider}`);
           }
 
-          if (response.action === 'updated') {
-            // TODO: sync index
-          }
+          await activityService.updateActivity(activityId, {
+            linked_account_id: response.linkedAccount.id,
+          });
+
+          await activityService.createActivityLog(activityId, {
+            timestamp: now(),
+            level: LogLevel.Info,
+            message: 'Linked account created without credentials',
+          });
 
           await linkTokenService.deleteLinkToken(linkToken.id);
+
           return res.redirect(`${baseUrl}/finish`);
         default:
           throw new Error(
@@ -294,7 +408,13 @@ class LinkController {
     } catch (err) {
       await errorService.reportError(err);
 
-      return errorService.errorResponse(res, {
+      await activityService.createActivityLog(activityId, {
+        timestamp: now(),
+        level: LogLevel.Error,
+        message: 'Internal server error',
+      });
+
+      return res.render('error', {
         code: ErrorCode.InternalServerError,
         message: DEFAULT_ERROR_MESSAGE,
       });
@@ -305,34 +425,60 @@ class LinkController {
     const token = req.params['token'];
 
     if (!token) {
-      return errorService.errorResponse(res, {
+      return res.render('error', {
         code: ErrorCode.BadRequest,
         message: 'Invalid link token',
       });
     }
 
-    try {
-      const linkToken = await linkTokenService.getLinkTokenById(token);
+    const linkToken = await linkTokenService.getLinkTokenById(token);
 
-      if (!linkToken) {
-        return errorService.errorResponse(res, {
-          code: ErrorCode.BadRequest,
-          message: 'Invalid link token',
+    if (!linkToken) {
+      return res.render('error', {
+        code: ErrorCode.BadRequest,
+        message: 'Invalid link token',
+      });
+    }
+
+    const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
+
+    try {
+      if (linkToken.expires_at < now()) {
+        const errorMessage = 'Link token expired';
+
+        await activityService.createActivityLog(activityId, {
+          timestamp: now(),
+          level: LogLevel.Error,
+          message: errorMessage,
         });
-      } else if (linkToken.expires_at < now()) {
-        return errorService.errorResponse(res, {
+
+        return res.render('error', {
           code: ErrorCode.BadRequest,
-          message: 'Link token expired',
+          message: errorMessage,
         });
       } else if (!linkToken.consent_given) {
-        return errorService.errorResponse(res, {
+        const errorMessage = 'Consent bypassed';
+
+        await activityService.createActivityLog(activityId, {
+          timestamp: now(),
+          level: LogLevel.Error,
+          message: errorMessage,
+        });
+
+        return res.render('error', {
           code: ErrorCode.BadRequest,
-          message: 'Consent not given',
+          message: errorMessage,
         });
       } else if (!linkToken.integration_provider) {
-        return errorService.errorResponse(res, {
+        await activityService.createActivityLog(activityId, {
+          timestamp: now(),
+          level: LogLevel.Error,
+          message: 'Integration provider missing from link token',
+        });
+
+        return res.render('error', {
           code: ErrorCode.BadRequest,
-          message: 'Missing integration provider',
+          message: 'Please choose an integration',
         });
       }
 
@@ -346,10 +492,7 @@ class LinkController {
         providerSpec.auth.scheme !== AuthScheme.OAUTH2 &&
         providerSpec.auth.scheme !== AuthScheme.OAUTH1
       ) {
-        return errorService.errorResponse(res, {
-          code: ErrorCode.BadRequest,
-          message: 'Invalid auth scheme',
-        });
+        throw new Error(`Invalid auth scheme ${providerSpec.auth.scheme} for ${providerSpec.slug}`);
       }
 
       const authorizationUrlKeys = extractConfigurationKeys(providerSpec.auth.authorization_url);
@@ -357,6 +500,13 @@ class LinkController {
       const keys = [...new Set([...authorizationUrlKeys, ...tokenUrlKeys])];
 
       if (keys.length > 0) {
+        await activityService.createActivityLog(activityId, {
+          timestamp: now(),
+          level: LogLevel.Info,
+          message: `Collecting required fields for ${providerSpec.display_name} OAuth from user`,
+          payload: { configuration_fields: keys },
+        });
+
         return res.render('config', {
           server_url: getServerUrl(),
           link_token: token,
@@ -376,7 +526,13 @@ class LinkController {
     } catch (err) {
       await errorService.reportError(err);
 
-      return errorService.errorResponse(res, {
+      await activityService.createActivityLog(activityId, {
+        timestamp: now(),
+        level: LogLevel.Error,
+        message: 'Internal server error',
+      });
+
+      return res.render('error', {
         code: ErrorCode.InternalServerError,
         message: DEFAULT_ERROR_MESSAGE,
       });
@@ -388,41 +544,73 @@ class LinkController {
     const config = req.body;
 
     if (!token) {
-      return errorService.errorResponse(res, {
+      return res.render('error', {
         code: ErrorCode.BadRequest,
         message: 'Invalid link token',
       });
     }
 
-    if (!config || typeof config !== 'object') {
-      return errorService.errorResponse(res, {
+    const linkToken = await linkTokenService.getLinkTokenById(token);
+
+    if (!linkToken) {
+      return res.render('error', {
         code: ErrorCode.BadRequest,
-        message: 'Invalid configuration',
+        message: 'Invalid link token',
       });
     }
 
-    try {
-      const linkToken = await linkTokenService.getLinkTokenById(token);
+    const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
 
-      if (!linkToken) {
-        return errorService.errorResponse(res, {
-          code: ErrorCode.BadRequest,
-          message: 'Invalid link token',
+    try {
+      if (!config || typeof config !== 'object') {
+        await activityService.createActivityLog(activityId, {
+          timestamp: now(),
+          level: LogLevel.Error,
+          message: 'Configuration missing or invalid',
         });
-      } else if (linkToken.expires_at < now()) {
-        return errorService.errorResponse(res, {
+
+        return res.render('error', {
           code: ErrorCode.BadRequest,
-          message: 'Link token expired',
+          message: 'Input missing or invalid',
+        });
+      }
+
+      if (linkToken.expires_at < now()) {
+        const errorMessage = 'Link token expired';
+
+        await activityService.createActivityLog(activityId, {
+          timestamp: now(),
+          level: LogLevel.Error,
+          message: errorMessage,
+        });
+
+        return res.render('error', {
+          code: ErrorCode.BadRequest,
+          message: errorMessage,
         });
       } else if (!linkToken.consent_given) {
-        return errorService.errorResponse(res, {
+        const errorMessage = 'Consent bypassed';
+
+        await activityService.createActivityLog(activityId, {
+          timestamp: now(),
+          level: LogLevel.Error,
+          message: errorMessage,
+        });
+
+        return res.render('error', {
           code: ErrorCode.BadRequest,
-          message: 'Consent not given',
+          message: errorMessage,
         });
       } else if (!linkToken.integration_provider) {
-        return errorService.errorResponse(res, {
+        await activityService.createActivityLog(activityId, {
+          timestamp: now(),
+          level: LogLevel.Error,
+          message: 'Integration provider missing from link token',
+        });
+
+        return res.render('error', {
           code: ErrorCode.BadRequest,
-          message: 'Missing integration provider',
+          message: 'Please choose an integration',
         });
       }
 
@@ -433,17 +621,27 @@ class LinkController {
       );
 
       if (!updatedLinkToken) {
-        return errorService.errorResponse(res, {
-          code: ErrorCode.InternalServerError,
-          message: DEFAULT_ERROR_MESSAGE,
-        });
+        throw new Error(`Failed to update link token ${linkToken.id}`);
       }
+
+      await activityService.createActivityLog(activityId, {
+        timestamp: now(),
+        level: LogLevel.Info,
+        message: 'Configuration received from user',
+        payload: { configuration: config },
+      });
 
       res.redirect(`${getServerUrl()}/oauth/authorize?token=${token}`);
     } catch (err) {
       await errorService.reportError(err);
 
-      return errorService.errorResponse(res, {
+      await activityService.createActivityLog(activityId, {
+        timestamp: now(),
+        level: LogLevel.Error,
+        message: 'Internal server error',
+      });
+
+      return res.render('error', {
         code: ErrorCode.InternalServerError,
         message: DEFAULT_ERROR_MESSAGE,
       });
@@ -454,34 +652,66 @@ class LinkController {
     const token = req.params['token'];
 
     if (!token) {
-      return errorService.errorResponse(res, {
+      return res.render('error', {
         code: ErrorCode.BadRequest,
         message: 'Invalid link token',
       });
     }
 
-    try {
-      const linkToken = await linkTokenService.getLinkTokenById(token);
+    const linkToken = await linkTokenService.getLinkTokenById(token);
 
-      if (!linkToken) {
-        return errorService.errorResponse(res, {
-          code: ErrorCode.BadRequest,
-          message: 'Invalid link token',
+    if (!linkToken) {
+      return res.render('error', {
+        code: ErrorCode.BadRequest,
+        message: 'Invalid link token',
+      });
+    }
+
+    const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
+
+    await activityService.createActivityLog(activityId, {
+      timestamp: now(),
+      level: LogLevel.Info,
+      message: `User viewed API key input screen`,
+    });
+
+    try {
+      if (linkToken.expires_at < now()) {
+        const errorMessage = 'Link token expired';
+
+        await activityService.createActivityLog(activityId, {
+          timestamp: now(),
+          level: LogLevel.Error,
+          message: errorMessage,
         });
-      } else if (linkToken.expires_at < now()) {
-        return errorService.errorResponse(res, {
+
+        return res.render('error', {
           code: ErrorCode.BadRequest,
-          message: 'Link token expired',
+          message: errorMessage,
         });
       } else if (!linkToken.consent_given) {
-        return errorService.errorResponse(res, {
+        const errorMessage = 'Consent bypassed';
+
+        await activityService.createActivityLog(activityId, {
+          timestamp: now(),
+          level: LogLevel.Error,
+          message: errorMessage,
+        });
+
+        return res.render('error', {
           code: ErrorCode.BadRequest,
-          message: 'Consent not given',
+          message: errorMessage,
         });
       } else if (!linkToken.integration_provider) {
-        return errorService.errorResponse(res, {
+        await activityService.createActivityLog(activityId, {
+          timestamp: now(),
+          level: LogLevel.Error,
+          message: 'Integration provider missing from link token',
+        });
+
+        return res.render('error', {
           code: ErrorCode.BadRequest,
-          message: 'Missing integration provider',
+          message: 'Please choose an integration',
         });
       }
 
@@ -495,7 +725,13 @@ class LinkController {
     } catch (err) {
       await errorService.reportError(err);
 
-      return errorService.errorResponse(res, {
+      await activityService.createActivityLog(activityId, {
+        timestamp: now(),
+        level: LogLevel.Error,
+        message: 'Internal server error',
+      });
+
+      return res.render('error', {
         code: ErrorCode.InternalServerError,
         message: DEFAULT_ERROR_MESSAGE,
       });
@@ -507,41 +743,75 @@ class LinkController {
     const apiKey = req.body['key'];
 
     if (!token) {
-      return errorService.errorResponse(res, {
+      return res.render('error', {
         code: ErrorCode.BadRequest,
         message: 'Invalid link token',
       });
     }
 
-    if (!apiKey || typeof apiKey !== 'string') {
-      return errorService.errorResponse(res, {
+    const linkToken = await linkTokenService.getLinkTokenById(token);
+
+    if (!linkToken) {
+      return res.render('error', {
         code: ErrorCode.BadRequest,
-        message: 'Invalid API key',
+        message: 'Invalid link token',
       });
     }
 
-    try {
-      const linkToken = await linkTokenService.getLinkTokenById(token);
+    const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
 
-      if (!linkToken) {
-        return errorService.errorResponse(res, {
-          code: ErrorCode.BadRequest,
-          message: 'Invalid link token',
+    try {
+      if (!apiKey || typeof apiKey !== 'string') {
+        const errorMessage = 'API key missing or invalid';
+
+        await activityService.createActivityLog(activityId, {
+          timestamp: now(),
+          level: LogLevel.Error,
+          message: errorMessage,
         });
-      } else if (linkToken.expires_at < now()) {
-        return errorService.errorResponse(res, {
+
+        return res.render('error', {
           code: ErrorCode.BadRequest,
-          message: 'Link token expired',
+          message: errorMessage,
+        });
+      }
+
+      if (linkToken.expires_at < now()) {
+        const errorMessage = 'Link token expired';
+
+        await activityService.createActivityLog(activityId, {
+          timestamp: now(),
+          level: LogLevel.Error,
+          message: errorMessage,
+        });
+
+        return res.render('error', {
+          code: ErrorCode.BadRequest,
+          message: errorMessage,
         });
       } else if (!linkToken.consent_given) {
-        return errorService.errorResponse(res, {
+        const errorMessage = 'Consent bypassed';
+
+        await activityService.createActivityLog(activityId, {
+          timestamp: now(),
+          level: LogLevel.Error,
+          message: errorMessage,
+        });
+
+        return res.render('error', {
           code: ErrorCode.BadRequest,
-          message: 'Consent not given',
+          message: errorMessage,
         });
       } else if (!linkToken.integration_provider) {
-        return errorService.errorResponse(res, {
+        await activityService.createActivityLog(activityId, {
+          timestamp: now(),
+          level: LogLevel.Error,
+          message: 'Integration provider missing from link token',
+        });
+
+        return res.render('error', {
           code: ErrorCode.BadRequest,
-          message: 'Missing integration provider',
+          message: 'Please choose an integration',
         });
       }
 
@@ -563,15 +833,18 @@ class LinkController {
       });
 
       if (!response.success) {
-        return errorService.errorResponse(res, {
-          code: ErrorCode.InternalServerError,
-          message: DEFAULT_ERROR_MESSAGE,
-        });
+        throw new Error(`Failed to upsert linked account for link token ${linkToken.id}`);
       }
 
-      if (response.action === 'updated') {
-        // TODO: sync index
-      }
+      await activityService.updateActivity(activityId, {
+        linked_account_id: response.linkedAccount.id,
+      });
+
+      await activityService.createActivityLog(activityId, {
+        timestamp: now(),
+        level: LogLevel.Info,
+        message: 'Linked account created with API key credentials',
+      });
 
       await linkTokenService.deleteLinkToken(linkToken.id);
 
@@ -579,7 +852,13 @@ class LinkController {
     } catch (err) {
       await errorService.reportError(err);
 
-      return errorService.errorResponse(res, {
+      await activityService.createActivityLog(activityId, {
+        timestamp: now(),
+        level: LogLevel.Error,
+        message: 'Internal server error',
+      });
+
+      return res.render('error', {
         code: ErrorCode.InternalServerError,
         message: DEFAULT_ERROR_MESSAGE,
       });
@@ -590,34 +869,66 @@ class LinkController {
     const token = req.params['token'];
 
     if (!token) {
-      return errorService.errorResponse(res, {
+      return res.render('error', {
         code: ErrorCode.BadRequest,
         message: 'Invalid link token',
       });
     }
 
-    try {
-      const linkToken = await linkTokenService.getLinkTokenById(token);
+    const linkToken = await linkTokenService.getLinkTokenById(token);
 
-      if (!linkToken) {
-        return errorService.errorResponse(res, {
-          code: ErrorCode.BadRequest,
-          message: 'Invalid link token',
+    if (!linkToken) {
+      return res.render('error', {
+        code: ErrorCode.BadRequest,
+        message: 'Invalid link token',
+      });
+    }
+
+    const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
+
+    await activityService.createActivityLog(activityId, {
+      timestamp: now(),
+      level: LogLevel.Info,
+      message: `User viewed username/password input screen`,
+    });
+
+    try {
+      if (linkToken.expires_at < now()) {
+        const errorMessage = 'Link token expired';
+
+        await activityService.createActivityLog(activityId, {
+          timestamp: now(),
+          level: LogLevel.Error,
+          message: errorMessage,
         });
-      } else if (linkToken.expires_at < now()) {
-        return errorService.errorResponse(res, {
+
+        return res.render('error', {
           code: ErrorCode.BadRequest,
-          message: 'Link token expired',
+          message: errorMessage,
         });
       } else if (!linkToken.consent_given) {
-        return errorService.errorResponse(res, {
+        const errorMessage = 'Consent bypassed';
+
+        await activityService.createActivityLog(activityId, {
+          timestamp: now(),
+          level: LogLevel.Error,
+          message: errorMessage,
+        });
+
+        return res.render('error', {
           code: ErrorCode.BadRequest,
-          message: 'Consent not given',
+          message: errorMessage,
         });
       } else if (!linkToken.integration_provider) {
-        return errorService.errorResponse(res, {
+        await activityService.createActivityLog(activityId, {
+          timestamp: now(),
+          level: LogLevel.Error,
+          message: 'Integration provider missing from link token',
+        });
+
+        return res.render('error', {
           code: ErrorCode.BadRequest,
-          message: 'Missing integration provider',
+          message: 'Please choose an integration',
         });
       }
 
@@ -631,7 +942,13 @@ class LinkController {
     } catch (err) {
       await errorService.reportError(err);
 
-      return errorService.errorResponse(res, {
+      await activityService.createActivityLog(activityId, {
+        timestamp: now(),
+        level: LogLevel.Error,
+        message: 'Internal server error',
+      });
+
+      return res.render('error', {
         code: ErrorCode.InternalServerError,
         message: DEFAULT_ERROR_MESSAGE,
       });
@@ -644,46 +961,88 @@ class LinkController {
     const password = req.body['password'];
 
     if (!token) {
-      return errorService.errorResponse(res, {
+      return res.render('error', {
         code: ErrorCode.BadRequest,
         message: 'Invalid link token',
       });
     }
 
-    if (!username || typeof username !== 'string') {
-      return errorService.errorResponse(res, {
+    const linkToken = await linkTokenService.getLinkTokenById(token);
+
+    if (!linkToken) {
+      return res.render('error', {
         code: ErrorCode.BadRequest,
-        message: 'Invalid username',
-      });
-    } else if (!password || typeof password !== 'string') {
-      return errorService.errorResponse(res, {
-        code: ErrorCode.BadRequest,
-        message: 'Invalid password',
+        message: 'Invalid link token',
       });
     }
 
-    try {
-      const linkToken = await linkTokenService.getLinkTokenById(token);
+    const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
 
-      if (!linkToken) {
-        return errorService.errorResponse(res, {
-          code: ErrorCode.BadRequest,
-          message: 'Invalid link token',
+    try {
+      if (!username || typeof username !== 'string') {
+        const errorMessage = 'Username missing or invalid';
+
+        await activityService.createActivityLog(activityId, {
+          timestamp: now(),
+          level: LogLevel.Error,
+          message: errorMessage,
         });
-      } else if (linkToken.expires_at < now()) {
-        return errorService.errorResponse(res, {
+
+        return res.render('error', {
           code: ErrorCode.BadRequest,
-          message: 'Link token expired',
+          message: errorMessage,
+        });
+      } else if (!password || typeof password !== 'string') {
+        const errorMessage = 'Password missing or invalid';
+
+        await activityService.createActivityLog(activityId, {
+          timestamp: now(),
+          level: LogLevel.Error,
+          message: errorMessage,
+        });
+
+        return res.render('error', {
+          code: ErrorCode.BadRequest,
+          message: errorMessage,
+        });
+      }
+
+      if (linkToken.expires_at < now()) {
+        const errorMessage = 'Link token expired';
+
+        await activityService.createActivityLog(activityId, {
+          timestamp: now(),
+          level: LogLevel.Error,
+          message: errorMessage,
+        });
+
+        return res.render('error', {
+          code: ErrorCode.BadRequest,
+          message: errorMessage,
         });
       } else if (!linkToken.consent_given) {
-        return errorService.errorResponse(res, {
+        const errorMessage = 'Consent bypassed';
+
+        await activityService.createActivityLog(activityId, {
+          timestamp: now(),
+          level: LogLevel.Error,
+          message: errorMessage,
+        });
+
+        return res.render('error', {
           code: ErrorCode.BadRequest,
-          message: 'Consent not given',
+          message: errorMessage,
         });
       } else if (!linkToken.integration_provider) {
-        return errorService.errorResponse(res, {
+        await activityService.createActivityLog(activityId, {
+          timestamp: now(),
+          level: LogLevel.Error,
+          message: 'Integration provider missing from link token',
+        });
+
+        return res.render('error', {
           code: ErrorCode.BadRequest,
-          message: 'Missing integration provider',
+          message: 'Please choose an integration',
         });
       }
 
@@ -705,15 +1064,18 @@ class LinkController {
       });
 
       if (!response.success) {
-        return errorService.errorResponse(res, {
-          code: ErrorCode.InternalServerError,
-          message: DEFAULT_ERROR_MESSAGE,
-        });
+        throw new Error(`Failed to upsert linked account for link token ${linkToken.id}`);
       }
 
-      if (response.action === 'updated') {
-        // TODO: sync index
-      }
+      await activityService.updateActivity(activityId, {
+        linked_account_id: response.linkedAccount.id,
+      });
+
+      await activityService.createActivityLog(activityId, {
+        timestamp: now(),
+        level: LogLevel.Info,
+        message: 'Linked account created with basic credentials',
+      });
 
       await linkTokenService.deleteLinkToken(linkToken.id);
 
@@ -721,7 +1083,13 @@ class LinkController {
     } catch (err) {
       await errorService.reportError(err);
 
-      return errorService.errorResponse(res, {
+      await activityService.createActivityLog(activityId, {
+        timestamp: now(),
+        level: LogLevel.Error,
+        message: 'Internal server error',
+      });
+
+      return res.render('error', {
         code: ErrorCode.InternalServerError,
         message: DEFAULT_ERROR_MESSAGE,
       });

@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
+import activityService from '../services/activity.service';
 import errorService, { ErrorCode } from '../services/error.service';
 import linkTokenService from '../services/linkToken.service';
+import { LogAction, LogLevel } from '../types';
 import {
   DEFAULT_ERROR_MESSAGE,
   ENVIRONMENT_ID_LOCALS_KEY,
@@ -87,6 +89,34 @@ class LinkTokenController {
         return errorService.errorResponse(res, {
           code: ErrorCode.InternalServerError,
           message: DEFAULT_ERROR_MESSAGE,
+        });
+      }
+
+      const activityId = await activityService.createActivity({
+        id: generateId(Resource.Activity),
+        environment_id: linkToken.environment_id,
+        integration_provider: linkToken.integration_provider,
+        link_token_id: linkToken.id,
+        linked_account_id: null,
+        level: LogLevel.Info,
+        action: LogAction.Link,
+        timestamp: now(),
+      });
+
+      if (activityId) {
+        await activityService.createActivityLog(activityId, {
+          level: LogLevel.Info,
+          message: 'Link token created',
+          timestamp: now(),
+          payload: {
+            token: linkToken.id,
+            url: this.buildLinkTokenUrl(linkToken.id, linkToken.integration_provider),
+            expires_in_mins: this.expiresInMinutes(linkToken.expires_at),
+            integration: linkToken.integration_provider,
+            redirect_url: linkToken.redirect_url,
+            language: linkToken.language,
+            metadata: linkToken.metadata,
+          },
         });
       }
 
