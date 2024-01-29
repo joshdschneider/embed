@@ -15,12 +15,20 @@ class LinkTokenController {
   public async createLinkToken(req: Request, res: Response) {
     try {
       const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
-      const { integration, expires_in_mins, language, redirect_url, metadata } = req.body;
+      const { integration, linked_account_id, expires_in_mins, language, redirect_url, metadata } =
+        req.body;
 
       if (integration && typeof integration !== 'string') {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
           message: 'Invalid integration',
+        });
+      }
+
+      if (linked_account_id && typeof linked_account_id !== 'string') {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.BadRequest,
+          message: 'Invalid linked account ID',
         });
       }
 
@@ -70,10 +78,12 @@ class LinkTokenController {
         id: generateId(Resource.LinkToken),
         environment_id: environmentId,
         integration_provider: integration || null,
+        linked_account_id: linked_account_id || null,
         expires_at: expiresAt,
         language: language || null,
         redirect_url: redirect_url || null,
         metadata: metadata || null,
+        can_choose_integration: !integration,
         consent_given: false,
         consent_ip: null,
         consent_date: null,

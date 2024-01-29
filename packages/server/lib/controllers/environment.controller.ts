@@ -32,15 +32,11 @@ class EnvironmentController {
   public async modifyEnvironment(req: Request, res: Response) {
     try {
       const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
-      const { enable_new_integrations, duplicate_account_behavior } = req.body;
+      const { enable_new_integrations } = req.body;
 
       const data: Partial<Environment> = {
         updated_at: now(),
       };
-
-      if (duplicate_account_behavior !== undefined) {
-        data.duplicate_account_behavior = duplicate_account_behavior;
-      }
 
       if (typeof enable_new_integrations === 'boolean') {
         data.enable_new_integrations = enable_new_integrations;

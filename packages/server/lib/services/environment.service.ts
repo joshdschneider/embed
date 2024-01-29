@@ -79,10 +79,7 @@ class EnvironmentService {
     try {
       return await prisma.environment.update({
         where: { id: environmentId },
-        data: {
-          enable_new_integrations: environment.enable_new_integrations,
-          duplicate_account_behavior: environment.duplicate_account_behavior,
-        },
+        data: { enable_new_integrations: environment.enable_new_integrations },
       });
     } catch (err) {
       await errorService.reportError(err);

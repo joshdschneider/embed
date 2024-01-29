@@ -39,13 +39,32 @@ class LinkController {
 
     const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
 
-    await activityService.createActivityLog(activityId, {
-      timestamp: now(),
-      level: LogLevel.Info,
-      message: `User viewed select integration screen`,
-    });
-
     try {
+      if (!linkToken.can_choose_integration) {
+        if (linkToken.integration_provider) {
+          return res.redirect(
+            `${getServerUrl()}/link/${token}/i/${linkToken.integration_provider}`
+          );
+        } else {
+          await activityService.createActivityLog(activityId, {
+            timestamp: now(),
+            level: LogLevel.Error,
+            message: 'No integration provider associated with link token',
+          });
+
+          return res.render('error', {
+            code: ErrorCode.BadRequest,
+            message: 'Please choose an integration',
+          });
+        }
+      }
+
+      await activityService.createActivityLog(activityId, {
+        timestamp: now(),
+        level: LogLevel.Info,
+        message: `User viewed select integration screen`,
+      });
+
       if (linkToken.expires_at < now()) {
         const errorMessage = 'Link token expired';
 
@@ -204,6 +223,7 @@ class LinkController {
         server_url: getServerUrl(),
         link_token: token,
         client_name: 'CLIENT_NAME',
+        can_choose_integration: linkToken.can_choose_integration,
         integration: {
           provider: integration.provider,
           display_name: providerSpec.display_name,
@@ -335,7 +355,7 @@ class LinkController {
           await activityService.createActivityLog(activityId, {
             timestamp: now(),
             level: LogLevel.Info,
-            message: `User consent received; Redirecting to ${oauthUrl}`,
+            message: `User consent received; Redirecting to OAuth flow`,
           });
 
           return res.redirect(oauthUrl);
@@ -345,7 +365,7 @@ class LinkController {
           await activityService.createActivityLog(activityId, {
             timestamp: now(),
             level: LogLevel.Info,
-            message: `User consent received; Redirecting to ${apiKeyUrl}`,
+            message: `User consent received; Redirecting to API key auth`,
           });
 
           return res.redirect(apiKeyUrl);
@@ -355,7 +375,7 @@ class LinkController {
           await activityService.createActivityLog(activityId, {
             timestamp: now(),
             level: LogLevel.Info,
-            message: `User consent received; Redirecting to ${basicUrl}`,
+            message: `User consent received; Redirecting to basic auth`,
           });
 
           return res.redirect(basicUrl);
@@ -367,7 +387,7 @@ class LinkController {
           });
 
           const response = await linkedAccountService.upsertLinkedAccount({
-            id: generateId(Resource.LinkedAccount),
+            id: linkToken.linked_account_id || generateId(Resource.LinkedAccount),
             environment_id: linkToken.environment_id,
             integration_provider: integration.provider,
             consent_given: linkToken.consent_given,
@@ -383,7 +403,7 @@ class LinkController {
             deleted_at: null,
           });
 
-          if (!response.success) {
+          if (!response) {
             throw new Error(`Failed to upsert linked account for ${integration.provider}`);
           }
 
@@ -816,7 +836,7 @@ class LinkController {
       }
 
       const response = await linkedAccountService.upsertLinkedAccount({
-        id: generateId(Resource.LinkedAccount),
+        id: linkToken.linked_account_id || generateId(Resource.LinkedAccount),
         environment_id: linkToken.environment_id,
         integration_provider: linkToken.integration_provider,
         consent_given: linkToken.consent_given,
@@ -832,7 +852,7 @@ class LinkController {
         deleted_at: null,
       });
 
-      if (!response.success) {
+      if (!response) {
         throw new Error(`Failed to upsert linked account for link token ${linkToken.id}`);
       }
 
@@ -1047,7 +1067,7 @@ class LinkController {
       }
 
       const response = await linkedAccountService.upsertLinkedAccount({
-        id: generateId(Resource.LinkedAccount),
+        id: linkToken.linked_account_id || generateId(Resource.LinkedAccount),
         environment_id: linkToken.environment_id,
         integration_provider: linkToken.integration_provider,
         consent_given: linkToken.consent_given,
@@ -1063,7 +1083,7 @@ class LinkController {
         deleted_at: null,
       });
 
-      if (!response.success) {
+      if (!response) {
         throw new Error(`Failed to upsert linked account for link token ${linkToken.id}`);
       }
 

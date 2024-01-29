@@ -31,14 +31,13 @@ model User {
 }
 
 model Environment {
-  id                         String  @id
-  account_id                 String
-  type                       String
-  enable_new_integrations    Boolean
-  duplicate_account_behavior String
-  created_at                 Int
-  updated_at                 Int?
-  deleted_at                 Int?
+  id                      String  @id
+  account_id              String
+  type                    String
+  enable_new_integrations Boolean
+  created_at              Int
+  updated_at              Int?
+  deleted_at              Int?
 
   api_keys        ApiKey[]
   integrations    Integration[]
@@ -104,22 +103,24 @@ model LinkedAccount {
 }
 
 model LinkToken {
-  id                   String  @id
-  environment_id       String
-  integration_provider String?
-  expires_at           Int
-  language             String?
-  redirect_url         String?
-  metadata             Json?
-  consent_given        Boolean @default(false)
-  consent_ip           String?
-  consent_date         Int?
-  configuration        Json?
-  websocket_client_id  String?
-  code_verifier        String?
-  request_token_secret String?
-  created_at           Int
-  updated_at           Int?
+  id                     String  @id
+  environment_id         String
+  integration_provider   String?
+  linked_account_id      String?
+  expires_at             Int
+  language               String?
+  redirect_url           String?
+  metadata               Json?
+  can_choose_integration Boolean
+  consent_given          Boolean @default(false)
+  consent_ip             String?
+  consent_date           Int?
+  configuration          Json?
+  websocket_client_id    String?
+  code_verifier          String?
+  request_token_secret   String?
+  created_at             Int
+  updated_at             Int?
 
   activities Activity[]
 

@@ -3,7 +3,6 @@ dotenv.config();
 
 import cors from 'cors';
 import express from 'express';
-import helmet from 'helmet';
 import http from 'http';
 import path from 'path';
 import type { WebSocket } from 'ws';
@@ -27,7 +26,7 @@ import { setupSelfHosted } from './utils/selfHosted';
 function setupExpressApp() {
   const app = express();
 
-  app.use(helmet());
+  // app.use(helmet());
   app.use(express.json({ limit: '75mb' }));
   app.use(express.urlencoded({ extended: true }));
   app.use(cors(corsOptions));

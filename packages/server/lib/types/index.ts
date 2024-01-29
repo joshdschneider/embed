@@ -3,12 +3,6 @@ export enum EnvironmentType {
   Production = 'production',
 }
 
-export enum DuplicateAccountBehavior {
-  CreateNew = 'create_new',
-  UseExisting = 'use_existing',
-  ThrowError = 'throw_error',
-}
-
 export enum AccountType {
   Personal = 'personal',
   Organization = 'organization',

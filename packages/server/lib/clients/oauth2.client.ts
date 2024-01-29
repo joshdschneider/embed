@@ -1,5 +1,6 @@
 import { OAuth2, OAuthAuthorizationMethod, OAuthBodyFormat } from '@beta/providers';
 import type { Integration } from '@prisma/client';
+import integrationService from '../services/integration.service';
 import { interpolateString } from '../utils/helpers';
 
 export function getSimpleOAuth2ClientConfig(
@@ -12,22 +13,14 @@ export function getSimpleOAuth2ClientConfig(
   const strippedTokenUrl = specification.token_url.replace(/configuration\./g, '');
   const tokenUrl = new URL(interpolateString(strippedTokenUrl, configuration));
 
-  const headers = {
-    'User-Agent': 'Beta',
-  };
-
-  const client = {
-    id: integration.oauth_client_id!,
-    secret: integration.oauth_client_secret!,
-  };
-
-  if (!integration.use_client_credentials) {
-    client.id = 'todo: get default client id';
-    client.secret = 'todo: get default client secret';
-  }
+  const headers = { 'User-Agent': 'Beta' };
+  const { client_id, client_secret } = integrationService.loadClientCredentials(integration);
 
   return {
-    client: client,
+    client: {
+      id: client_id,
+      secret: client_secret,
+    },
     auth: {
       tokenHost: tokenUrl.origin,
       tokenPath: tokenUrl.pathname,

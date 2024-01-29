@@ -1,4 +1,7 @@
 import type { Integration } from '@prisma/client';
+import fs from 'fs';
+import yaml from 'js-yaml';
+import path from 'path';
 import { now } from '../utils/helpers';
 import { prisma } from '../utils/prisma';
 import errorService from './error.service';
@@ -192,6 +195,35 @@ class IntegrationService {
       await errorService.reportError(err);
       return null;
     }
+  }
+
+  public loadClientCredentials(integration: Integration): {
+    client_id: string;
+    client_secret: string;
+  } {
+    if (integration.use_client_credentials) {
+      if (!integration.oauth_client_id || !integration.oauth_client_secret) {
+        throw new Error('Client credentials are missing');
+      }
+
+      return {
+        client_id: integration.oauth_client_id,
+        client_secret: integration.oauth_client_secret,
+      };
+    }
+
+    const filePath = path.join(__dirname, '../../credentials.yaml');
+    const fileContents = fs.readFileSync(filePath, 'utf8');
+    const credentials = yaml.load(fileContents) as {
+      [key: string]: { client_id: string; client_secret: string };
+    };
+
+    const defaultProviderCredentials = credentials[integration.provider];
+    if (!defaultProviderCredentials) {
+      throw new Error(`Failed to load default credentials for ${integration.provider}`);
+    }
+
+    return defaultProviderCredentials;
   }
 }
 

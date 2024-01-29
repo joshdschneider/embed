@@ -274,7 +274,7 @@ class OAuthController {
         await activityService.createActivityLog(activityId, {
           timestamp: now(),
           level: LogLevel.Info,
-          message: `Redirecting to ${integration.provider} OAuth authorization URL`,
+          message: `Redirecting to OAuth authorization URL`,
           payload: { authorization_url: authorizationUri },
         });
 
@@ -495,19 +495,11 @@ class OAuthController {
       }
 
       const headers: Record<string, string> = {};
-      const client = {
-        id: integration.oauth_client_id!,
-        secret: integration.oauth_client_secret!,
-      };
-
-      if (!integration.use_client_credentials) {
-        client.id = 'todo: get default client id';
-        client.secret = 'todo: get default client secret';
-      }
+      const { client_id, client_secret } = integrationService.loadClientCredentials(integration);
 
       if (authSpec.token_request_auth_method === 'basic') {
         headers['Authorization'] =
-          'Basic ' + Buffer.from(client.id + ':' + client.secret).toString('base64');
+          'Basic ' + Buffer.from(client_id + ':' + client_secret).toString('base64');
       }
 
       const accessToken = await authorizationCode.getToken(
@@ -521,7 +513,7 @@ class OAuthController {
       const config = typeof linkToken.configuration === 'object' ? linkToken.configuration : {};
 
       const response = await linkedAccountService.upsertLinkedAccount({
-        id: generateId(Resource.LinkedAccount),
+        id: linkToken.linked_account_id || generateId(Resource.LinkedAccount),
         environment_id: linkToken.environment_id,
         integration_provider: integration.provider,
         consent_given: linkToken.consent_given,
@@ -537,7 +529,7 @@ class OAuthController {
         deleted_at: null,
       });
 
-      if (!response.success) {
+      if (!response) {
         throw new Error(`Failed to upsert linked account for link token ${linkToken.id}`);
       }
 
@@ -617,7 +609,7 @@ class OAuthController {
       const config = typeof linkToken.configuration === 'object' ? linkToken.configuration : {};
 
       const response = await linkedAccountService.upsertLinkedAccount({
-        id: generateId(Resource.LinkedAccount),
+        id: linkToken.linked_account_id || generateId(Resource.LinkedAccount),
         environment_id: linkToken.environment_id,
         integration_provider: integration.provider,
         consent_given: linkToken.consent_given,
@@ -633,7 +625,7 @@ class OAuthController {
         deleted_at: null,
       });
 
-      if (!response.success) {
+      if (!response) {
         throw new Error(`Failed to upsert linked account for link token ${linkToken.id}`);
       }
 

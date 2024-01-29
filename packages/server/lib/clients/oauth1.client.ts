@@ -1,6 +1,7 @@
 import type { OAuth1 as OAuth1Spec } from '@beta/providers';
 import type { Integration } from '@prisma/client';
 import OAuth1 from 'oauth';
+import integrationService from '../services/integration.service';
 
 export type OAuth1RequestTokenResult = {
   request_token: string;
@@ -22,23 +23,15 @@ export class OAuth1Client {
   constructor({ integration, specification, callbackUrl }: OAuth1ClientOptions) {
     this.integration = integration;
     this.specification = specification;
+
     const headers = { 'User-Agent': 'Beta' };
-
-    const client = {
-      id: integration.oauth_client_id!,
-      secret: integration.oauth_client_secret!,
-    };
-
-    if (!integration.use_client_credentials) {
-      client.id = 'todo: get default client id';
-      client.secret = 'todo: get default client secret';
-    }
+    const { client_id, client_secret } = integrationService.loadClientCredentials(integration);
 
     this.client = new OAuth1.OAuth(
       this.specification.request_url,
       this.specification.token_url,
-      client.id,
-      client.secret,
+      client_id,
+      client_secret,
       '1.0A',
       callbackUrl || null,
       this.specification.signature_method,

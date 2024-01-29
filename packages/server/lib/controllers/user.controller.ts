@@ -5,7 +5,7 @@ import environmentService from '../services/environment.service';
 import errorService, { ErrorCode } from '../services/error.service';
 import integrationService from '../services/integration.service';
 import userService from '../services/user.service';
-import { AccountType, DuplicateAccountBehavior, EnvironmentType } from '../types';
+import { AccountType, EnvironmentType } from '../types';
 import { DEFAULT_ERROR_MESSAGE } from '../utils/constants';
 import { Resource, generateId, generateSecretKey, now } from '../utils/helpers';
 
@@ -67,7 +67,6 @@ class UserController {
         id: generateId(Resource.Environment),
         account_id: account.id,
         type: EnvironmentType.Staging,
-        duplicate_account_behavior: DuplicateAccountBehavior.CreateNew,
         enable_new_integrations: true,
         created_at: now(),
         updated_at: now(),
