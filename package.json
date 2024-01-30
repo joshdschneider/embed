@@ -1,9 +1,9 @@
 {
   "name": "beta",
   "workspaces": [
-    "packages/link",
-    "packages/docs",
+    "packages/js",
     "packages/providers",
+    "packages/react",
     "packages/server"
   ],
   "scripts": {

@@ -1,6 +1,21 @@
 import Head from 'next/head';
 
 export default function Home() {
+  // const { link } = useBetaLink({
+  //   linkToken: 'tok_6c892b71570daf69',
+  //   linkMethod: 'popup',
+  //   host: 'http://localhost:5555',
+  // });
+
+  async function openLink() {
+    try {
+      // const res = await link();
+      // console.log('RESOLVED', res);
+    } catch (err) {
+      console.log('ERROR', err);
+    }
+  }
+
   return (
     <>
       <Head>
@@ -11,7 +26,7 @@ export default function Home() {
       </Head>
       <main>
         <div>
-          <button>Link</button>
+          <button onClick={openLink}>Link</button>
         </div>
       </main>
     </>

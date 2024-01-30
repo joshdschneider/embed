@@ -1,3 +1,1 @@
-export async function link() {
-  console.log('link');
-}
+export * from './useBetaLink';
