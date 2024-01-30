@@ -5,14 +5,15 @@ import { Request, Response } from 'express';
 import SimpleOAuth2 from 'simple-oauth2';
 import { OAuth1Client } from '../clients/oauth1.client';
 import { getSimpleOAuth2ClientConfig } from '../clients/oauth2.client';
+import publisher from '../clients/publisher.client';
 import activityService from '../services/activity.service';
-import errorService, { ErrorCode } from '../services/error.service';
+import errorService from '../services/error.service';
 import integrationService from '../services/integration.service';
 import linkTokenService from '../services/linkToken.service';
 import linkedAccountService from '../services/linkedAccount.service';
 import providerService from '../services/provider.service';
 import { LogLevel } from '../types';
-import { DEFAULT_ERROR_MESSAGE, getServerUrl } from '../utils/constants';
+import { DEFAULT_ERROR_MESSAGE } from '../utils/constants';
 import {
   Resource,
   extractConfigurationKeys,
@@ -27,20 +28,22 @@ class OAuthController {
     const token = req.query['token'];
 
     if (!token || typeof token !== 'string') {
-      return res.render('error', {
-        code: ErrorCode.BadRequest,
-        message: 'Link token missing or invalid',
+      return await publisher.publishError(res, {
+        error: 'Link token missing',
       });
     }
 
     const linkToken = await linkTokenService.getLinkTokenById(token);
 
     if (!linkToken) {
-      return res.render('error', {
-        code: ErrorCode.BadRequest,
-        message: 'Invalid link token',
+      return await publisher.publishError(res, {
+        error: 'Invalid link token',
       });
     }
+
+    const linkMethod = linkToken.link_method || undefined;
+    const wsClientId = linkToken.websocket_client_id || undefined;
+    const redirectUrl = linkToken.redirect_url || undefined;
 
     const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
 
@@ -54,11 +57,15 @@ class OAuthController {
           message: errorMessage,
         });
 
-        return res.render('error', {
-          code: ErrorCode.BadRequest,
-          message: errorMessage,
+        return await publisher.publishError(res, {
+          error: errorMessage,
+          wsClientId,
+          linkMethod,
+          redirectUrl,
         });
-      } else if (!linkToken.consent_given) {
+      }
+
+      if (!linkToken.consent_given) {
         const errorMessage = 'Consent bypassed';
 
         await activityService.createActivityLog(activityId, {
@@ -67,20 +74,28 @@ class OAuthController {
           message: errorMessage,
         });
 
-        return res.render('error', {
-          code: ErrorCode.BadRequest,
-          message: errorMessage,
+        return await publisher.publishError(res, {
+          error: errorMessage,
+          wsClientId,
+          linkMethod,
+          redirectUrl,
         });
-      } else if (!linkToken.integration_provider) {
+      }
+
+      if (!linkToken.integration_provider) {
+        const errorMessage = 'No integration selected';
+
         await activityService.createActivityLog(activityId, {
           timestamp: now(),
           level: LogLevel.Error,
-          message: 'Integration provider missing from link token',
+          message: errorMessage,
         });
 
-        return res.render('error', {
-          code: ErrorCode.BadRequest,
-          message: 'Please choose an integration',
+        return await publisher.publishError(res, {
+          error: errorMessage,
+          wsClientId,
+          linkMethod,
+          redirectUrl,
         });
       }
 
@@ -91,16 +106,22 @@ class OAuthController {
 
       if (!integration) {
         throw new Error('Failed to retrieve integration');
-      } else if (!integration.is_enabled) {
+      }
+
+      if (!integration.is_enabled) {
+        const errorMessage = 'Integration is disabled';
+
         await activityService.createActivityLog(activityId, {
           timestamp: now(),
           level: LogLevel.Error,
-          message: 'Integration is disabled',
+          message: errorMessage,
         });
 
-        return res.render('error', {
-          code: ErrorCode.InternalServerError,
-          message: DEFAULT_ERROR_MESSAGE,
+        return await publisher.publishError(res, {
+          error: errorMessage,
+          wsClientId,
+          linkMethod,
+          redirectUrl,
         });
       }
 
@@ -109,12 +130,6 @@ class OAuthController {
       if (!provider) {
         throw new Error('Failed to retrieve provider specification');
       }
-
-      await activityService.createActivityLog(activityId, {
-        timestamp: now(),
-        level: LogLevel.Info,
-        message: `Initiating OAuth authorization flow for ${provider.display_name}`,
-      });
 
       const updatedLinkToken = await linkTokenService.updateLinkToken(
         linkToken.id,
@@ -128,6 +143,12 @@ class OAuthController {
       if (!updatedLinkToken) {
         throw new Error('Failed to update link token');
       }
+
+      await activityService.createActivityLog(activityId, {
+        timestamp: now(),
+        level: LogLevel.Info,
+        message: `Initiating OAuth authorization flow for ${provider.display_name}`,
+      });
 
       if (provider.auth.scheme === AuthScheme.OAUTH2) {
         return this.oauth2Request(res, {
@@ -155,9 +176,11 @@ class OAuthController {
         message: 'Internal server error',
       });
 
-      return res.render('error', {
-        code: ErrorCode.InternalServerError,
-        message: DEFAULT_ERROR_MESSAGE,
+      return await publisher.publishError(res, {
+        error: DEFAULT_ERROR_MESSAGE,
+        wsClientId,
+        linkMethod,
+        redirectUrl,
       });
     }
   }
@@ -176,6 +199,10 @@ class OAuthController {
       activityId: string | null;
     }
   ) {
+    const linkMethod = linkToken.link_method || undefined;
+    const wsClientId = linkToken.websocket_client_id || undefined;
+    const redirectUrl = linkToken.redirect_url || undefined;
+
     try {
       if (integration.use_client_credentials) {
         if (
@@ -183,15 +210,19 @@ class OAuthController {
           integration.oauth_client_secret == null ||
           integration.oauth_scopes == null
         ) {
+          const errorMessage = `OAuth credentials missing for ${integration.provider}`;
+
           await activityService.createActivityLog(activityId, {
             timestamp: now(),
             level: LogLevel.Error,
-            message: `OAuth client credentials missing for ${integration.provider}`,
+            message: errorMessage,
           });
 
-          return res.render('error', {
-            code: ErrorCode.InternalServerError,
-            message: DEFAULT_ERROR_MESSAGE,
+          return await publisher.publishError(res, {
+            error: errorMessage,
+            wsClientId,
+            linkMethod,
+            redirectUrl,
           });
         }
       }
@@ -210,10 +241,12 @@ class OAuthController {
             linkToken.configuration as Record<string, string>
           )
         ) {
+          const errorMessage = 'Missing configuration fields';
+
           await activityService.createActivityLog(activityId, {
             timestamp: now(),
             level: LogLevel.Error,
-            message: 'Missing configuration fields',
+            message: errorMessage,
             payload: {
               authorization_url: authSpec.authorization_url,
               token_url: authSpec.token_url,
@@ -221,9 +254,11 @@ class OAuthController {
             },
           });
 
-          return res.render('error', {
-            code: ErrorCode.InternalServerError,
-            message: DEFAULT_ERROR_MESSAGE,
+          return await publisher.publishError(res, {
+            error: errorMessage,
+            wsClientId,
+            linkMethod,
+            redirectUrl,
           });
         }
       }
@@ -291,9 +326,11 @@ class OAuthController {
         message: 'Internal server error',
       });
 
-      return res.render('error', {
-        code: ErrorCode.InternalServerError,
-        message: DEFAULT_ERROR_MESSAGE,
+      return await publisher.publishError(res, {
+        error: DEFAULT_ERROR_MESSAGE,
+        wsClientId,
+        linkMethod,
+        redirectUrl,
       });
     }
   }
@@ -312,6 +349,10 @@ class OAuthController {
       activityId: string | null;
     }
   ) {
+    const linkMethod = linkToken.link_method || undefined;
+    const wsClientId = linkToken.websocket_client_id || undefined;
+    const redirectUrl = linkToken.redirect_url || undefined;
+
     try {
       const callbackUrl = getOauthCallbackUrl();
       const callbackParams = new URLSearchParams({ state: linkToken.id });
@@ -357,9 +398,11 @@ class OAuthController {
         message: 'Internal server error',
       });
 
-      return res.render('error', {
-        code: ErrorCode.InternalServerError,
-        message: DEFAULT_ERROR_MESSAGE,
+      return await publisher.publishError(res, {
+        error: DEFAULT_ERROR_MESSAGE,
+        wsClientId,
+        linkMethod,
+        redirectUrl,
       });
     }
   }
@@ -371,9 +414,8 @@ class OAuthController {
       const err = new Error('Invalid state parameter received from OAuth callback');
       await errorService.reportError(err);
 
-      return res.render('error', {
-        code: ErrorCode.InternalServerError,
-        message: DEFAULT_ERROR_MESSAGE,
+      return await publisher.publishError(res, {
+        error: DEFAULT_ERROR_MESSAGE,
       });
     }
 
@@ -383,11 +425,14 @@ class OAuthController {
       const err = new Error('Failed to retrieve link token from OAuth callback');
       await errorService.reportError(err);
 
-      return res.render('error', {
-        code: ErrorCode.InternalServerError,
-        message: DEFAULT_ERROR_MESSAGE,
+      return await publisher.publishError(res, {
+        error: DEFAULT_ERROR_MESSAGE,
       });
     }
+
+    const linkMethod = linkToken.link_method || undefined;
+    const wsClientId = linkToken.websocket_client_id || undefined;
+    const redirectUrl = linkToken.redirect_url || undefined;
 
     const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
 
@@ -444,9 +489,11 @@ class OAuthController {
         message: 'Internal server error',
       });
 
-      return res.render('error', {
-        code: ErrorCode.InternalServerError,
-        message: DEFAULT_ERROR_MESSAGE,
+      return await publisher.publishError(res, {
+        error: DEFAULT_ERROR_MESSAGE,
+        wsClientId,
+        linkMethod,
+        redirectUrl,
       });
     }
   }
@@ -466,9 +513,13 @@ class OAuthController {
       activityId: string | null;
     }
   ): Promise<void> {
-    try {
-      const { code } = req.query;
+    const { code } = req.query;
 
+    const linkMethod = linkToken.link_method || undefined;
+    const wsClientId = linkToken.websocket_client_id || undefined;
+    const redirectUrl = linkToken.redirect_url || undefined;
+
+    try {
       if (!code || typeof code !== 'string') {
         throw new Error('Invalid code parameter received from OAuth callback');
       }
@@ -545,7 +596,12 @@ class OAuthController {
 
       await linkTokenService.deleteLinkToken(linkToken.id);
 
-      res.redirect(`${getServerUrl()}/link/finish`);
+      return await publisher.publishSuccess(res, {
+        linkedAccountId: response.linkedAccount.id,
+        wsClientId,
+        linkMethod,
+        redirectUrl,
+      });
     } catch (err) {
       await errorService.reportError(err);
 
@@ -555,9 +611,11 @@ class OAuthController {
         message: 'Internal server error',
       });
 
-      return res.render('error', {
-        code: ErrorCode.InternalServerError,
-        message: DEFAULT_ERROR_MESSAGE,
+      return await publisher.publishError(res, {
+        error: DEFAULT_ERROR_MESSAGE,
+        wsClientId,
+        linkMethod,
+        redirectUrl,
       });
     }
   }
@@ -577,10 +635,13 @@ class OAuthController {
       activityId: string | null;
     }
   ): Promise<void> {
-    try {
-      const { oauth_token, oauth_verifier } = req.query;
+    const { oauth_token, oauth_verifier } = req.query;
 
-      const callbackUrl = getOauthCallbackUrl();
+    const linkMethod = linkToken.link_method || undefined;
+    const wsClientId = linkToken.websocket_client_id || undefined;
+    const redirectUrl = linkToken.redirect_url || undefined;
+
+    try {
       const callbackMetadata = this.getMetadataFromOAuthCallback(req.query, authSpec);
 
       if (
@@ -641,7 +702,12 @@ class OAuthController {
 
       await linkTokenService.deleteLinkToken(linkToken.id);
 
-      res.redirect(`${getServerUrl()}/link/finish`);
+      return await publisher.publishSuccess(res, {
+        linkedAccountId: response.linkedAccount.id,
+        wsClientId,
+        linkMethod,
+        redirectUrl,
+      });
     } catch (err) {
       await errorService.reportError(err);
 
@@ -651,9 +717,11 @@ class OAuthController {
         message: 'Internal server error',
       });
 
-      return res.render('error', {
-        code: ErrorCode.InternalServerError,
-        message: DEFAULT_ERROR_MESSAGE,
+      return await publisher.publishError(res, {
+        error: DEFAULT_ERROR_MESSAGE,
+        wsClientId,
+        linkMethod,
+        redirectUrl,
       });
     }
   }

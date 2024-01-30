@@ -1,5 +1,4 @@
 import crypto from 'crypto';
-import type { Response } from 'express';
 import { EnvironmentType } from '../types';
 import { getLocalhostUrl, getServerUrl } from './constants';
 
@@ -31,12 +30,6 @@ export function missesInterpolationParam(str: string, replacers: Record<string, 
   const strWithoutConfig = str.replace(/configuration\./g, '');
   const interpolatedStr = interpolateString(strWithoutConfig, replacers);
   return /\${([^{}]*)}/g.test(interpolatedStr);
-}
-
-export function closePopup(res: Response) {
-  const nonce = crypto.randomBytes(16).toString('base64');
-  res.setHeader('Content-Security-Policy', `script-src 'nonce-${nonce}'`);
-  res.render('close', { nonce });
 }
 
 export function generateSecretKey(environment: EnvironmentType, byteLength = 16): string {

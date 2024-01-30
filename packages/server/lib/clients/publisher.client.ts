@@ -1,10 +1,10 @@
+import crypto from 'crypto';
 import type { Response } from 'express';
 import type { RedisClientType } from 'redis';
 import { createClient } from 'redis';
 import { v4 } from 'uuid';
 import type { WebSocket } from 'ws';
 import { getRedisUrl } from '../utils/constants';
-import { closePopup } from '../utils/helpers';
 
 enum MessageType {
   ConnectionAck = 'connection_ack',
@@ -178,10 +178,12 @@ export class Publisher {
       error,
       wsClientId,
       linkMethod,
+      redirectUrl,
     }: {
       error: string;
-      wsClientId: string;
+      wsClientId?: string;
       linkMethod?: string;
+      redirectUrl?: string;
     }
   ) {
     if (wsClientId) {
@@ -197,7 +199,12 @@ export class Publisher {
     }
 
     if (linkMethod === 'popup') {
-      closePopup(res);
+      this.closePopup(res);
+    } else if (linkMethod === 'redirect' && redirectUrl) {
+      const encodedError = encodeURIComponent(error);
+      res.redirect(`${redirectUrl}?error=${encodedError}`);
+    } else {
+      res.render('error', { message: error });
     }
   }
 
@@ -207,10 +214,12 @@ export class Publisher {
       linkedAccountId,
       wsClientId,
       linkMethod,
+      redirectUrl,
     }: {
       linkedAccountId: string;
-      wsClientId: string;
+      wsClientId?: string;
       linkMethod?: string;
+      redirectUrl?: string;
     }
   ) {
     if (wsClientId) {
@@ -226,8 +235,18 @@ export class Publisher {
     }
 
     if (linkMethod === 'popup') {
-      closePopup(res);
+      this.closePopup(res);
+    } else if (linkMethod === 'redirect' && redirectUrl) {
+      res.redirect(`${redirectUrl}?linked_account_id=${linkedAccountId}`);
+    } else {
+      res.render('finish');
     }
+  }
+
+  private closePopup(res: Response) {
+    const nonce = crypto.randomBytes(16).toString('base64');
+    res.setHeader('Content-Security-Policy', `script-src 'nonce-${nonce}'`);
+    res.render('close', { nonce });
   }
 }
 

@@ -121,7 +121,7 @@ class LinkTokenController {
           timestamp: now(),
           payload: {
             token: linkToken.id,
-            url: this.buildLinkTokenUrl(linkToken.id, linkToken.integration_provider),
+            url: this.buildLinkTokenUrl(linkToken.id),
             expires_in_mins: this.expiresInMinutes(linkToken.expires_at),
             integration: linkToken.integration_provider,
             redirect_url: linkToken.redirect_url,
@@ -134,7 +134,7 @@ class LinkTokenController {
       res.status(201).send({
         object: 'link_token',
         token: linkToken.id,
-        url: this.buildLinkTokenUrl(linkToken.id, linkToken.integration_provider),
+        url: this.buildLinkTokenUrl(linkToken.id),
         expires_in_mins: this.expiresInMinutes(linkToken.expires_at),
         integration: linkToken.integration_provider,
         redirect_url: linkToken.redirect_url,
@@ -168,7 +168,7 @@ class LinkTokenController {
       const linkTokensList = linkTokens.map((linkToken) => {
         return {
           token: linkToken.id,
-          url: this.buildLinkTokenUrl(linkToken.id, linkToken.integration_provider),
+          url: this.buildLinkTokenUrl(linkToken.id),
           expires_in_mins: this.expiresInMinutes(linkToken.expires_at),
           integration: linkToken.integration_provider,
           redirect_url: linkToken.redirect_url,
@@ -214,7 +214,7 @@ class LinkTokenController {
       res.status(201).send({
         object: 'link_token',
         token: linkToken.id,
-        url: this.buildLinkTokenUrl(linkToken.id, linkToken.integration_provider),
+        url: this.buildLinkTokenUrl(linkToken.id),
         expires_in_mins: this.expiresInMinutes(linkToken.expires_at),
         integration: linkToken.integration_provider,
         redirect_url: linkToken.redirect_url,
@@ -314,7 +314,7 @@ class LinkTokenController {
       res.status(201).send({
         object: 'link_token',
         token: linkToken.id,
-        url: this.buildLinkTokenUrl(linkToken.id, linkToken.integration_provider),
+        url: this.buildLinkTokenUrl(linkToken.id),
         expires_in_mins: this.expiresInMinutes(linkToken.expires_at),
         integration: linkToken.integration_provider,
         redirect_url: linkToken.redirect_url,
@@ -333,8 +333,8 @@ class LinkTokenController {
     }
   }
 
-  private buildLinkTokenUrl(token: string, integration: string | null) {
-    return `${getServerUrl()}/link/${token}${integration ? `/i/${integration}` : ''}`;
+  private buildLinkTokenUrl(token: string) {
+    return `${getServerUrl()}/link/${token}`;
   }
 
   private expiresInMinutes(expiresAt: number) {

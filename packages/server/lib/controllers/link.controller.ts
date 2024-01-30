@@ -3,7 +3,7 @@ import { Integration } from '@prisma/client';
 import { Request, Response } from 'express';
 import publisher from '../clients/publisher.client';
 import activityService from '../services/activity.service';
-import errorService, { ErrorCode } from '../services/error.service';
+import errorService from '../services/error.service';
 import integrationService from '../services/integration.service';
 import linkTokenService from '../services/linkToken.service';
 import linkedAccountService from '../services/linkedAccount.service';
@@ -21,87 +21,57 @@ import {
 class LinkController {
   public async listView(req: Request, res: Response) {
     const token = req.params['token'];
-    const wsClientId = req.query['ws_client_id'] as string | undefined;
-    const linkMethod = req.query['link_method'] as string | undefined;
+
+    let linkMethod = req.query['link_method'] as string | undefined;
+    let wsClientId = req.query['ws_client_id'] as string | undefined;
+    let redirectUrl = req.query['redirect_url'] as string | undefined;
 
     if (!token) {
-      const errorMessage = 'Invalid link token';
-
-      if (wsClientId) {
-        return await publisher.publishError(res, {
-          error: errorMessage,
-          wsClientId,
-          linkMethod,
-        });
-      }
-
-      return res.render('error', {
-        code: ErrorCode.BadRequest,
-        message: errorMessage,
+      return await publisher.publishError(res, {
+        error: 'Link token missing',
+        linkMethod,
+        wsClientId,
+        redirectUrl,
       });
     }
 
     const linkToken = await linkTokenService.getLinkTokenById(token);
 
     if (!linkToken) {
-      const errorMessage = 'Invalid link token';
-
-      if (wsClientId) {
-        return await publisher.publishError(res, {
-          error: errorMessage,
-          wsClientId,
-          linkMethod,
-        });
-      }
-
-      return res.render('error', {
-        code: ErrorCode.BadRequest,
-        message: errorMessage,
+      return await publisher.publishError(res, {
+        error: 'Invalid link token',
+        wsClientId,
+        linkMethod,
+        redirectUrl,
       });
+    }
+
+    if (linkMethod || wsClientId || redirectUrl) {
+      const updatedLinkToken = await linkTokenService.updateLinkToken(
+        linkToken.id,
+        linkToken.environment_id,
+        {
+          link_method: linkMethod,
+          websocket_client_id: wsClientId,
+          redirect_url: redirectUrl,
+        }
+      );
+
+      if (updatedLinkToken) {
+        linkMethod = updatedLinkToken.link_method || undefined;
+        wsClientId = updatedLinkToken.websocket_client_id || undefined;
+        redirectUrl = updatedLinkToken.redirect_url || undefined;
+      }
     }
 
     const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
 
     try {
       if (!linkToken.can_choose_integration) {
-        if (linkToken.integration_provider) {
-          const redirectUrl = `${getServerUrl()}/link/${token}/i/${linkToken.integration_provider}`;
-
-          if (wsClientId) {
-            const method = linkMethod ? '&link_method=' + linkMethod : '';
-            return res.redirect(redirectUrl + `?ws_client_id=${wsClientId}${method}`);
-          }
-
-          return res.redirect(redirectUrl);
-        } else {
-          await activityService.createActivityLog(activityId, {
-            timestamp: now(),
-            level: LogLevel.Error,
-            message: 'No integration provider associated with link token',
-          });
-
-          const errorMessage = 'Please choose an integration';
-
-          if (wsClientId) {
-            return await publisher.publishError(res, {
-              error: errorMessage,
-              wsClientId,
-              linkMethod,
-            });
-          }
-
-          return res.render('error', {
-            code: ErrorCode.BadRequest,
-            message: errorMessage,
-          });
-        }
+        const baseUrl = `${getServerUrl()}/link/${linkToken.id}`;
+        const integrationPath = `/i/${linkToken.integration_provider}`;
+        return res.redirect(baseUrl + integrationPath);
       }
-
-      await activityService.createActivityLog(activityId, {
-        timestamp: now(),
-        level: LogLevel.Info,
-        message: `User viewed select integration screen`,
-      });
 
       if (linkToken.expires_at < now()) {
         const errorMessage = 'Link token expired';
@@ -112,17 +82,11 @@ class LinkController {
           message: errorMessage,
         });
 
-        if (wsClientId) {
-          return await publisher.publishError(res, {
-            error: errorMessage,
-            wsClientId,
-            linkMethod,
-          });
-        }
-
-        return res.render('error', {
-          code: ErrorCode.BadRequest,
-          message: errorMessage,
+        return await publisher.publishError(res, {
+          error: errorMessage,
+          wsClientId,
+          linkMethod,
+          redirectUrl,
         });
       }
 
@@ -137,7 +101,6 @@ class LinkController {
       const integrationsWithSpec = await Promise.all(
         enabledIntegrations.map(async (integration) => {
           const providerSpec = await providerService.getProviderSpec(integration.provider);
-
           if (!providerSpec) {
             const err = new Error(`Provider specification not found for ${integration.provider}`);
             await errorService.reportError(err);
@@ -159,12 +122,11 @@ class LinkController {
         };
       });
 
-      if (wsClientId) {
-        await linkTokenService.updateLinkToken(linkToken.id, linkToken.environment_id, {
-          websocket_client_id: wsClientId,
-          link_method: linkMethod,
-        });
-      }
+      await activityService.createActivityLog(activityId, {
+        timestamp: now(),
+        level: LogLevel.Info,
+        message: `User viewed select integration screen`,
+      });
 
       res.render('list', {
         server_url: getServerUrl(),
@@ -180,17 +142,11 @@ class LinkController {
         message: 'Internal server error',
       });
 
-      if (wsClientId) {
-        return await publisher.publishError(res, {
-          error: DEFAULT_ERROR_MESSAGE,
-          wsClientId,
-          linkMethod,
-        });
-      }
-
-      return res.render('error', {
-        code: ErrorCode.InternalServerError,
-        message: DEFAULT_ERROR_MESSAGE,
+      return await publisher.publishError(res, {
+        error: DEFAULT_ERROR_MESSAGE,
+        wsClientId,
+        linkMethod,
+        redirectUrl,
       });
     }
   }
@@ -198,74 +154,42 @@ class LinkController {
   public async consentView(req: Request, res: Response) {
     const token = req.params['token'];
     const integrationProvider = req.params['integration'];
-    const wsClientId = req.query['ws_client_id'] as string | undefined;
-    const linkMethod = req.query['link_method'] as string | undefined;
 
     if (!token) {
-      const errorMessage = 'Invalid link token';
-
-      if (wsClientId) {
-        return await publisher.publishError(res, {
-          error: errorMessage,
-          wsClientId,
-          linkMethod,
-        });
-      }
-
-      return res.render('error', {
-        code: ErrorCode.BadRequest,
-        message: errorMessage,
+      return await publisher.publishError(res, {
+        error: 'Link token missing',
       });
     }
 
     const linkToken = await linkTokenService.getLinkTokenById(token);
 
     if (!linkToken) {
-      const errorMessage = 'Invalid link token';
+      return await publisher.publishError(res, {
+        error: 'Invalid link token',
+      });
+    }
 
-      if (wsClientId) {
+    const linkMethod = linkToken.link_method || undefined;
+    const wsClientId = linkToken.websocket_client_id || undefined;
+    const redirectUrl = linkToken.redirect_url || undefined;
+
+    const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
+
+    try {
+      if (!integrationProvider) {
+        const errorMessage = 'No integration selected';
+
+        await activityService.createActivityLog(activityId, {
+          timestamp: now(),
+          level: LogLevel.Error,
+          message: errorMessage,
+        });
+
         return await publisher.publishError(res, {
           error: errorMessage,
           wsClientId,
           linkMethod,
-        });
-      }
-
-      return res.render('error', {
-        code: ErrorCode.BadRequest,
-        message: errorMessage,
-      });
-    }
-
-    const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
-
-    await activityService.createActivityLog(activityId, {
-      timestamp: now(),
-      level: LogLevel.Info,
-      message: `User viewed consent screen`,
-    });
-
-    try {
-      if (!integrationProvider) {
-        await activityService.createActivityLog(activityId, {
-          timestamp: now(),
-          level: LogLevel.Error,
-          message: 'No integration provider associated with link token',
-        });
-
-        const errorMessage = 'Please choose an integration';
-
-        if (wsClientId) {
-          return await publisher.publishError(res, {
-            error: errorMessage,
-            wsClientId,
-            linkMethod,
-          });
-        }
-
-        return res.render('error', {
-          code: ErrorCode.BadRequest,
-          message: errorMessage,
+          redirectUrl,
         });
       }
 
@@ -278,17 +202,11 @@ class LinkController {
           message: errorMessage,
         });
 
-        if (wsClientId) {
-          return await publisher.publishError(res, {
-            error: errorMessage,
-            wsClientId,
-            linkMethod,
-          });
-        }
-
-        return res.render('error', {
-          code: ErrorCode.BadRequest,
-          message: errorMessage,
+        return await publisher.publishError(res, {
+          error: errorMessage,
+          wsClientId,
+          linkMethod,
+          redirectUrl,
         });
       }
 
@@ -299,7 +217,9 @@ class LinkController {
 
       if (!integration) {
         throw new Error(`Failed to retrieve integration ${integrationProvider}`);
-      } else if (!integration.is_enabled) {
+      }
+
+      if (!integration.is_enabled) {
         const errorMessage = 'Integration is disabled';
 
         await activityService.createActivityLog(activityId, {
@@ -308,17 +228,11 @@ class LinkController {
           message: errorMessage,
         });
 
-        if (wsClientId) {
-          return await publisher.publishError(res, {
-            error: errorMessage,
-            wsClientId,
-            linkMethod,
-          });
-        }
-
-        return res.render('error', {
-          code: ErrorCode.BadRequest,
-          message: errorMessage,
+        return await publisher.publishError(res, {
+          error: errorMessage,
+          wsClientId,
+          linkMethod,
+          redirectUrl,
         });
       }
 
@@ -328,12 +242,11 @@ class LinkController {
         throw new Error(`Provider specification not found for ${integration.provider}`);
       }
 
-      if (wsClientId) {
-        await linkTokenService.updateLinkToken(linkToken.id, linkToken.environment_id, {
-          websocket_client_id: wsClientId,
-          link_method: linkMethod,
-        });
-      }
+      await activityService.createActivityLog(activityId, {
+        timestamp: now(),
+        level: LogLevel.Info,
+        message: `User viewed consent screen`,
+      });
 
       res.render('consent', {
         server_url: getServerUrl(),
@@ -355,17 +268,11 @@ class LinkController {
         message: 'Internal server error',
       });
 
-      if (wsClientId) {
-        return await publisher.publishError(res, {
-          error: DEFAULT_ERROR_MESSAGE,
-          wsClientId,
-          linkMethod,
-        });
-      }
-
-      return res.render('error', {
-        code: ErrorCode.InternalServerError,
-        message: DEFAULT_ERROR_MESSAGE,
+      return await publisher.publishError(res, {
+        error: DEFAULT_ERROR_MESSAGE,
+        wsClientId,
+        linkMethod,
+        redirectUrl,
       });
     }
   }
@@ -375,37 +282,26 @@ class LinkController {
     const provider = req.params['integration'];
 
     if (!token) {
-      return res.render('error', {
-        code: ErrorCode.BadRequest,
-        message: 'Invalid link token',
+      return await publisher.publishError(res, {
+        error: 'Link token missing',
       });
     }
 
     const linkToken = await linkTokenService.getLinkTokenById(token);
 
     if (!linkToken) {
-      return res.render('error', {
-        code: ErrorCode.BadRequest,
-        message: 'Invalid link token',
+      return await publisher.publishError(res, {
+        error: 'Invalid link token',
       });
     }
+
+    const linkMethod = linkToken.link_method || undefined;
+    const wsClientId = linkToken.websocket_client_id || undefined;
+    const redirectUrl = linkToken.redirect_url || undefined;
 
     const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
 
     try {
-      if (!provider) {
-        await activityService.createActivityLog(activityId, {
-          timestamp: now(),
-          level: LogLevel.Error,
-          message: 'Integration provider not received in consent request',
-        });
-
-        return res.render('error', {
-          code: ErrorCode.BadRequest,
-          message: DEFAULT_ERROR_MESSAGE,
-        });
-      }
-
       if (linkToken.expires_at < now()) {
         const errorMessage = 'Link token expired';
 
@@ -415,9 +311,28 @@ class LinkController {
           message: errorMessage,
         });
 
-        return res.render('error', {
-          code: ErrorCode.BadRequest,
+        return await publisher.publishError(res, {
+          error: errorMessage,
+          wsClientId,
+          linkMethod,
+          redirectUrl,
+        });
+      }
+
+      if (!provider) {
+        const errorMessage = 'No integration selected';
+
+        await activityService.createActivityLog(activityId, {
+          timestamp: now(),
+          level: LogLevel.Error,
           message: errorMessage,
+        });
+
+        return await publisher.publishError(res, {
+          error: errorMessage,
+          wsClientId,
+          linkMethod,
+          redirectUrl,
         });
       }
 
@@ -428,7 +343,9 @@ class LinkController {
 
       if (!integration) {
         throw new Error(`Failed to retrieve integration ${provider}`);
-      } else if (!integration.is_enabled) {
+      }
+
+      if (!integration.is_enabled) {
         const errorMessage = 'Integration is disabled';
 
         await activityService.createActivityLog(activityId, {
@@ -437,9 +354,11 @@ class LinkController {
           message: errorMessage,
         });
 
-        return res.render('error', {
-          code: ErrorCode.BadRequest,
-          message: errorMessage,
+        return await publisher.publishError(res, {
+          error: errorMessage,
+          wsClientId,
+          linkMethod,
+          redirectUrl,
         });
       }
 
@@ -543,7 +462,12 @@ class LinkController {
 
           await linkTokenService.deleteLinkToken(linkToken.id);
 
-          return res.redirect(`${baseUrl}/finish`);
+          return await publisher.publishSuccess(res, {
+            linkedAccountId: response.linkedAccount.id,
+            wsClientId,
+            linkMethod,
+            redirectUrl,
+          });
         default:
           throw new Error(
             `Unsupported auth scheme ${authScheme} for provider ${providerSpec.slug}`
@@ -558,9 +482,11 @@ class LinkController {
         message: 'Internal server error',
       });
 
-      return res.render('error', {
-        code: ErrorCode.InternalServerError,
-        message: DEFAULT_ERROR_MESSAGE,
+      return await publisher.publishError(res, {
+        error: DEFAULT_ERROR_MESSAGE,
+        wsClientId,
+        linkMethod,
+        redirectUrl,
       });
     }
   }
@@ -569,20 +495,22 @@ class LinkController {
     const token = req.params['token'];
 
     if (!token) {
-      return res.render('error', {
-        code: ErrorCode.BadRequest,
-        message: 'Invalid link token',
+      return await publisher.publishError(res, {
+        error: 'Link token missing',
       });
     }
 
     const linkToken = await linkTokenService.getLinkTokenById(token);
 
     if (!linkToken) {
-      return res.render('error', {
-        code: ErrorCode.BadRequest,
-        message: 'Invalid link token',
+      return await publisher.publishError(res, {
+        error: 'Invalid link token',
       });
     }
+
+    const linkMethod = linkToken.link_method || undefined;
+    const wsClientId = linkToken.websocket_client_id || undefined;
+    const redirectUrl = linkToken.redirect_url || undefined;
 
     const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
 
@@ -596,11 +524,15 @@ class LinkController {
           message: errorMessage,
         });
 
-        return res.render('error', {
-          code: ErrorCode.BadRequest,
-          message: errorMessage,
+        return await publisher.publishError(res, {
+          error: errorMessage,
+          wsClientId,
+          linkMethod,
+          redirectUrl,
         });
-      } else if (!linkToken.consent_given) {
+      }
+
+      if (!linkToken.consent_given) {
         const errorMessage = 'Consent bypassed';
 
         await activityService.createActivityLog(activityId, {
@@ -609,20 +541,28 @@ class LinkController {
           message: errorMessage,
         });
 
-        return res.render('error', {
-          code: ErrorCode.BadRequest,
-          message: errorMessage,
+        return await publisher.publishError(res, {
+          error: errorMessage,
+          wsClientId,
+          linkMethod,
+          redirectUrl,
         });
-      } else if (!linkToken.integration_provider) {
+      }
+
+      if (!linkToken.integration_provider) {
+        const errorMessage = 'No integration selected';
+
         await activityService.createActivityLog(activityId, {
           timestamp: now(),
           level: LogLevel.Error,
-          message: 'Integration provider missing from link token',
+          message: errorMessage,
         });
 
-        return res.render('error', {
-          code: ErrorCode.BadRequest,
-          message: 'Please choose an integration',
+        return await publisher.publishError(res, {
+          error: errorMessage,
+          wsClientId,
+          linkMethod,
+          redirectUrl,
         });
       }
 
@@ -676,9 +616,11 @@ class LinkController {
         message: 'Internal server error',
       });
 
-      return res.render('error', {
-        code: ErrorCode.InternalServerError,
-        message: DEFAULT_ERROR_MESSAGE,
+      return await publisher.publishError(res, {
+        error: DEFAULT_ERROR_MESSAGE,
+        wsClientId,
+        linkMethod,
+        redirectUrl,
       });
     }
   }
@@ -688,34 +630,40 @@ class LinkController {
     const config = req.body;
 
     if (!token) {
-      return res.render('error', {
-        code: ErrorCode.BadRequest,
-        message: 'Invalid link token',
+      return await publisher.publishError(res, {
+        error: 'Link token missing',
       });
     }
 
     const linkToken = await linkTokenService.getLinkTokenById(token);
 
     if (!linkToken) {
-      return res.render('error', {
-        code: ErrorCode.BadRequest,
-        message: 'Invalid link token',
+      return await publisher.publishError(res, {
+        error: 'Invalid link token',
       });
     }
+
+    const linkMethod = linkToken.link_method || undefined;
+    const wsClientId = linkToken.websocket_client_id || undefined;
+    const redirectUrl = linkToken.redirect_url || undefined;
 
     const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
 
     try {
       if (!config || typeof config !== 'object') {
+        const errorMessage = 'Configuration missing or invalid';
+
         await activityService.createActivityLog(activityId, {
           timestamp: now(),
           level: LogLevel.Error,
-          message: 'Configuration missing or invalid',
+          message: errorMessage,
         });
 
-        return res.render('error', {
-          code: ErrorCode.BadRequest,
-          message: 'Input missing or invalid',
+        return await publisher.publishError(res, {
+          error: errorMessage,
+          wsClientId,
+          linkMethod,
+          redirectUrl,
         });
       }
 
@@ -728,11 +676,15 @@ class LinkController {
           message: errorMessage,
         });
 
-        return res.render('error', {
-          code: ErrorCode.BadRequest,
-          message: errorMessage,
+        return await publisher.publishError(res, {
+          error: errorMessage,
+          wsClientId,
+          linkMethod,
+          redirectUrl,
         });
-      } else if (!linkToken.consent_given) {
+      }
+
+      if (!linkToken.consent_given) {
         const errorMessage = 'Consent bypassed';
 
         await activityService.createActivityLog(activityId, {
@@ -741,20 +693,28 @@ class LinkController {
           message: errorMessage,
         });
 
-        return res.render('error', {
-          code: ErrorCode.BadRequest,
-          message: errorMessage,
+        return await publisher.publishError(res, {
+          error: errorMessage,
+          wsClientId,
+          linkMethod,
+          redirectUrl,
         });
-      } else if (!linkToken.integration_provider) {
+      }
+
+      if (!linkToken.integration_provider) {
+        const errorMessage = 'No integration selected';
+
         await activityService.createActivityLog(activityId, {
           timestamp: now(),
           level: LogLevel.Error,
-          message: 'Integration provider missing from link token',
+          message: errorMessage,
         });
 
-        return res.render('error', {
-          code: ErrorCode.BadRequest,
-          message: 'Please choose an integration',
+        return await publisher.publishError(res, {
+          error: errorMessage,
+          wsClientId,
+          linkMethod,
+          redirectUrl,
         });
       }
 
@@ -785,9 +745,11 @@ class LinkController {
         message: 'Internal server error',
       });
 
-      return res.render('error', {
-        code: ErrorCode.InternalServerError,
-        message: DEFAULT_ERROR_MESSAGE,
+      return await publisher.publishError(res, {
+        error: DEFAULT_ERROR_MESSAGE,
+        wsClientId,
+        linkMethod,
+        redirectUrl,
       });
     }
   }
@@ -796,28 +758,24 @@ class LinkController {
     const token = req.params['token'];
 
     if (!token) {
-      return res.render('error', {
-        code: ErrorCode.BadRequest,
-        message: 'Invalid link token',
+      return await publisher.publishError(res, {
+        error: 'Link token missing',
       });
     }
 
     const linkToken = await linkTokenService.getLinkTokenById(token);
 
     if (!linkToken) {
-      return res.render('error', {
-        code: ErrorCode.BadRequest,
-        message: 'Invalid link token',
+      return await publisher.publishError(res, {
+        error: 'Invalid link token',
       });
     }
 
-    const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
+    const linkMethod = linkToken.link_method || undefined;
+    const wsClientId = linkToken.websocket_client_id || undefined;
+    const redirectUrl = linkToken.redirect_url || undefined;
 
-    await activityService.createActivityLog(activityId, {
-      timestamp: now(),
-      level: LogLevel.Info,
-      message: `User viewed API key input screen`,
-    });
+    const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
 
     try {
       if (linkToken.expires_at < now()) {
@@ -829,11 +787,15 @@ class LinkController {
           message: errorMessage,
         });
 
-        return res.render('error', {
-          code: ErrorCode.BadRequest,
-          message: errorMessage,
+        return await publisher.publishError(res, {
+          error: errorMessage,
+          wsClientId,
+          linkMethod,
+          redirectUrl,
         });
-      } else if (!linkToken.consent_given) {
+      }
+
+      if (!linkToken.consent_given) {
         const errorMessage = 'Consent bypassed';
 
         await activityService.createActivityLog(activityId, {
@@ -842,22 +804,36 @@ class LinkController {
           message: errorMessage,
         });
 
-        return res.render('error', {
-          code: ErrorCode.BadRequest,
-          message: errorMessage,
+        return await publisher.publishError(res, {
+          error: errorMessage,
+          wsClientId,
+          linkMethod,
+          redirectUrl,
         });
-      } else if (!linkToken.integration_provider) {
+      }
+
+      if (!linkToken.integration_provider) {
+        const errorMessage = 'No integration selected';
+
         await activityService.createActivityLog(activityId, {
           timestamp: now(),
           level: LogLevel.Error,
-          message: 'Integration provider missing from link token',
+          message: errorMessage,
         });
 
-        return res.render('error', {
-          code: ErrorCode.BadRequest,
-          message: 'Please choose an integration',
+        return await publisher.publishError(res, {
+          error: errorMessage,
+          wsClientId,
+          linkMethod,
+          redirectUrl,
         });
       }
+
+      await activityService.createActivityLog(activityId, {
+        timestamp: now(),
+        level: LogLevel.Info,
+        message: `User viewed API key input screen`,
+      });
 
       res.render('api-key', {
         server_url: getServerUrl(),
@@ -875,9 +851,11 @@ class LinkController {
         message: 'Internal server error',
       });
 
-      return res.render('error', {
-        code: ErrorCode.InternalServerError,
-        message: DEFAULT_ERROR_MESSAGE,
+      return await publisher.publishError(res, {
+        error: DEFAULT_ERROR_MESSAGE,
+        wsClientId,
+        linkMethod,
+        redirectUrl,
       });
     }
   }
@@ -887,20 +865,22 @@ class LinkController {
     const apiKey = req.body['key'];
 
     if (!token) {
-      return res.render('error', {
-        code: ErrorCode.BadRequest,
-        message: 'Invalid link token',
+      return await publisher.publishError(res, {
+        error: 'Link token missing',
       });
     }
 
     const linkToken = await linkTokenService.getLinkTokenById(token);
 
     if (!linkToken) {
-      return res.render('error', {
-        code: ErrorCode.BadRequest,
-        message: 'Invalid link token',
+      return await publisher.publishError(res, {
+        error: 'Invalid link token',
       });
     }
+
+    const linkMethod = linkToken.link_method || undefined;
+    const wsClientId = linkToken.websocket_client_id || undefined;
+    const redirectUrl = linkToken.redirect_url || undefined;
 
     const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
 
@@ -914,9 +894,11 @@ class LinkController {
           message: errorMessage,
         });
 
-        return res.render('error', {
-          code: ErrorCode.BadRequest,
-          message: errorMessage,
+        return await publisher.publishError(res, {
+          error: errorMessage,
+          wsClientId,
+          linkMethod,
+          redirectUrl,
         });
       }
 
@@ -929,11 +911,15 @@ class LinkController {
           message: errorMessage,
         });
 
-        return res.render('error', {
-          code: ErrorCode.BadRequest,
-          message: errorMessage,
+        return await publisher.publishError(res, {
+          error: errorMessage,
+          wsClientId,
+          linkMethod,
+          redirectUrl,
         });
-      } else if (!linkToken.consent_given) {
+      }
+
+      if (!linkToken.consent_given) {
         const errorMessage = 'Consent bypassed';
 
         await activityService.createActivityLog(activityId, {
@@ -942,20 +928,28 @@ class LinkController {
           message: errorMessage,
         });
 
-        return res.render('error', {
-          code: ErrorCode.BadRequest,
-          message: errorMessage,
+        return await publisher.publishError(res, {
+          error: errorMessage,
+          wsClientId,
+          linkMethod,
+          redirectUrl,
         });
-      } else if (!linkToken.integration_provider) {
+      }
+
+      if (!linkToken.integration_provider) {
+        const errorMessage = 'No integration selected';
+
         await activityService.createActivityLog(activityId, {
           timestamp: now(),
           level: LogLevel.Error,
-          message: 'Integration provider missing from link token',
+          message: errorMessage,
         });
 
-        return res.render('error', {
-          code: ErrorCode.BadRequest,
-          message: 'Please choose an integration',
+        return await publisher.publishError(res, {
+          error: errorMessage,
+          wsClientId,
+          linkMethod,
+          redirectUrl,
         });
       }
 
@@ -992,7 +986,12 @@ class LinkController {
 
       await linkTokenService.deleteLinkToken(linkToken.id);
 
-      res.redirect(`${getServerUrl()}/link/finish`);
+      return await publisher.publishSuccess(res, {
+        linkedAccountId: response.linkedAccount.id,
+        wsClientId,
+        linkMethod,
+        redirectUrl,
+      });
     } catch (err) {
       await errorService.reportError(err);
 
@@ -1002,9 +1001,11 @@ class LinkController {
         message: 'Internal server error',
       });
 
-      return res.render('error', {
-        code: ErrorCode.InternalServerError,
-        message: DEFAULT_ERROR_MESSAGE,
+      return await publisher.publishError(res, {
+        error: DEFAULT_ERROR_MESSAGE,
+        wsClientId,
+        linkMethod,
+        redirectUrl,
       });
     }
   }
@@ -1013,28 +1014,24 @@ class LinkController {
     const token = req.params['token'];
 
     if (!token) {
-      return res.render('error', {
-        code: ErrorCode.BadRequest,
-        message: 'Invalid link token',
+      return await publisher.publishError(res, {
+        error: 'Link token missing',
       });
     }
 
     const linkToken = await linkTokenService.getLinkTokenById(token);
 
     if (!linkToken) {
-      return res.render('error', {
-        code: ErrorCode.BadRequest,
-        message: 'Invalid link token',
+      return await publisher.publishError(res, {
+        error: 'Invalid link token',
       });
     }
 
-    const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
+    const linkMethod = linkToken.link_method || undefined;
+    const wsClientId = linkToken.websocket_client_id || undefined;
+    const redirectUrl = linkToken.redirect_url || undefined;
 
-    await activityService.createActivityLog(activityId, {
-      timestamp: now(),
-      level: LogLevel.Info,
-      message: `User viewed username/password input screen`,
-    });
+    const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
 
     try {
       if (linkToken.expires_at < now()) {
@@ -1046,11 +1043,15 @@ class LinkController {
           message: errorMessage,
         });
 
-        return res.render('error', {
-          code: ErrorCode.BadRequest,
-          message: errorMessage,
+        return await publisher.publishError(res, {
+          error: errorMessage,
+          wsClientId,
+          linkMethod,
+          redirectUrl,
         });
-      } else if (!linkToken.consent_given) {
+      }
+
+      if (!linkToken.consent_given) {
         const errorMessage = 'Consent bypassed';
 
         await activityService.createActivityLog(activityId, {
@@ -1059,22 +1060,36 @@ class LinkController {
           message: errorMessage,
         });
 
-        return res.render('error', {
-          code: ErrorCode.BadRequest,
-          message: errorMessage,
+        return await publisher.publishError(res, {
+          error: errorMessage,
+          wsClientId,
+          linkMethod,
+          redirectUrl,
         });
-      } else if (!linkToken.integration_provider) {
+      }
+
+      if (!linkToken.integration_provider) {
+        const errorMessage = 'No integration selected';
+
         await activityService.createActivityLog(activityId, {
           timestamp: now(),
           level: LogLevel.Error,
-          message: 'Integration provider missing from link token',
+          message: errorMessage,
         });
 
-        return res.render('error', {
-          code: ErrorCode.BadRequest,
-          message: 'Please choose an integration',
+        return await publisher.publishError(res, {
+          error: errorMessage,
+          wsClientId,
+          linkMethod,
+          redirectUrl,
         });
       }
+
+      await activityService.createActivityLog(activityId, {
+        timestamp: now(),
+        level: LogLevel.Info,
+        message: `User viewed username/password input screen`,
+      });
 
       res.render('basic', {
         server_url: getServerUrl(),
@@ -1092,9 +1107,11 @@ class LinkController {
         message: 'Internal server error',
       });
 
-      return res.render('error', {
-        code: ErrorCode.InternalServerError,
-        message: DEFAULT_ERROR_MESSAGE,
+      return await publisher.publishError(res, {
+        error: DEFAULT_ERROR_MESSAGE,
+        wsClientId,
+        linkMethod,
+        redirectUrl,
       });
     }
   }
@@ -1105,20 +1122,22 @@ class LinkController {
     const password = req.body['password'];
 
     if (!token) {
-      return res.render('error', {
-        code: ErrorCode.BadRequest,
-        message: 'Invalid link token',
+      return await publisher.publishError(res, {
+        error: 'Link token missing',
       });
     }
 
     const linkToken = await linkTokenService.getLinkTokenById(token);
 
     if (!linkToken) {
-      return res.render('error', {
-        code: ErrorCode.BadRequest,
-        message: 'Invalid link token',
+      return await publisher.publishError(res, {
+        error: 'Invalid link token',
       });
     }
+
+    const linkMethod = linkToken.link_method || undefined;
+    const wsClientId = linkToken.websocket_client_id || undefined;
+    const redirectUrl = linkToken.redirect_url || undefined;
 
     const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
 
@@ -1132,11 +1151,15 @@ class LinkController {
           message: errorMessage,
         });
 
-        return res.render('error', {
-          code: ErrorCode.BadRequest,
-          message: errorMessage,
+        return await publisher.publishError(res, {
+          error: errorMessage,
+          wsClientId,
+          linkMethod,
+          redirectUrl,
         });
-      } else if (!password || typeof password !== 'string') {
+      }
+
+      if (!password || typeof password !== 'string') {
         const errorMessage = 'Password missing or invalid';
 
         await activityService.createActivityLog(activityId, {
@@ -1145,9 +1168,11 @@ class LinkController {
           message: errorMessage,
         });
 
-        return res.render('error', {
-          code: ErrorCode.BadRequest,
-          message: errorMessage,
+        return await publisher.publishError(res, {
+          error: errorMessage,
+          wsClientId,
+          linkMethod,
+          redirectUrl,
         });
       }
 
@@ -1160,11 +1185,15 @@ class LinkController {
           message: errorMessage,
         });
 
-        return res.render('error', {
-          code: ErrorCode.BadRequest,
-          message: errorMessage,
+        return await publisher.publishError(res, {
+          error: errorMessage,
+          wsClientId,
+          linkMethod,
+          redirectUrl,
         });
-      } else if (!linkToken.consent_given) {
+      }
+
+      if (!linkToken.consent_given) {
         const errorMessage = 'Consent bypassed';
 
         await activityService.createActivityLog(activityId, {
@@ -1173,20 +1202,28 @@ class LinkController {
           message: errorMessage,
         });
 
-        return res.render('error', {
-          code: ErrorCode.BadRequest,
-          message: errorMessage,
+        return await publisher.publishError(res, {
+          error: errorMessage,
+          wsClientId,
+          linkMethod,
+          redirectUrl,
         });
-      } else if (!linkToken.integration_provider) {
+      }
+
+      if (!linkToken.integration_provider) {
+        const errorMessage = 'No integration selected';
+
         await activityService.createActivityLog(activityId, {
           timestamp: now(),
           level: LogLevel.Error,
-          message: 'Integration provider missing from link token',
+          message: errorMessage,
         });
 
-        return res.render('error', {
-          code: ErrorCode.BadRequest,
-          message: 'Please choose an integration',
+        return await publisher.publishError(res, {
+          error: errorMessage,
+          wsClientId,
+          linkMethod,
+          redirectUrl,
         });
       }
 
@@ -1223,7 +1260,12 @@ class LinkController {
 
       await linkTokenService.deleteLinkToken(linkToken.id);
 
-      res.redirect(`${getServerUrl()}/link/finish`);
+      return await publisher.publishSuccess(res, {
+        linkedAccountId: response.linkedAccount.id,
+        wsClientId,
+        linkMethod,
+        redirectUrl,
+      });
     } catch (err) {
       await errorService.reportError(err);
 
@@ -1233,15 +1275,13 @@ class LinkController {
         message: 'Internal server error',
       });
 
-      return res.render('error', {
-        code: ErrorCode.InternalServerError,
-        message: DEFAULT_ERROR_MESSAGE,
+      return await publisher.publishError(res, {
+        error: DEFAULT_ERROR_MESSAGE,
+        wsClientId,
+        linkMethod,
+        redirectUrl,
       });
     }
-  }
-
-  public async finishView(req: Request, res: Response) {
-    res.render('finish');
   }
 }
 

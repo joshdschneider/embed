@@ -1,16 +1,18 @@
+// import { useBetaLink } from '@/test/useBetaLink';
 import Head from 'next/head';
 
 export default function Home() {
   // const { link } = useBetaLink({
-  //   linkToken: 'tok_6c892b71570daf69',
-  //   linkMethod: 'popup',
+  //   linkToken: 'tok_b5555e0c36d0a232',
+  //   linkMethod: 'redirect',
+  //   redirectUrl: 'http://localhost:3001',
   //   host: 'http://localhost:5555',
   // });
 
   async function openLink() {
     try {
       // const res = await link();
-      // console.log('RESOLVED', res);
+      console.log('RESOLVED', res);
     } catch (err) {
       console.log('ERROR', err);
     }
