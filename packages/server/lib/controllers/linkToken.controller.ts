@@ -91,6 +91,7 @@ class LinkTokenController {
         code_verifier: null,
         request_token_secret: null,
         websocket_client_id: null,
+        link_method: null,
         created_at: now(),
         updated_at: now(),
       });

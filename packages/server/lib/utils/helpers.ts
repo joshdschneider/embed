@@ -33,7 +33,7 @@ export function missesInterpolationParam(str: string, replacers: Record<string, 
   return /\${([^{}]*)}/g.test(interpolatedStr);
 }
 
-export function closeWindow(res: Response) {
+export function closePopup(res: Response) {
   const nonce = crypto.randomBytes(16).toString('base64');
   res.setHeader('Content-Security-Policy', `script-src 'nonce-${nonce}'`);
   res.render('close', { nonce });

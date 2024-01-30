@@ -117,6 +117,7 @@ model LinkToken {
   consent_date           Int?
   configuration          Json?
   websocket_client_id    String?
+  link_method            String?
   code_verifier          String?
   request_token_secret   String?
   created_at             Int

@@ -4,7 +4,7 @@ import { createClient } from 'redis';
 import { v4 } from 'uuid';
 import type { WebSocket } from 'ws';
 import { getRedisUrl } from '../utils/constants';
-import { closeWindow } from '../utils/helpers';
+import { closePopup } from '../utils/helpers';
 
 enum MessageType {
   ConnectionAck = 'connection_ack',
@@ -177,20 +177,16 @@ export class Publisher {
     {
       error,
       wsClientId,
-      integrationProvider,
-      linkedAccountId,
+      linkMethod,
     }: {
       error: string;
-      integrationProvider?: string;
-      linkedAccountId?: string;
-      wsClientId?: string;
+      wsClientId: string;
+      linkMethod?: string;
     }
   ) {
     if (wsClientId) {
       const data = JSON.stringify({
         message_type: MessageType.Error,
-        integration: integrationProvider,
-        linked_account_id: linkedAccountId,
         error,
       });
 
@@ -200,25 +196,26 @@ export class Publisher {
       }
     }
 
-    closeWindow(res);
+    if (linkMethod === 'popup') {
+      closePopup(res);
+    }
   }
 
   public async publishSuccess(
     res: Response,
     {
-      integrationProvider,
       linkedAccountId,
       wsClientId,
+      linkMethod,
     }: {
-      integrationProvider: string;
       linkedAccountId: string;
-      wsClientId?: string;
+      wsClientId: string;
+      linkMethod?: string;
     }
   ) {
     if (wsClientId) {
       const data = JSON.stringify({
         message_type: MessageType.Success,
-        integration: integrationProvider,
         linked_account_id: linkedAccountId,
       });
 
@@ -228,7 +225,9 @@ export class Publisher {
       }
     }
 
-    closeWindow(res);
+    if (linkMethod === 'popup') {
+      closePopup(res);
+    }
   }
 }
 

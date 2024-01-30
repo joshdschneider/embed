@@ -3,6 +3,7 @@ dotenv.config();
 
 import cors from 'cors';
 import express from 'express';
+import helmet from 'helmet';
 import http from 'http';
 import path from 'path';
 import type { WebSocket } from 'ws';
@@ -26,17 +27,17 @@ import { setupSelfHosted } from './utils/selfHosted';
 function setupExpressApp() {
   const app = express();
 
-  // app.use(helmet());
+  app.use(cors(corsOptions));
   app.use(express.json({ limit: '75mb' }));
   app.use(express.urlencoded({ extended: true }));
-  app.use(cors(corsOptions));
+
+  if (isProd()) {
+    app.use(helmet());
+    app.set('trust proxy', true);
+  }
 
   app.set('view engine', 'ejs');
   app.set('views', path.join(__dirname, 'views'));
-
-  if (isProd()) {
-    app.set('trust proxy', true);
-  }
 
   app.use('/health', healthRouter);
   app.use('/users', userRouter);
@@ -60,7 +61,6 @@ async function setupWebSockets(server: http.Server) {
   });
 
   await publisher.connect();
-
   wss.on('connection', async (ws: WebSocket) => {
     await publisher.subscribe(ws);
   });
@@ -69,7 +69,6 @@ async function setupWebSockets(server: http.Server) {
 async function start() {
   const app = setupExpressApp();
   const server = http.createServer(app);
-
   await setupWebSockets(server);
 
   if (!isCloud()) {
