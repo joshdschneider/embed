@@ -62,8 +62,12 @@ class BetaLink {
       }
 
       if (linkMethod === 'redirect' || (!linkMethod && redirectUrl)) {
-        const query = redirectUrl ? `&redirect_url=${redirectUrl}` : '';
-        window.location.href = `${url}?link_method=redirect${query}`;
+        const params: { link_method: string; redirect_url?: string } = { link_method: 'redirect' };
+        if (redirectUrl) {
+          params.redirect_url = redirectUrl;
+        }
+
+        window.location.href = appendParamsToUrl(url, params);
       }
 
       if (linkMethod && linkMethod !== 'popup' && linkMethod !== 'redirect') {
@@ -128,11 +132,10 @@ class LinkPopup {
     onError: (error: Error) => any
   ) {
     const data = JSON.parse(message.data);
-
     switch (data.message_type) {
       case MessageType.ConnectionAck:
-        const query = `ws_client_id=${data.ws_client_id}&link_method=popup`;
-        this.window.location = `${this.url}?${query}`;
+        const params = { ws_client_id: data.ws_client_id, link_method: 'popup' };
+        this.window.location = appendParamsToUrl(this.url, params);
         break;
 
       case MessageType.Error:
@@ -172,4 +175,13 @@ class LinkPopup {
       .map(([key, value]) => `${key}=${value}`)
       .join(',');
   }
+}
+
+function appendParamsToUrl(url: string, params: Record<string, string>) {
+  const baseUrl = new URL(url);
+  Object.entries(params).forEach(([key, value]) => {
+    baseUrl.searchParams.set(key, value);
+  });
+
+  return url.toString();
 }

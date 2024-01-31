@@ -5,6 +5,7 @@ import { createClient } from 'redis';
 import { v4 } from 'uuid';
 import type { WebSocket } from 'ws';
 import { getRedisUrl } from '../utils/constants';
+import { appendParamsToUrl } from '../utils/helpers';
 
 enum MessageType {
   ConnectionAck = 'connection_ack',
@@ -201,8 +202,8 @@ export class Publisher {
     if (linkMethod === 'popup') {
       this.closePopup(res);
     } else if (linkMethod === 'redirect' && redirectUrl) {
-      const encodedError = encodeURIComponent(error);
-      res.redirect(`${redirectUrl}?error=${encodedError}`);
+      const errorRedirectUrl = appendParamsToUrl(redirectUrl, { error });
+      res.redirect(errorRedirectUrl);
     } else {
       res.render('error', { message: error });
     }
@@ -237,7 +238,10 @@ export class Publisher {
     if (linkMethod === 'popup') {
       this.closePopup(res);
     } else if (linkMethod === 'redirect' && redirectUrl) {
-      res.redirect(`${redirectUrl}?linked_account_id=${linkedAccountId}`);
+      const successRedirectUrl = appendParamsToUrl(redirectUrl, {
+        linked_account_id: linkedAccountId,
+      });
+      res.redirect(successRedirectUrl);
     } else {
       res.render('finish');
     }

@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import activityService from '../services/activity.service';
 import errorService, { ErrorCode } from '../services/error.service';
 import linkTokenService from '../services/linkToken.service';
+import linkedAccountService from '../services/linkedAccount.service';
 import { LogAction, LogLevel } from '../types';
 import {
   DEFAULT_ERROR_MESSAGE,
@@ -25,11 +26,29 @@ class LinkTokenController {
         });
       }
 
-      if (linked_account_id && typeof linked_account_id !== 'string') {
-        return errorService.errorResponse(res, {
-          code: ErrorCode.BadRequest,
-          message: 'Invalid linked account ID',
-        });
+      if (linked_account_id) {
+        if (typeof linked_account_id !== 'string') {
+          return errorService.errorResponse(res, {
+            code: ErrorCode.BadRequest,
+            message: 'Invalid linked account ID',
+          });
+        }
+
+        const linkedAccount = await linkedAccountService.getLinkedAccountById(linked_account_id);
+
+        if (!linkedAccount) {
+          return errorService.errorResponse(res, {
+            code: ErrorCode.NotFound,
+            message: 'Failed to re-link account; Linked account not found',
+          });
+        }
+
+        if (linkedAccount.integration_provider !== integration) {
+          return errorService.errorResponse(res, {
+            code: ErrorCode.BadRequest,
+            message: `Linked account ${linked_account_id} must re-link to ${linkedAccount.integration_provider}`,
+          });
+        }
       }
 
       const minMinutes = 30;
@@ -334,7 +353,12 @@ class LinkTokenController {
   }
 
   private buildLinkTokenUrl(token: string) {
-    return `${getServerUrl()}/link/${token}`;
+    const serverUrl = getServerUrl();
+    if (!serverUrl) {
+      throw new Error('Server URL is not defined');
+    }
+
+    return `${serverUrl}/link/${token}`;
   }
 
   private expiresInMinutes(expiresAt: number) {

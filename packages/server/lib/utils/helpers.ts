@@ -32,6 +32,14 @@ export function missesInterpolationParam(str: string, replacers: Record<string, 
   return /\${([^{}]*)}/g.test(interpolatedStr);
 }
 
+export function appendParamsToUrl(url: string, params: Record<string, string>) {
+  const baseUrl = new URL(url);
+  Object.entries(params).forEach(([key, value]) => {
+    baseUrl.searchParams.set(key, value);
+  });
+  return url.toString();
+}
+
 export function generateSecretKey(environment: EnvironmentType, byteLength = 16): string {
   const prefix = environment === EnvironmentType.Staging ? 'test' : 'prod';
   return `sk_${prefix}_${crypto.randomBytes(byteLength).toString('hex')}`;

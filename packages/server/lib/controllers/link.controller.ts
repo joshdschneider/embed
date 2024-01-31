@@ -12,6 +12,7 @@ import { LogLevel } from '../types';
 import { DEFAULT_ERROR_MESSAGE, getServerUrl } from '../utils/constants';
 import {
   Resource,
+  appendParamsToUrl,
   extractConfigurationKeys,
   formatKeyToReadableText,
   generateId,
@@ -36,7 +37,6 @@ class LinkController {
     }
 
     const linkToken = await linkTokenService.getLinkTokenById(token);
-
     if (!linkToken) {
       return await publisher.publishError(res, {
         error: 'Invalid link token',
@@ -67,8 +67,13 @@ class LinkController {
     const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
 
     try {
+      const serverUrl = getServerUrl();
+      if (!serverUrl) {
+        throw new Error('SERVER_URL is undefined');
+      }
+
       if (!linkToken.can_choose_integration) {
-        const baseUrl = `${getServerUrl()}/link/${linkToken.id}`;
+        const baseUrl = `${serverUrl}/link/${linkToken.id}`;
         const integrationPath = `/i/${linkToken.integration_provider}`;
         return res.redirect(baseUrl + integrationPath);
       }
@@ -91,7 +96,6 @@ class LinkController {
       }
 
       const integrations = await integrationService.listIntegrations(linkToken.environment_id);
-
       if (!integrations) {
         throw new Error(`Failed to list integrations for environment ${linkToken.environment_id}`);
       }
@@ -129,7 +133,7 @@ class LinkController {
       });
 
       res.render('list', {
-        server_url: getServerUrl(),
+        server_url: serverUrl,
         link_token: token,
         integrations: integrationsList,
       });
@@ -162,7 +166,6 @@ class LinkController {
     }
 
     const linkToken = await linkTokenService.getLinkTokenById(token);
-
     if (!linkToken) {
       return await publisher.publishError(res, {
         error: 'Invalid link token',
@@ -172,7 +175,6 @@ class LinkController {
     const linkMethod = linkToken.link_method || undefined;
     const wsClientId = linkToken.websocket_client_id || undefined;
     const redirectUrl = linkToken.redirect_url || undefined;
-
     const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
 
     try {
@@ -210,6 +212,11 @@ class LinkController {
         });
       }
 
+      const serverUrl = getServerUrl();
+      if (!serverUrl) {
+        throw new Error('SERVER_URL is undefined');
+      }
+
       const integration = await integrationService.getIntegrationByProvider(
         integrationProvider,
         linkToken.environment_id
@@ -237,7 +244,6 @@ class LinkController {
       }
 
       const providerSpec = await providerService.getProviderSpec(integration.provider);
-
       if (!providerSpec) {
         throw new Error(`Provider specification not found for ${integration.provider}`);
       }
@@ -249,7 +255,7 @@ class LinkController {
       });
 
       res.render('consent', {
-        server_url: getServerUrl(),
+        server_url: serverUrl,
         link_token: token,
         client_name: 'CLIENT_NAME',
         can_choose_integration: linkToken.can_choose_integration,
@@ -288,7 +294,6 @@ class LinkController {
     }
 
     const linkToken = await linkTokenService.getLinkTokenById(token);
-
     if (!linkToken) {
       return await publisher.publishError(res, {
         error: 'Invalid link token',
@@ -298,7 +303,6 @@ class LinkController {
     const linkMethod = linkToken.link_method || undefined;
     const wsClientId = linkToken.websocket_client_id || undefined;
     const redirectUrl = linkToken.redirect_url || undefined;
-
     const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
 
     try {
@@ -382,13 +386,17 @@ class LinkController {
       });
 
       const providerSpec = await providerService.getProviderSpec(integration.provider);
-
       if (!providerSpec) {
         throw new Error(`Provider specification not found for ${integration.provider}`);
       }
 
+      const serverUrl = getServerUrl();
+      if (!serverUrl) {
+        throw new Error('SERVER_URL is undefined');
+      }
+
       const authScheme = providerSpec.auth.scheme;
-      const baseUrl = `${getServerUrl()}/link/${token}`;
+      const baseUrl = `${serverUrl}/link/${token}`;
 
       switch (authScheme) {
         case AuthScheme.OAUTH1:
@@ -493,7 +501,6 @@ class LinkController {
 
   public async oauthView(req: Request, res: Response) {
     const token = req.params['token'];
-
     if (!token) {
       return await publisher.publishError(res, {
         error: 'Link token missing',
@@ -501,7 +508,6 @@ class LinkController {
     }
 
     const linkToken = await linkTokenService.getLinkTokenById(token);
-
     if (!linkToken) {
       return await publisher.publishError(res, {
         error: 'Invalid link token',
@@ -511,7 +517,6 @@ class LinkController {
     const linkMethod = linkToken.link_method || undefined;
     const wsClientId = linkToken.websocket_client_id || undefined;
     const redirectUrl = linkToken.redirect_url || undefined;
-
     const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
 
     try {
@@ -566,8 +571,12 @@ class LinkController {
         });
       }
 
-      const providerSpec = await providerService.getProviderSpec(linkToken.integration_provider);
+      const serverUrl = getServerUrl();
+      if (!serverUrl) {
+        throw new Error('SERVER_URL is undefined');
+      }
 
+      const providerSpec = await providerService.getProviderSpec(linkToken.integration_provider);
       if (!providerSpec) {
         throw new Error(`Provider specification not found for ${linkToken.integration_provider}`);
       }
@@ -592,7 +601,7 @@ class LinkController {
         });
 
         return res.render('config', {
-          server_url: getServerUrl(),
+          server_url: serverUrl,
           link_token: token,
           integration: {
             provider: providerSpec.slug,
@@ -606,7 +615,11 @@ class LinkController {
         });
       }
 
-      res.redirect(`${getServerUrl()}/oauth/authorize?token=${token}`);
+      const oauthUrl = appendParamsToUrl(`${serverUrl}/oauth/authorize`, {
+        token: token,
+      });
+
+      res.redirect(oauthUrl);
     } catch (err) {
       await errorService.reportError(err);
 
@@ -636,7 +649,6 @@ class LinkController {
     }
 
     const linkToken = await linkTokenService.getLinkTokenById(token);
-
     if (!linkToken) {
       return await publisher.publishError(res, {
         error: 'Invalid link token',
@@ -646,7 +658,6 @@ class LinkController {
     const linkMethod = linkToken.link_method || undefined;
     const wsClientId = linkToken.websocket_client_id || undefined;
     const redirectUrl = linkToken.redirect_url || undefined;
-
     const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
 
     try {
@@ -718,6 +729,11 @@ class LinkController {
         });
       }
 
+      const serverUrl = getServerUrl();
+      if (!serverUrl) {
+        throw new Error('SERVER_URL is undefined');
+      }
+
       const updatedLinkToken = await linkTokenService.updateLinkToken(
         linkToken.id,
         linkToken.environment_id,
@@ -735,7 +751,11 @@ class LinkController {
         payload: { configuration: config },
       });
 
-      res.redirect(`${getServerUrl()}/oauth/authorize?token=${token}`);
+      const oauthUrl = appendParamsToUrl(`${serverUrl}/oauth/authorize`, {
+        token: token,
+      });
+
+      res.redirect(oauthUrl);
     } catch (err) {
       await errorService.reportError(err);
 
@@ -756,7 +776,6 @@ class LinkController {
 
   public async apiKeyAuthView(req: Request, res: Response) {
     const token = req.params['token'];
-
     if (!token) {
       return await publisher.publishError(res, {
         error: 'Link token missing',
@@ -764,7 +783,6 @@ class LinkController {
     }
 
     const linkToken = await linkTokenService.getLinkTokenById(token);
-
     if (!linkToken) {
       return await publisher.publishError(res, {
         error: 'Invalid link token',
@@ -774,7 +792,6 @@ class LinkController {
     const linkMethod = linkToken.link_method || undefined;
     const wsClientId = linkToken.websocket_client_id || undefined;
     const redirectUrl = linkToken.redirect_url || undefined;
-
     const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
 
     try {
@@ -829,6 +846,11 @@ class LinkController {
         });
       }
 
+      const serverUrl = getServerUrl();
+      if (!serverUrl) {
+        throw new Error('SERVER_URL is undefined');
+      }
+
       await activityService.createActivityLog(activityId, {
         timestamp: now(),
         level: LogLevel.Info,
@@ -836,7 +858,7 @@ class LinkController {
       });
 
       res.render('api-key', {
-        server_url: getServerUrl(),
+        server_url: serverUrl,
         link_token: token,
         integration: {
           provider: linkToken.integration_provider,
@@ -871,7 +893,6 @@ class LinkController {
     }
 
     const linkToken = await linkTokenService.getLinkTokenById(token);
-
     if (!linkToken) {
       return await publisher.publishError(res, {
         error: 'Invalid link token',
@@ -881,7 +902,6 @@ class LinkController {
     const linkMethod = linkToken.link_method || undefined;
     const wsClientId = linkToken.websocket_client_id || undefined;
     const redirectUrl = linkToken.redirect_url || undefined;
-
     const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
 
     try {
@@ -1012,7 +1032,6 @@ class LinkController {
 
   public async basicAuthView(req: Request, res: Response) {
     const token = req.params['token'];
-
     if (!token) {
       return await publisher.publishError(res, {
         error: 'Link token missing',
@@ -1020,7 +1039,6 @@ class LinkController {
     }
 
     const linkToken = await linkTokenService.getLinkTokenById(token);
-
     if (!linkToken) {
       return await publisher.publishError(res, {
         error: 'Invalid link token',
@@ -1030,7 +1048,6 @@ class LinkController {
     const linkMethod = linkToken.link_method || undefined;
     const wsClientId = linkToken.websocket_client_id || undefined;
     const redirectUrl = linkToken.redirect_url || undefined;
-
     const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
 
     try {
@@ -1085,6 +1102,11 @@ class LinkController {
         });
       }
 
+      const serverUrl = getServerUrl();
+      if (!serverUrl) {
+        throw new Error('SERVER_URL is undefined');
+      }
+
       await activityService.createActivityLog(activityId, {
         timestamp: now(),
         level: LogLevel.Info,
@@ -1092,7 +1114,7 @@ class LinkController {
       });
 
       res.render('basic', {
-        server_url: getServerUrl(),
+        server_url: serverUrl,
         link_token: token,
         integration: {
           provider: linkToken.integration_provider,
@@ -1128,7 +1150,6 @@ class LinkController {
     }
 
     const linkToken = await linkTokenService.getLinkTokenById(token);
-
     if (!linkToken) {
       return await publisher.publishError(res, {
         error: 'Invalid link token',
@@ -1138,7 +1159,6 @@ class LinkController {
     const linkMethod = linkToken.link_method || undefined;
     const wsClientId = linkToken.websocket_client_id || undefined;
     const redirectUrl = linkToken.redirect_url || undefined;
-
     const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
 
     try {

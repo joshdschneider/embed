@@ -26,7 +26,6 @@ import {
 class OAuthController {
   public async authorize(req: Request, res: Response) {
     const token = req.query['token'];
-
     if (!token || typeof token !== 'string') {
       return await publisher.publishError(res, {
         error: 'Link token missing',
@@ -34,7 +33,6 @@ class OAuthController {
     }
 
     const linkToken = await linkTokenService.getLinkTokenById(token);
-
     if (!linkToken) {
       return await publisher.publishError(res, {
         error: 'Invalid link token',
@@ -44,7 +42,6 @@ class OAuthController {
     const linkMethod = linkToken.link_method || undefined;
     const wsClientId = linkToken.websocket_client_id || undefined;
     const redirectUrl = linkToken.redirect_url || undefined;
-
     const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
 
     try {
@@ -126,7 +123,6 @@ class OAuthController {
       }
 
       const provider = await providerService.getProviderSpec(integration.provider);
-
       if (!provider) {
         throw new Error('Failed to retrieve provider specification');
       }
@@ -433,7 +429,6 @@ class OAuthController {
     const linkMethod = linkToken.link_method || undefined;
     const wsClientId = linkToken.websocket_client_id || undefined;
     const redirectUrl = linkToken.redirect_url || undefined;
-
     const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
 
     try {
@@ -451,7 +446,6 @@ class OAuthController {
       }
 
       const provider = await providerService.getProviderSpec(linkToken.integration_provider);
-
       if (!provider) {
         throw new Error('Failed to retrieve provider specification');
       }
@@ -514,7 +508,6 @@ class OAuthController {
     }
   ): Promise<void> {
     const { code } = req.query;
-
     const linkMethod = linkToken.link_method || undefined;
     const wsClientId = linkToken.websocket_client_id || undefined;
     const redirectUrl = linkToken.redirect_url || undefined;
@@ -636,7 +629,6 @@ class OAuthController {
     }
   ): Promise<void> {
     const { oauth_token, oauth_verifier } = req.query;
-
     const linkMethod = linkToken.link_method || undefined;
     const wsClientId = linkToken.websocket_client_id || undefined;
     const redirectUrl = linkToken.redirect_url || undefined;

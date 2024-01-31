@@ -24,6 +24,15 @@ export const useBetaLink = ({
   host,
   websocketPath,
 }: UseBetaLinkProps) => {
+  const appendParamsToUrl = (url: string, params: Record<string, string>) => {
+    const baseUrl = new URL(url);
+    Object.entries(params).forEach(([key, value]) => {
+      baseUrl.searchParams.set(key, value);
+    });
+
+    return url.toString();
+  };
+
   const getPopupLayout = (width: number, height: number) => {
     const screenWidth = window.screen.width;
     const screenHeight = window.screen.height;
@@ -49,7 +58,6 @@ export const useBetaLink = ({
   const openPopup = useCallback(
     (url: string) => {
       const layout = getPopupLayout(500, 600);
-
       const featuresString = featuresToString({
         width: layout.computedWidth,
         height: layout.computedHeight,
@@ -79,11 +87,11 @@ export const useBetaLink = ({
       onError: (error: Error) => any
     ) => {
       const data = JSON.parse(message.data);
-
       switch (data.message_type) {
         case MessageType.ConnectionAck:
-          const query = `ws_client_id=${data.ws_client_id}&link_method=popup`;
-          openPopup(`${url}?${query}`);
+          const params = { ws_client_id: data.ws_client_id, link_method: 'popup' };
+          const popupUrl = appendParamsToUrl(url, params);
+          openPopup(popupUrl);
           return;
 
         case MessageType.Error:
@@ -101,7 +109,7 @@ export const useBetaLink = ({
           return;
       }
     },
-    [openPopup, redirectUrl]
+    [appendParamsToUrl, openPopup, redirectUrl]
   );
 
   const link = useCallback(() => {
@@ -144,8 +152,12 @@ export const useBetaLink = ({
       }
 
       if (linkMethod === 'redirect' || (!linkMethod && redirectUrl)) {
-        const query = redirectUrl ? `&redirect_url=${redirectUrl}` : '';
-        window.location.href = `${url}?link_method=redirect${query}`;
+        const params: { link_method: string; redirect_url?: string } = { link_method: 'redirect' };
+        if (redirectUrl) {
+          params.redirect_url = redirectUrl;
+        }
+
+        window.location.href = appendParamsToUrl(url, params);
       }
 
       if (linkMethod && linkMethod !== 'popup' && linkMethod !== 'redirect') {
@@ -153,7 +165,7 @@ export const useBetaLink = ({
         onError(err);
       }
     });
-  }, [linkToken, linkMethod, host, websocketPath, handleMessage]);
+  }, [linkToken, linkMethod, host, websocketPath, handleMessage, appendParamsToUrl]);
 
   return { link };
 };
