@@ -1,5 +1,8 @@
 // import { useBetaLink } from '@/test/useBetaLink';
+// import { Beta } from '@/test/Beta';
 import Head from 'next/head';
+
+// const beta = Beta({ host: 'http://localhost:5555' });
 
 export default function Home() {
   // const { link } = useBetaLink({
@@ -12,7 +15,7 @@ export default function Home() {
   async function openLink() {
     try {
       // const res = await link();
-      console.log('RESOLVED', res);
+      // console.log('RESOLVED', res);
     } catch (err) {
       console.log('ERROR', err);
     }

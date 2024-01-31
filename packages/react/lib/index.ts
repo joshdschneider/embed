@@ -82,18 +82,9 @@ export const useBetaLink = ({
 
       switch (data.message_type) {
         case MessageType.ConnectionAck:
-          if (linkMethod === 'popup' || (!linkMethod && !redirectUrl)) {
-            openPopup(`${url}?ws_client_id=${data.ws_client_id}&link_method=popup`);
-            return;
-          }
-
-          if (linkMethod === 'redirect' || (!linkMethod && redirectUrl)) {
-            const query = redirectUrl ? `&redirect_url=${redirectUrl}` : '';
-            window.location.href = `${url}?link_method=redirect${query}`;
-            return;
-          }
-
-          throw new Error('Invalid link method');
+          const query = `ws_client_id=${data.ws_client_id}&link_method=popup`;
+          openPopup(`${url}?${query}`);
+          return;
 
         case MessageType.Error:
           const error = new Error(data.error);
@@ -110,7 +101,7 @@ export const useBetaLink = ({
           return;
       }
     },
-    [openPopup, linkMethod, redirectUrl]
+    [openPopup, redirectUrl]
   );
 
   const link = useCallback(() => {
@@ -119,14 +110,6 @@ export const useBetaLink = ({
     }
 
     return new Promise((resolve, reject) => {
-      const onSuccess = (linkedAccountId: string) => {
-        return resolve(linkedAccountId);
-      };
-
-      const onError = (error: Error) => {
-        return reject(error);
-      };
-
       const hostUrl = host || DEFAULT_HOST;
       const wsPath = websocketPath || DEFAULT_WEBSOCKET_PATH;
       const hostBaseUrl = hostUrl.slice(-1) === '/' ? hostUrl.slice(0, -1) : hostUrl;
@@ -143,13 +126,34 @@ export const useBetaLink = ({
         throw new Error('Invalid host URL or websocket path');
       }
 
-      const url = `${hostBaseUrl}/link/${linkToken}`;
-      const websocket = new WebSocket(websocketBaseUrl);
-      websocket.onmessage = (message: MessageEvent) => {
-        handleMessage(message, websocket, url, onSuccess, onError);
+      const onSuccess = (linkedAccountId: string) => {
+        return resolve(linkedAccountId);
       };
+
+      const onError = (error: Error) => {
+        return reject(error);
+      };
+
+      const url = `${hostBaseUrl}/link/${linkToken}`;
+
+      if (linkMethod === 'popup' || (!linkMethod && !redirectUrl)) {
+        const websocket = new WebSocket(websocketBaseUrl);
+        websocket.onmessage = (message: MessageEvent) => {
+          handleMessage(message, websocket, url, onSuccess, onError);
+        };
+      }
+
+      if (linkMethod === 'redirect' || (!linkMethod && redirectUrl)) {
+        const query = redirectUrl ? `&redirect_url=${redirectUrl}` : '';
+        window.location.href = `${url}?link_method=redirect${query}`;
+      }
+
+      if (linkMethod && linkMethod !== 'popup' && linkMethod !== 'redirect') {
+        const err = new Error('Invalid link method');
+        onError(err);
+      }
     });
-  }, [linkToken, host, websocketPath, handleMessage]);
+  }, [linkToken, linkMethod, host, websocketPath, handleMessage]);
 
   return { link };
 };
