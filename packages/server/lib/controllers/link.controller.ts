@@ -70,7 +70,6 @@ class LinkController {
     }
 
     const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
-
     const branding = await environmentService.getEnvironmentBranding(
       linkToken.environment_id,
       prefersDarkMode

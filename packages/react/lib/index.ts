@@ -78,6 +78,12 @@ export const useBetaLink = ({
     [getPopupLayout, featuresToString]
   );
 
+  const prefersDarkMode = () => {
+    const pefersDark =
+      window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    return pefersDark.toString();
+  };
+
   const handleMessage = useCallback(
     (
       message: MessageEvent,
@@ -89,7 +95,11 @@ export const useBetaLink = ({
       const data = JSON.parse(message.data);
       switch (data.message_type) {
         case MessageType.ConnectionAck:
-          const params = { ws_client_id: data.ws_client_id, link_method: 'popup' };
+          const params = {
+            ws_client_id: data.ws_client_id,
+            link_method: 'popup',
+            prefers_dark_mode: prefersDarkMode(),
+          };
           const popupUrl = appendParamsToUrl(url, params);
           openPopup(popupUrl);
           return;
@@ -109,7 +119,7 @@ export const useBetaLink = ({
           return;
       }
     },
-    [appendParamsToUrl, openPopup, redirectUrl]
+    [appendParamsToUrl, prefersDarkMode, openPopup, redirectUrl]
   );
 
   const link = useCallback(() => {

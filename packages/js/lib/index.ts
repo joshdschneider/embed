@@ -134,7 +134,11 @@ class LinkPopup {
     const data = JSON.parse(message.data);
     switch (data.message_type) {
       case MessageType.ConnectionAck:
-        const params = { ws_client_id: data.ws_client_id, link_method: 'popup' };
+        const params = {
+          ws_client_id: data.ws_client_id,
+          link_method: 'popup',
+          prefers_dark_mode: this.prefersDarkMode(),
+        };
         this.window.location = appendParamsToUrl(this.url, params);
         break;
 
@@ -152,6 +156,12 @@ class LinkPopup {
       default:
         return;
     }
+  }
+
+  private prefersDarkMode() {
+    const pefersDark =
+      window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    return pefersDark.toString();
   }
 
   private getLayout(width: number, height: number) {
