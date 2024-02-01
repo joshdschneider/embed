@@ -3,6 +3,8 @@ import linkController from '../controllers/link.controller';
 
 const linkRouter = express.Router();
 
+linkRouter.route('/r/:token').get(linkController.redirect.bind(linkController));
+
 linkRouter.route('/:token').get(linkController.listView.bind(linkController));
 
 linkRouter.route('/:token/i/:integration').get(linkController.consentView.bind(linkController));

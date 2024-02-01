@@ -1429,6 +1429,16 @@ class LinkController {
     }
   }
 
+  public redirect(req: Request, res: Response) {
+    const token = req.params['token'];
+    const serverUrl = getServerUrl();
+    if (!token || !serverUrl) {
+      res.render('error', { message: DEFAULT_ERROR_MESSAGE });
+    } else {
+      res.render('redirect', { url: `${serverUrl}/link/${token}` });
+    }
+  }
+
   private safeRender(
     res: Response,
     activityId: string | null,

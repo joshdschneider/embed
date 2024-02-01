@@ -103,7 +103,9 @@ class EnvironmentService {
       const environment = await this.getEnvironmentById(environmentId);
       if (environment) {
         const { light_mode, dark_mode, ...rest } = environment.branding as BrandingOptions;
-        return prefersDarkMode ? { ...rest, ...dark_mode } : { ...rest, ...light_mode };
+        const darkMode =
+          rest.appearance === 'dark' || (rest.appearance === 'system' && prefersDarkMode);
+        return darkMode ? { ...rest, ...dark_mode } : { ...rest, ...light_mode };
       }
     } catch (err) {
       await errorService.reportError(err);
