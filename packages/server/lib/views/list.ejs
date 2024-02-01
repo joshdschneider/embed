@@ -5,10 +5,15 @@
   </head>
   <body>
     <main>
+      <p>Branding: <%= branding.dark_mode.page_background %></p>
       <ul>
         <% integrations.forEach((integration) => { %>
           <li>
-            <a href="<%= server_url %>/link/<%= link_token %>/i/<%= integration.provider %>"><%= integration.display_name %></a>
+            <% if (is_preview) { %>
+              <a href="<%= server_url %>/link-preview/i/<%= integration.provider %>"><%= integration.display_name %></a>
+            <% } else { %>  
+              <a href="<%= server_url %>/link/<%= link_token %>/i/<%= integration.provider %>"><%= integration.display_name %></a>
+            <% } %>
           </li>
         <% }) %>
       </ul>

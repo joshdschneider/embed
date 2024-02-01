@@ -3,6 +3,7 @@ import { Integration } from '@prisma/client';
 import { Request, Response } from 'express';
 import publisher from '../clients/publisher.client';
 import activityService from '../services/activity.service';
+import environmentService from '../services/environment.service';
 import errorService from '../services/error.service';
 import integrationService from '../services/integration.service';
 import linkTokenService from '../services/linkToken.service';
@@ -26,6 +27,7 @@ class LinkController {
     let linkMethod = req.query['link_method'] as string | undefined;
     let wsClientId = req.query['ws_client_id'] as string | undefined;
     let redirectUrl = req.query['redirect_url'] as string | undefined;
+    let prefersDarkMode = req.query['prefers_dark_mode'] === 'true';
 
     if (!token) {
       return await publisher.publishError(res, {
@@ -37,6 +39,7 @@ class LinkController {
     }
 
     const linkToken = await linkTokenService.getLinkTokenById(token);
+
     if (!linkToken) {
       return await publisher.publishError(res, {
         error: 'Invalid link token',
@@ -54,6 +57,7 @@ class LinkController {
           link_method: linkMethod,
           websocket_client_id: wsClientId,
           redirect_url: redirectUrl,
+          // save prefersDarkMode to link token
         }
       );
 
@@ -66,6 +70,11 @@ class LinkController {
 
     const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
 
+    const branding = await environmentService.getEnvironmentBranding(
+      linkToken.environment_id,
+      prefersDarkMode
+    );
+
     try {
       const serverUrl = getServerUrl();
       if (!serverUrl) {
@@ -73,9 +82,12 @@ class LinkController {
       }
 
       if (!linkToken.can_choose_integration) {
-        const baseUrl = `${serverUrl}/link/${linkToken.id}`;
-        const integrationPath = `/i/${linkToken.integration_provider}`;
-        return res.redirect(baseUrl + integrationPath);
+        let consentUrl = `${serverUrl}/link/${linkToken.id}/i/${linkToken.integration_provider}`;
+        if (prefersDarkMode) {
+          consentUrl = appendParamsToUrl(consentUrl, { prefers_dark_mode: 'true' });
+        }
+
+        return res.redirect(consentUrl);
       }
 
       if (linkToken.expires_at < now()) {
@@ -92,10 +104,12 @@ class LinkController {
           wsClientId,
           linkMethod,
           redirectUrl,
+          branding,
         });
       }
 
       const integrations = await integrationService.listIntegrations(linkToken.environment_id);
+
       if (!integrations) {
         throw new Error(`Failed to list integrations for environment ${linkToken.environment_id}`);
       }
@@ -105,6 +119,7 @@ class LinkController {
       const integrationsWithSpec = await Promise.all(
         enabledIntegrations.map(async (integration) => {
           const providerSpec = await providerService.getProviderSpec(integration.provider);
+
           if (!providerSpec) {
             const err = new Error(`Provider specification not found for ${integration.provider}`);
             await errorService.reportError(err);
@@ -132,11 +147,17 @@ class LinkController {
         message: `User viewed select integration screen`,
       });
 
-      res.render('list', {
-        server_url: serverUrl,
-        link_token: token,
-        integrations: integrationsList,
-      });
+      res.render(
+        'list',
+        {
+          is_preview: false,
+          server_url: serverUrl,
+          link_token: token,
+          integrations: integrationsList,
+          branding,
+        },
+        (err, html) => this.safeRender(res, activityId, err, html)
+      );
     } catch (err) {
       await errorService.reportError(err);
 
@@ -151,6 +172,7 @@ class LinkController {
         wsClientId,
         linkMethod,
         redirectUrl,
+        branding,
       });
     }
   }
@@ -175,7 +197,13 @@ class LinkController {
     const linkMethod = linkToken.link_method || undefined;
     const wsClientId = linkToken.websocket_client_id || undefined;
     const redirectUrl = linkToken.redirect_url || undefined;
+
     const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
+    const prefersDarkMode = req.query['prefers_dark_mode'] === 'true';
+    const branding = await environmentService.getEnvironmentBranding(
+      linkToken.environment_id,
+      prefersDarkMode
+    );
 
     try {
       if (!integrationProvider) {
@@ -192,6 +220,7 @@ class LinkController {
           wsClientId,
           linkMethod,
           redirectUrl,
+          branding,
         });
       }
 
@@ -209,6 +238,7 @@ class LinkController {
           wsClientId,
           linkMethod,
           redirectUrl,
+          branding,
         });
       }
 
@@ -240,6 +270,7 @@ class LinkController {
           wsClientId,
           linkMethod,
           redirectUrl,
+          branding,
         });
       }
 
@@ -254,17 +285,22 @@ class LinkController {
         message: `User viewed consent screen`,
       });
 
-      res.render('consent', {
-        server_url: serverUrl,
-        link_token: token,
-        client_name: 'CLIENT_NAME',
-        can_choose_integration: linkToken.can_choose_integration,
-        integration: {
-          provider: integration.provider,
-          display_name: providerSpec.display_name,
-          logo_url: providerSpec.logo_url,
+      res.render(
+        'consent',
+        {
+          is_preview: false,
+          server_url: serverUrl,
+          link_token: token,
+          can_choose_integration: linkToken.can_choose_integration,
+          integration: {
+            provider: integration.provider,
+            display_name: providerSpec.display_name,
+            logo_url: providerSpec.logo_url,
+          },
+          branding,
         },
-      });
+        (err, html) => this.safeRender(res, activityId, err, html)
+      );
     } catch (err) {
       await errorService.reportError(err);
 
@@ -279,6 +315,7 @@ class LinkController {
         wsClientId,
         linkMethod,
         redirectUrl,
+        branding,
       });
     }
   }
@@ -303,7 +340,13 @@ class LinkController {
     const linkMethod = linkToken.link_method || undefined;
     const wsClientId = linkToken.websocket_client_id || undefined;
     const redirectUrl = linkToken.redirect_url || undefined;
+
     const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
+    const prefersDarkMode = req.query['prefers_dark_mode'] === 'true';
+    const branding = await environmentService.getEnvironmentBranding(
+      linkToken.environment_id,
+      prefersDarkMode
+    );
 
     try {
       if (linkToken.expires_at < now()) {
@@ -320,6 +363,7 @@ class LinkController {
           wsClientId,
           linkMethod,
           redirectUrl,
+          branding,
         });
       }
 
@@ -337,6 +381,7 @@ class LinkController {
           wsClientId,
           linkMethod,
           redirectUrl,
+          branding,
         });
       }
 
@@ -363,6 +408,7 @@ class LinkController {
           wsClientId,
           linkMethod,
           redirectUrl,
+          branding,
         });
       }
 
@@ -401,7 +447,10 @@ class LinkController {
       switch (authScheme) {
         case AuthScheme.OAUTH1:
         case AuthScheme.OAUTH2:
-          const oauthUrl = `${baseUrl}/oauth`;
+          let oauthUrl = `${baseUrl}/oauth`;
+          if (prefersDarkMode) {
+            oauthUrl = appendParamsToUrl(oauthUrl, { prefers_dark_mode: 'true' });
+          }
 
           await activityService.createActivityLog(activityId, {
             timestamp: now(),
@@ -411,7 +460,10 @@ class LinkController {
 
           return res.redirect(oauthUrl);
         case AuthScheme.API_KEY:
-          const apiKeyUrl = `${baseUrl}/api-key`;
+          let apiKeyUrl = `${baseUrl}/api-key`;
+          if (prefersDarkMode) {
+            apiKeyUrl = appendParamsToUrl(apiKeyUrl, { prefers_dark_mode: 'true' });
+          }
 
           await activityService.createActivityLog(activityId, {
             timestamp: now(),
@@ -421,7 +473,10 @@ class LinkController {
 
           return res.redirect(apiKeyUrl);
         case AuthScheme.BASIC:
-          const basicUrl = `${baseUrl}/basic`;
+          let basicUrl = `${baseUrl}/basic`;
+          if (prefersDarkMode) {
+            basicUrl = appendParamsToUrl(basicUrl, { prefers_dark_mode: 'true' });
+          }
 
           await activityService.createActivityLog(activityId, {
             timestamp: now(),
@@ -475,6 +530,7 @@ class LinkController {
             wsClientId,
             linkMethod,
             redirectUrl,
+            branding,
           });
         default:
           throw new Error(
@@ -495,6 +551,7 @@ class LinkController {
         wsClientId,
         linkMethod,
         redirectUrl,
+        branding,
       });
     }
   }
@@ -517,7 +574,13 @@ class LinkController {
     const linkMethod = linkToken.link_method || undefined;
     const wsClientId = linkToken.websocket_client_id || undefined;
     const redirectUrl = linkToken.redirect_url || undefined;
+
     const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
+    const prefersDarkMode = req.query['prefers_dark_mode'] === 'true';
+    const branding = await environmentService.getEnvironmentBranding(
+      linkToken.environment_id,
+      prefersDarkMode
+    );
 
     try {
       if (linkToken.expires_at < now()) {
@@ -534,6 +597,7 @@ class LinkController {
           wsClientId,
           linkMethod,
           redirectUrl,
+          branding,
         });
       }
 
@@ -551,6 +615,7 @@ class LinkController {
           wsClientId,
           linkMethod,
           redirectUrl,
+          branding,
         });
       }
 
@@ -568,6 +633,7 @@ class LinkController {
           wsClientId,
           linkMethod,
           redirectUrl,
+          branding,
         });
       }
 
@@ -600,25 +666,32 @@ class LinkController {
           payload: { configuration_fields: keys },
         });
 
-        return res.render('config', {
-          server_url: serverUrl,
-          link_token: token,
-          integration: {
-            provider: providerSpec.slug,
-            display_name: providerSpec.display_name,
-            logo_url: providerSpec.logo_url,
+        return res.render(
+          'config',
+          {
+            server_url: serverUrl,
+            link_token: token,
+            integration: {
+              provider: providerSpec.slug,
+              display_name: providerSpec.display_name,
+              logo_url: providerSpec.logo_url,
+            },
+            configuration_fields: keys.map((key) => ({
+              name: key,
+              label: formatKeyToReadableText(key),
+            })),
+            branding,
           },
-          configuration_fields: keys.map((key) => ({
-            name: key,
-            label: formatKeyToReadableText(key),
-          })),
-        });
+          (err, html) => this.safeRender(res, activityId, err, html)
+        );
       }
 
-      const oauthUrl = appendParamsToUrl(`${serverUrl}/oauth/authorize`, {
-        token: token,
-      });
+      const params: { token: string; prefers_dark_mode?: string } = { token: token };
+      if (prefersDarkMode) {
+        params['prefers_dark_mode'] = 'true';
+      }
 
+      const oauthUrl = appendParamsToUrl(`${serverUrl}/oauth/authorize`, params);
       res.redirect(oauthUrl);
     } catch (err) {
       await errorService.reportError(err);
@@ -634,6 +707,7 @@ class LinkController {
         wsClientId,
         linkMethod,
         redirectUrl,
+        branding,
       });
     }
   }
@@ -658,6 +732,7 @@ class LinkController {
     const linkMethod = linkToken.link_method || undefined;
     const wsClientId = linkToken.websocket_client_id || undefined;
     const redirectUrl = linkToken.redirect_url || undefined;
+
     const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
 
     try {
@@ -857,13 +932,17 @@ class LinkController {
         message: `User viewed API key input screen`,
       });
 
-      res.render('api-key', {
-        server_url: serverUrl,
-        link_token: token,
-        integration: {
-          provider: linkToken.integration_provider,
+      res.render(
+        'api-key',
+        {
+          server_url: serverUrl,
+          link_token: token,
+          integration: {
+            provider: linkToken.integration_provider,
+          },
         },
-      });
+        (err, html) => this.safeRender(res, activityId, err, html)
+      );
     } catch (err) {
       await errorService.reportError(err);
 
@@ -1113,13 +1192,17 @@ class LinkController {
         message: `User viewed username/password input screen`,
       });
 
-      res.render('basic', {
-        server_url: serverUrl,
-        link_token: token,
-        integration: {
-          provider: linkToken.integration_provider,
+      res.render(
+        'basic',
+        {
+          server_url: serverUrl,
+          link_token: token,
+          integration: {
+            provider: linkToken.integration_provider,
+          },
         },
-      });
+        (err, html) => this.safeRender(res, activityId, err, html)
+      );
     } catch (err) {
       await errorService.reportError(err);
 
@@ -1301,6 +1384,28 @@ class LinkController {
         linkMethod,
         redirectUrl,
       });
+    }
+  }
+
+  private safeRender(res: Response, activityId: string | null, err: Error, html: string) {
+    if (err) {
+      errorService.reportError(err);
+
+      activityService.createActivityLog(activityId, {
+        timestamp: now(),
+        level: LogLevel.Error,
+        message: 'Internal server error',
+      });
+
+      res.render('error', { message: DEFAULT_ERROR_MESSAGE }, (err, html) => {
+        if (err) {
+          res.send(DEFAULT_ERROR_MESSAGE);
+        } else {
+          res.send(html);
+        }
+      });
+    } else {
+      res.send(html);
     }
   }
 }

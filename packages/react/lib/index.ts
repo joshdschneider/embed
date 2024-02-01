@@ -30,7 +30,7 @@ export const useBetaLink = ({
       baseUrl.searchParams.set(key, value);
     });
 
-    return url.toString();
+    return baseUrl.toString();
   };
 
   const getPopupLayout = (width: number, height: number) => {

@@ -4,7 +4,8 @@ import type { RedisClientType } from 'redis';
 import { createClient } from 'redis';
 import { v4 } from 'uuid';
 import type { WebSocket } from 'ws';
-import { getRedisUrl } from '../utils/constants';
+import { Branding } from '../types';
+import { DEFAULT_BRANDING, getRedisUrl } from '../utils/constants';
 import { appendParamsToUrl } from '../utils/helpers';
 
 enum MessageType {
@@ -133,6 +134,7 @@ export class Publisher {
 
   public async connect() {
     const redisUrl = getRedisUrl();
+
     if (redisUrl) {
       const redis = new Redis(redisUrl);
       await redis.connect();
@@ -180,19 +182,17 @@ export class Publisher {
       wsClientId,
       linkMethod,
       redirectUrl,
+      branding,
     }: {
       error: string;
       wsClientId?: string;
       linkMethod?: string;
       redirectUrl?: string;
+      branding?: Branding;
     }
   ) {
     if (wsClientId) {
-      const data = JSON.stringify({
-        message_type: MessageType.Error,
-        error,
-      });
-
+      const data = JSON.stringify({ message_type: MessageType.Error, error });
       const published = await this.publish(wsClientId, data);
       if (published) {
         await this.unsubscribe(wsClientId);
@@ -205,7 +205,10 @@ export class Publisher {
       const errorRedirectUrl = appendParamsToUrl(redirectUrl, { error });
       res.redirect(errorRedirectUrl);
     } else {
-      res.render('error', { message: error });
+      res.render('error', {
+        message: error,
+        branding: branding || DEFAULT_BRANDING,
+      });
     }
   }
 
@@ -216,11 +219,13 @@ export class Publisher {
       wsClientId,
       linkMethod,
       redirectUrl,
+      branding,
     }: {
       linkedAccountId: string;
       wsClientId?: string;
       linkMethod?: string;
       redirectUrl?: string;
+      branding?: Branding;
     }
   ) {
     if (wsClientId) {
@@ -241,9 +246,12 @@ export class Publisher {
       const successRedirectUrl = appendParamsToUrl(redirectUrl, {
         linked_account_id: linkedAccountId,
       });
+
       res.redirect(successRedirectUrl);
     } else {
-      res.render('finish');
+      res.render('finish', {
+        branding: branding || DEFAULT_BRANDING,
+      });
     }
   }
 

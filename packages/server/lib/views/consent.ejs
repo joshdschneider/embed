@@ -5,13 +5,21 @@
   </head>
   <body>
     <main>
+      <% if (can_choose_integration) { %>
+        <button onclick="history.back()">Go Back</button>
+      <% } %>  
       <p>
-        <%= client_name || "This application" %> uses Platform to connect to <%=
-        integration.display_name %>
+        <%= branding.name || "This application" %> uses Platform to connect to <%= integration.display_name %>
       </p>
-      <form action="/link/<%= link_token %>/i/<%= integration.provider %>" method="post">
-        <input type="submit" value="Submit" />
-      </form>
+      <% if (is_preview) { %>
+        <form>
+          <input type="submit" value="Submit" />
+        </form>
+      <% } else { %>  
+        <form action="/link/<%= link_token %>/i/<%= integration.provider %>" method="post">
+          <input type="submit" value="Submit" />
+        </form>
+      <% } %>
     </main>
   </body>
 </html>

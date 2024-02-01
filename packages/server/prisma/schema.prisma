@@ -35,6 +35,7 @@ model Environment {
   account_id              String
   type                    String
   enable_new_integrations Boolean
+  branding                Json
   created_at              Int
   updated_at              Int?
   deleted_at              Int?

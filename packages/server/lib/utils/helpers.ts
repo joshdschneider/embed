@@ -37,7 +37,7 @@ export function appendParamsToUrl(url: string, params: Record<string, string>) {
   Object.entries(params).forEach(([key, value]) => {
     baseUrl.searchParams.set(key, value);
   });
-  return url.toString();
+  return baseUrl.toString();
 }
 
 export function generateSecretKey(environment: EnvironmentType, byteLength = 16): string {

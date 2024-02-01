@@ -14,6 +14,7 @@ import environmentRouter from './routes/environment.router';
 import healthRouter from './routes/health.router';
 import integrationRouter from './routes/integration.router';
 import linkRouter from './routes/link.router';
+import linkPreviewRouter from './routes/linkPreview.router';
 import linkTokenRouter from './routes/linkToken.router';
 import linkedAccountRouter from './routes/linkedAccount.router';
 import oauthRouter from './routes/oauth.router';
@@ -47,6 +48,7 @@ function setupExpressApp() {
   app.use('/providers', providerRouter);
   app.use('/oauth', oauthRouter);
   app.use('/link', linkRouter);
+  app.use('/link-preview', linkPreviewRouter);
   app.use('/link-tokens', linkTokenRouter);
   app.use('/linked-accounts', linkedAccountRouter);
   app.use('/webhooks', webhookRouter);

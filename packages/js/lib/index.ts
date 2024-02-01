@@ -183,5 +183,5 @@ function appendParamsToUrl(url: string, params: Record<string, string>) {
     baseUrl.searchParams.set(key, value);
   });
 
-  return url.toString();
+  return baseUrl.toString();
 }

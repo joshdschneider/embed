@@ -6,7 +6,7 @@ import errorService, { ErrorCode } from '../services/error.service';
 import integrationService from '../services/integration.service';
 import userService from '../services/user.service';
 import { AccountType, EnvironmentType } from '../types';
-import { DEFAULT_ERROR_MESSAGE } from '../utils/constants';
+import { DEFAULT_BRANDING, DEFAULT_ERROR_MESSAGE } from '../utils/constants';
 import { Resource, generateId, generateSecretKey, now } from '../utils/helpers';
 
 class UserController {
@@ -68,6 +68,7 @@ class UserController {
         account_id: account.id,
         type: EnvironmentType.Staging,
         enable_new_integrations: true,
+        branding: DEFAULT_BRANDING,
         created_at: now(),
         updated_at: now(),
         deleted_at: null,
