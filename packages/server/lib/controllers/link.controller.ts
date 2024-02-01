@@ -82,12 +82,9 @@ class LinkController {
       }
 
       if (!linkToken.can_choose_integration) {
-        let consentUrl = `${serverUrl}/link/${linkToken.id}/i/${linkToken.integration_provider}`;
-        if (prefersDarkMode) {
-          consentUrl = appendParamsToUrl(consentUrl, { prefers_dark_mode: 'true' });
-        }
-
-        return res.redirect(consentUrl);
+        return res.redirect(
+          `${serverUrl}/link/${linkToken.id}/i/${linkToken.integration_provider}`
+        );
       }
 
       if (linkToken.expires_at < now()) {
@@ -208,6 +205,27 @@ class LinkController {
     try {
       if (!integrationProvider) {
         const errorMessage = 'No integration selected';
+
+        await activityService.createActivityLog(activityId, {
+          timestamp: now(),
+          level: LogLevel.Error,
+          message: errorMessage,
+        });
+
+        return await publisher.publishError(res, {
+          error: errorMessage,
+          wsClientId,
+          linkMethod,
+          redirectUrl,
+          branding,
+        });
+      }
+
+      if (
+        !linkToken.can_choose_integration &&
+        integrationProvider !== linkToken.integration_provider
+      ) {
+        const errorMessage = `Invalid integration`;
 
         await activityService.createActivityLog(activityId, {
           timestamp: now(),
