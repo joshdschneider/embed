@@ -108,6 +108,7 @@ class LinkTokenController {
         consent_date: null,
         configuration: null,
         code_verifier: null,
+        prefers_dark_mode: null,
         request_token_secret: null,
         websocket_client_id: null,
         link_method: null,

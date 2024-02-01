@@ -7,12 +7,13 @@ import { OAuth1Client } from '../clients/oauth1.client';
 import { getSimpleOAuth2ClientConfig } from '../clients/oauth2.client';
 import publisher from '../clients/publisher.client';
 import activityService from '../services/activity.service';
+import environmentService from '../services/environment.service';
 import errorService from '../services/error.service';
 import integrationService from '../services/integration.service';
 import linkTokenService from '../services/linkToken.service';
 import linkedAccountService from '../services/linkedAccount.service';
 import providerService from '../services/provider.service';
-import { LogLevel } from '../types';
+import { Branding, LogLevel } from '../types';
 import { DEFAULT_ERROR_MESSAGE } from '../utils/constants';
 import {
   Resource,
@@ -42,7 +43,13 @@ class OAuthController {
     const linkMethod = linkToken.link_method || undefined;
     const wsClientId = linkToken.websocket_client_id || undefined;
     const redirectUrl = linkToken.redirect_url || undefined;
+    const prefersDarkMode = linkToken.prefers_dark_mode || false;
+
     const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
+    const branding = await environmentService.getEnvironmentBranding(
+      linkToken.environment_id,
+      prefersDarkMode
+    );
 
     try {
       if (linkToken.expires_at < now()) {
@@ -59,6 +66,7 @@ class OAuthController {
           wsClientId,
           linkMethod,
           redirectUrl,
+          branding,
         });
       }
 
@@ -76,6 +84,7 @@ class OAuthController {
           wsClientId,
           linkMethod,
           redirectUrl,
+          branding,
         });
       }
 
@@ -93,6 +102,7 @@ class OAuthController {
           wsClientId,
           linkMethod,
           redirectUrl,
+          branding,
         });
       }
 
@@ -119,6 +129,7 @@ class OAuthController {
           wsClientId,
           linkMethod,
           redirectUrl,
+          branding,
         });
       }
 
@@ -152,6 +163,7 @@ class OAuthController {
           integration,
           linkToken: updatedLinkToken,
           activityId,
+          branding,
         });
       } else if (provider.auth.scheme === AuthScheme.OAUTH1) {
         return this.oauth1Request(res, {
@@ -159,6 +171,7 @@ class OAuthController {
           integration,
           linkToken: updatedLinkToken,
           activityId,
+          branding,
         });
       } else {
         throw new Error('Invalid auth scheme');
@@ -177,6 +190,7 @@ class OAuthController {
         wsClientId,
         linkMethod,
         redirectUrl,
+        branding,
       });
     }
   }
@@ -188,11 +202,13 @@ class OAuthController {
       authSpec,
       integration,
       activityId,
+      branding,
     }: {
       linkToken: LinkToken;
       authSpec: OAuth2;
       integration: Integration;
       activityId: string | null;
+      branding: Branding;
     }
   ) {
     const linkMethod = linkToken.link_method || undefined;
@@ -219,6 +235,7 @@ class OAuthController {
             wsClientId,
             linkMethod,
             redirectUrl,
+            branding,
           });
         }
       }
@@ -255,6 +272,7 @@ class OAuthController {
             wsClientId,
             linkMethod,
             redirectUrl,
+            branding,
           });
         }
       }
@@ -327,6 +345,7 @@ class OAuthController {
         wsClientId,
         linkMethod,
         redirectUrl,
+        branding,
       });
     }
   }
@@ -338,11 +357,13 @@ class OAuthController {
       authSpec,
       integration,
       activityId,
+      branding,
     }: {
       linkToken: LinkToken;
       authSpec: OAuth1;
       integration: Integration;
       activityId: string | null;
+      branding: Branding;
     }
   ) {
     const linkMethod = linkToken.link_method || undefined;
@@ -399,6 +420,7 @@ class OAuthController {
         wsClientId,
         linkMethod,
         redirectUrl,
+        branding,
       });
     }
   }
@@ -429,7 +451,13 @@ class OAuthController {
     const linkMethod = linkToken.link_method || undefined;
     const wsClientId = linkToken.websocket_client_id || undefined;
     const redirectUrl = linkToken.redirect_url || undefined;
+    const prefersDarkMode = linkToken.prefers_dark_mode || false;
+
     const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
+    const branding = await environmentService.getEnvironmentBranding(
+      linkToken.environment_id,
+      prefersDarkMode
+    );
 
     try {
       if (!linkToken.integration_provider) {
@@ -463,6 +491,7 @@ class OAuthController {
           authSpec: authSpec as OAuth2,
           integration,
           activityId,
+          branding,
         });
       } else if (authSpec.scheme === AuthScheme.OAUTH1) {
         return this.oauth1Callback(req, res, {
@@ -470,6 +499,7 @@ class OAuthController {
           authSpec: authSpec as OAuth1,
           integration,
           activityId,
+          branding,
         });
       } else {
         throw new Error('Invalid auth scheme');
@@ -488,6 +518,7 @@ class OAuthController {
         wsClientId,
         linkMethod,
         redirectUrl,
+        branding,
       });
     }
   }
@@ -500,11 +531,13 @@ class OAuthController {
       authSpec,
       integration,
       activityId,
+      branding,
     }: {
       linkToken: LinkToken;
       authSpec: OAuth2;
       integration: Integration;
       activityId: string | null;
+      branding: Branding;
     }
   ): Promise<void> {
     const { code } = req.query;
@@ -594,6 +627,7 @@ class OAuthController {
         wsClientId,
         linkMethod,
         redirectUrl,
+        branding,
       });
     } catch (err) {
       await errorService.reportError(err);
@@ -609,6 +643,7 @@ class OAuthController {
         wsClientId,
         linkMethod,
         redirectUrl,
+        branding,
       });
     }
   }
@@ -621,11 +656,13 @@ class OAuthController {
       authSpec,
       integration,
       activityId,
+      branding,
     }: {
       linkToken: LinkToken;
       authSpec: OAuth1;
       integration: Integration;
       activityId: string | null;
+      branding: Branding;
     }
   ): Promise<void> {
     const { oauth_token, oauth_verifier } = req.query;
@@ -699,6 +736,7 @@ class OAuthController {
         wsClientId,
         linkMethod,
         redirectUrl,
+        branding,
       });
     } catch (err) {
       await errorService.reportError(err);
@@ -714,6 +752,7 @@ class OAuthController {
         wsClientId,
         linkMethod,
         redirectUrl,
+        branding,
       });
     }
   }
