@@ -16,6 +16,7 @@
       }
       main {
         display: flex;
+        flex-direction: column;
         background-color: <%= "#" + branding.page_background %>;
       }
     </style>
@@ -23,13 +24,40 @@
       function navigate(url) {
         window.parent.postMessage({ event: 'navigate', destination: url }, "*");
       }
+
+      function filterIntegrations() {
+        var input = document.getElementById('search');
+        var filter = input.value.toUpperCase();
+        var ul = document.getElementById("integrationList");
+        var li = ul.getElementsByClassName('integration-item');
+        var noResults = document.getElementById("noResults");
+        let visibleCount = 0; 
+
+        for (var i = 0; i < li.length; i++) {
+          var a = li[i].getElementsByTagName("a")[0];
+          var txtValue = a.textContent || a.innerText;
+          if (txtValue.toUpperCase().indexOf(filter) > -1) {
+            li[i].style.display = "";
+            visibleCount++;
+          } else {
+            li[i].style.display = "none";
+          }
+        }
+
+        if (visibleCount === 0) {
+          noResults.style.display = "block";
+        } else {
+          noResults.style.display = "none";
+        }
+      }
     </script>
   </head>
   <body>
     <main>
-      <ul>
+      <input type="text" id="search" placeholder="Search" oninput="filterIntegrations()" />
+      <ul id="integrationList">
         <% integrations.forEach((integration) => { %>
-          <li>
+          <li class="integration-item" data-name="<%= integration.display_name %>">
             <% if (is_preview) { %>
               <a href="#" onclick="navigate('<%= server_url %>/link-preview/<%= link_token %>/i/<%= integration.provider %>')"><%= integration.display_name %></a>
             <% } else { %>  
@@ -38,6 +66,7 @@
           </li>
         <% }) %>
       </ul>
+      <div id="noResults" style="display: none;">None found</div>
     </main>
   </body>
 </html>

@@ -13,6 +13,7 @@ import apiKeyRouter from './routes/apiKey.router';
 import environmentRouter from './routes/environment.router';
 import healthRouter from './routes/health.router';
 import integrationRouter from './routes/integration.router';
+import jobRouter from './routes/job.router';
 import linkRouter from './routes/link.router';
 import linkPreviewRouter from './routes/linkPreview.router';
 import linkTokenRouter from './routes/linkToken.router';
@@ -39,6 +40,7 @@ function setupExpressApp() {
 
   app.set('view engine', 'ejs');
   app.set('views', path.join(__dirname, 'views'));
+  app.use(express.static(path.join(__dirname, 'public')));
 
   app.use('/health', healthRouter);
   app.use('/users', userRouter);
@@ -51,6 +53,7 @@ function setupExpressApp() {
   app.use('/link-preview', linkPreviewRouter);
   app.use('/link-tokens', linkTokenRouter);
   app.use('/linked-accounts', linkedAccountRouter);
+  app.use('/jobs', jobRouter);
   app.use('/webhooks', webhookRouter);
 
   return app;

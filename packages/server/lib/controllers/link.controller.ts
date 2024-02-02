@@ -310,6 +310,7 @@ class LinkController {
             provider: integration.provider,
             display_name: providerSpec.display_name,
             logo_url: providerSpec.logo_url,
+            logo_dark_url: providerSpec.logo_dark_url,
           },
           branding,
         },

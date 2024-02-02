@@ -40,6 +40,10 @@ export function getAuthTokenSecret() {
   return process.env['BETA_CLOUD_AUTH_TOKEN_SECRET'];
 }
 
+export function getInternalApiKey() {
+  return process.env['BETA_CLOUD_INTERNAL_API_KEY'];
+}
+
 export const ACCOUNT_ID_LOCALS_KEY = 'beta_account_id';
 export const ENVIRONMENT_ID_LOCALS_KEY = 'beta_environment_id';
 

@@ -2,7 +2,7 @@ import Cookies from 'cookies';
 import type { NextFunction, Request, Response } from 'express';
 import authService from '../services/auth.service';
 import errorService, { ErrorCode } from '../services/error.service';
-import { BETA_CLOUD_AUTH_TOKEN_KEY, isCloud } from '../utils/constants';
+import { BETA_CLOUD_AUTH_TOKEN_KEY, getInternalApiKey, isCloud } from '../utils/constants';
 
 class AuthMiddleware {
   public async apiKeyAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -59,6 +59,37 @@ class AuthMiddleware {
     return errorService.errorResponse(res, {
       code: ErrorCode.Unauthorized,
       message: 'Cloud credentials are required',
+    });
+  }
+
+  public async internalAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
+    const authHeader = req.get('authorization');
+    if (authHeader) {
+      const apiKey = authHeader.split('Bearer ').pop();
+      const internalApiKey = getInternalApiKey();
+
+      if (!internalApiKey) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.InternalServerError,
+          message: 'Internal API key not set',
+        });
+      }
+
+      if (apiKey) {
+        if (internalApiKey === apiKey) {
+          return next();
+        } else {
+          return errorService.errorResponse(res, {
+            code: ErrorCode.Unauthorized,
+            message: 'Invalid internal API key',
+          });
+        }
+      }
+    }
+
+    return errorService.errorResponse(res, {
+      code: ErrorCode.Forbidden,
+      message: 'Internal use only',
     });
   }
 }
