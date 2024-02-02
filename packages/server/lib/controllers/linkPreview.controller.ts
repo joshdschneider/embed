@@ -10,6 +10,7 @@ import { DEFAULT_ERROR_MESSAGE, ENVIRONMENT_ID_LOCALS_KEY, getServerUrl } from '
 class LinkPreviewController {
   public async listView(req: Request, res: Response) {
     const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
+    const prefersDarkMode = req.query['prefers_dark_mode'] === 'true';
     const brandingOverride = req.query['branding'];
 
     try {
@@ -23,6 +24,8 @@ class LinkPreviewController {
         try {
           branding = JSON.parse(brandingOverride);
         } catch {}
+      } else {
+        branding = await environmentService.getEnvironmentBranding(environmentId, prefersDarkMode);
       }
 
       const serverUrl = getServerUrl();
@@ -30,9 +33,9 @@ class LinkPreviewController {
         throw new Error('SERVER_URL is undefined');
       }
 
-      const integrations = await integrationService.listIntegrations(environment.id);
+      const integrations = await integrationService.listIntegrations(environmentId);
       if (!integrations) {
-        throw new Error(`Failed to list integrations for environment ${environment.id}`);
+        throw new Error(`Failed to list integrations for environment ${environmentId}`);
       }
 
       const enabledIntegrations = integrations.filter((integration) => integration.is_enabled);
@@ -83,13 +86,12 @@ class LinkPreviewController {
 
   public async consentView(req: Request, res: Response) {
     const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
+    const prefersDarkMode = req.query['prefers_dark_mode'] === 'true';
     const integrationProvider = req.params['integration'];
     const brandingOverride = req.query['branding'];
 
     if (!integrationProvider) {
-      return res.render('error', { message: 'No integration selected' }, (err, html) => {
-        this.safeRender(res, err, html);
-      });
+      return res.render('error', { message: 'No integration selected' });
     }
 
     try {
@@ -103,6 +105,8 @@ class LinkPreviewController {
         try {
           branding = JSON.parse(brandingOverride);
         } catch {}
+      } else {
+        branding = await environmentService.getEnvironmentBranding(environmentId, prefersDarkMode);
       }
 
       const serverUrl = getServerUrl();

@@ -49,17 +49,13 @@ class LinkController {
       });
     }
 
-    if (linkMethod || wsClientId || redirectUrl) {
-      const updatedLinkToken = await linkTokenService.updateLinkToken(
-        linkToken.id,
-        linkToken.environment_id,
-        {
-          link_method: linkMethod,
-          websocket_client_id: wsClientId,
-          redirect_url: redirectUrl,
-          prefers_dark_mode: prefersDarkMode,
-        }
-      );
+    if (linkMethod || wsClientId || redirectUrl || prefersDarkMode) {
+      const updatedLinkToken = await linkTokenService.updateLinkToken(linkToken.id, {
+        link_method: linkMethod,
+        websocket_client_id: wsClientId,
+        redirect_url: redirectUrl,
+        prefers_dark_mode: prefersDarkMode,
+      });
 
       if (updatedLinkToken) {
         linkMethod = updatedLinkToken.link_method || undefined;
@@ -430,16 +426,12 @@ class LinkController {
         });
       }
 
-      const updatedLinkToken = await linkTokenService.updateLinkToken(
-        linkToken.id,
-        linkToken.environment_id,
-        {
-          integration_provider: integration.provider,
-          consent_given: true,
-          consent_date: now(),
-          consent_ip: req.ip,
-        }
-      );
+      const updatedLinkToken = await linkTokenService.updateLinkToken(linkToken.id, {
+        integration_provider: integration.provider,
+        consent_given: true,
+        consent_date: now(),
+        consent_ip: req.ip,
+      });
 
       if (!updatedLinkToken) {
         throw new Error(`Failed to update link token ${linkToken.id}`);
@@ -825,11 +817,9 @@ class LinkController {
         throw new Error('SERVER_URL is undefined');
       }
 
-      const updatedLinkToken = await linkTokenService.updateLinkToken(
-        linkToken.id,
-        linkToken.environment_id,
-        { configuration: config }
-      );
+      const updatedLinkToken = await linkTokenService.updateLinkToken(linkToken.id, {
+        configuration: config,
+      });
 
       if (!updatedLinkToken) {
         throw new Error(`Failed to update link token ${linkToken.id}`);
@@ -1450,10 +1440,15 @@ class LinkController {
   public redirect(req: Request, res: Response) {
     const token = req.params['token'];
     const serverUrl = getServerUrl();
+
     if (!token || !serverUrl) {
-      res.render('error', { message: DEFAULT_ERROR_MESSAGE });
+      res.render('error', {
+        message: DEFAULT_ERROR_MESSAGE,
+      });
     } else {
-      res.render('redirect', { url: `${serverUrl}/link/${token}` });
+      res.render('redirect', {
+        destination_url: `${serverUrl}/link/${token}`,
+      });
     }
   }
 

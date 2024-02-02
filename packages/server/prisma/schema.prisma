@@ -119,7 +119,7 @@ model LinkToken {
   configuration          Json?
   websocket_client_id    String?
   link_method            String?
-  prefers_dark_mode      Boolean?
+  prefers_dark_mode      Boolean @default(false)
   code_verifier          String?
   request_token_secret   String?
   created_at             Int

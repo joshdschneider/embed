@@ -113,7 +113,6 @@ class WebSocketPublisher {
 
   public publish(wsClientId: string, message: string): boolean {
     const client = this.wsClients.get(wsClientId);
-
     if (client) {
       client.send(message);
       return true;
@@ -134,7 +133,6 @@ export class Publisher {
 
   public async connect() {
     const redisUrl = getRedisUrl();
-
     if (redisUrl) {
       const redis = new Redis(redisUrl);
       await redis.connect();
@@ -144,7 +142,6 @@ export class Publisher {
 
   public async subscribe(ws: WebSocket, wsClientId = v4()) {
     this.wsPublisher.subscribe(ws, wsClientId);
-
     if (this.redisPublisher) {
       const onMessage = async (message: string, channel: string) => {
         this.wsPublisher.publish(channel, message);
@@ -157,7 +154,6 @@ export class Publisher {
 
   public async unsubscribe(wsClientId: string) {
     this.wsPublisher.unsubscribe(wsClientId);
-
     if (this.redisPublisher) {
       await this.redisPublisher.unsubscribe(wsClientId);
     }
@@ -165,7 +161,6 @@ export class Publisher {
 
   public async publish(wsClientId: string, message: string): Promise<boolean> {
     const delivered = this.wsPublisher.publish(wsClientId, message);
-
     if (!delivered) {
       if (this.redisPublisher) {
         await this.redisPublisher.publish(wsClientId, message);

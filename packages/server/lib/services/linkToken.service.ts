@@ -42,15 +42,11 @@ class LinkTokenService {
 
   public async updateLinkToken(
     linkTokenId: string,
-    environmentId: string,
     data: Partial<LinkToken>
   ): Promise<LinkToken | null> {
     try {
       return await prisma.linkToken.update({
-        where: {
-          id: linkTokenId,
-          environment_id: environmentId,
-        },
+        where: { id: linkTokenId },
         data: {
           ...data,
           metadata: data.metadata || undefined,

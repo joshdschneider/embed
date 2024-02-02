@@ -138,14 +138,10 @@ class OAuthController {
         throw new Error('Failed to retrieve provider specification');
       }
 
-      const updatedLinkToken = await linkTokenService.updateLinkToken(
-        linkToken.id,
-        linkToken.environment_id,
-        {
-          code_verifier: crypto.randomBytes(24).toString('hex'),
-          updated_at: now(),
-        }
-      );
+      const updatedLinkToken = await linkTokenService.updateLinkToken(linkToken.id, {
+        code_verifier: crypto.randomBytes(24).toString('hex'),
+        updated_at: now(),
+      });
 
       if (!updatedLinkToken) {
         throw new Error('Failed to update link token');
@@ -383,14 +379,10 @@ class OAuthController {
 
       const requestToken = await oauth1Client.getOAuthRequestToken();
 
-      const updatedLinkToken = await linkTokenService.updateLinkToken(
-        linkToken.id,
-        linkToken.environment_id,
-        {
-          request_token_secret: requestToken.request_token_secret,
-          updated_at: now(),
-        }
-      );
+      const updatedLinkToken = await linkTokenService.updateLinkToken(linkToken.id, {
+        request_token_secret: requestToken.request_token_secret,
+        updated_at: now(),
+      });
 
       if (!updatedLinkToken) {
         throw new Error('Failed to update link token');

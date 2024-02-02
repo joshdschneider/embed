@@ -108,7 +108,7 @@ class LinkTokenController {
         consent_date: null,
         configuration: null,
         code_verifier: null,
-        prefers_dark_mode: null,
+        prefers_dark_mode: false,
         request_token_secret: null,
         websocket_client_id: null,
         link_method: null,
@@ -315,7 +315,7 @@ class LinkTokenController {
         });
       }
 
-      const linkToken = await linkTokenService.updateLinkToken(linkTokenId, environmentId, {
+      const linkToken = await linkTokenService.updateLinkToken(linkTokenId, {
         integration_provider: integration || null,
         expires_at: expiresAt,
         language: language || null,
@@ -359,7 +359,7 @@ class LinkTokenController {
       throw new Error('Server URL is not defined');
     }
 
-    return `${serverUrl}/link/${token}`;
+    return `${serverUrl}/link/r/${token}`;
   }
 
   private expiresInMinutes(expiresAt: number) {

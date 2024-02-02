@@ -3,17 +3,18 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="robots" content="noindex, nofollow" />
-    <meta http-equiv="refresh" content="1;url=<%= url %>" />
+    <meta http-equiv="refresh" content="1;url=<%= destination_url %>" />
     <script type="text/javascript">
-      const prefersDark =
-        window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-      const prefersDarkMode = prefersDark ? 'true' : 'false';
-      window.location.href = `<%= url %>?prefers_dark_mode=${prefersDarkMode}`;
+      const dark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const prefersDarkMode = dark ? 'true' : 'false';
+      window.location.href = `<%= destination_url %>?prefers_dark_mode=${prefersDarkMode}`;
     </script>
   </head>
   <body>
     <main>
-      <i>If you are not redirected automatically, <a href="<%= url %>">click here</a>.</i>
+      <i>
+        If you're not redirected automatically, <a href="<%= destination_url %>">click here</a>.
+      </i>
     </main>
   </body>
 </html>
