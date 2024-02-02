@@ -11,6 +11,7 @@ export type ProviderSpecification = {
   retry?: Retry;
   pagination?: Pagination;
   logo_url?: string;
+  logo_dark_url?: string;
   docs_url?: string;
 };
 
