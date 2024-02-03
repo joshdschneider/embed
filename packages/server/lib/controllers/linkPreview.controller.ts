@@ -60,7 +60,10 @@ class LinkPreviewController {
         return {
           provider: integration.provider,
           display_name: integration.provider_spec.display_name,
-          logo_url: integration.provider_spec.logo_url,
+          logo_url:
+            prefersDarkMode && integration.provider_spec.logo_dark_url
+              ? integration.provider_spec.logo_dark_url
+              : integration.provider_spec.logo_url,
         };
       });
 

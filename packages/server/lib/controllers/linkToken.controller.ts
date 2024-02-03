@@ -359,7 +359,7 @@ class LinkTokenController {
       throw new Error('Server URL is not defined');
     }
 
-    return `${serverUrl}/link/r/${token}`;
+    return `${serverUrl}/link/${token}`;
   }
 
   private expiresInMinutes(expiresAt: number) {

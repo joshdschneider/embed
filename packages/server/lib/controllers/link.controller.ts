@@ -130,7 +130,10 @@ class LinkController {
         return {
           provider: integration.provider,
           display_name: integration.provider_spec.display_name,
-          logo_url: integration.provider_spec.logo_url,
+          logo_url:
+            prefersDarkMode && integration.provider_spec.logo_dark_url
+              ? integration.provider_spec.logo_dark_url
+              : integration.provider_spec.logo_url,
         };
       });
 
@@ -1434,21 +1437,6 @@ class LinkController {
         linkMethod,
         redirectUrl,
         branding,
-      });
-    }
-  }
-
-  public redirect(req: Request, res: Response) {
-    const token = req.params['token'];
-    const serverUrl = getServerUrl();
-
-    if (!token || !serverUrl) {
-      res.render('error', {
-        message: DEFAULT_ERROR_MESSAGE,
-      });
-    } else {
-      res.render('redirect', {
-        destination_url: `${serverUrl}/link/${token}`,
       });
     }
   }
