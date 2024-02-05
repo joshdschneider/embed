@@ -1,16 +1,16 @@
-// import { useBetaLink } from '@/test/useBetaLink';
+import { useBetaLink } from '@/test/useBetaLink';
 // import { Beta } from '@/test/Beta';
 import Head from 'next/head';
 
 // const beta = Beta({ host: 'http://localhost:5555' });
 
 export default function Home() {
-  // const { link } = useBetaLink({
-  //   linkToken: 'tok_b5555e0c36d0a232',
-  //   linkMethod: 'redirect',
-  //   redirectUrl: 'http://localhost:3001',
-  //   host: 'http://localhost:5555',
-  // });
+  const { link } = useBetaLink({
+    linkToken: 'tok_b5555e0c36d0a232',
+    linkMethod: 'redirect',
+    redirectUrl: 'http://localhost:3001',
+    host: 'http://localhost:5555',
+  });
 
   async function openLink() {
     try {

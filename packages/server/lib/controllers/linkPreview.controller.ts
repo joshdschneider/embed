@@ -5,6 +5,7 @@ import environmentService from '../services/environment.service';
 import errorService from '../services/error.service';
 import integrationService from '../services/integration.service';
 import providerService from '../services/provider.service';
+import { BrandingOptions } from '../types';
 import { DEFAULT_ERROR_MESSAGE, ENVIRONMENT_ID_LOCALS_KEY, getServerUrl } from '../utils/constants';
 
 class LinkPreviewController {
@@ -19,14 +20,17 @@ class LinkPreviewController {
         throw new Error(`Failed to retrieve environment ${environmentId}`);
       }
 
-      let branding = environment.branding;
+      let opts = environment.branding as BrandingOptions;
       if (brandingOverride && typeof brandingOverride === 'string') {
         try {
-          branding = JSON.parse(brandingOverride);
+          opts = JSON.parse(brandingOverride);
         } catch {}
-      } else {
-        branding = await environmentService.getEnvironmentBranding(environmentId, prefersDarkMode);
       }
+
+      const darkModePreference =
+        opts.appearance === 'dark' || (opts.appearance === 'system' && prefersDarkMode);
+      const { light_mode, dark_mode, ...rest } = opts;
+      const branding = darkModePreference ? { ...rest, ...dark_mode } : { ...rest, ...light_mode };
 
       const serverUrl = getServerUrl();
       if (!serverUrl) {
@@ -47,7 +51,6 @@ class LinkPreviewController {
             const err = new Error(`Provider specification not found for ${integration.provider}`);
             await errorService.reportError(err);
           }
-
           return { ...integration, provider_spec: providerSpec };
         })
       );
@@ -61,7 +64,7 @@ class LinkPreviewController {
           provider: integration.provider,
           display_name: integration.provider_spec.display_name,
           logo_url:
-            prefersDarkMode && integration.provider_spec.logo_dark_url
+            darkModePreference && integration.provider_spec.logo_dark_url
               ? integration.provider_spec.logo_dark_url
               : integration.provider_spec.logo_url,
         };
@@ -75,6 +78,7 @@ class LinkPreviewController {
           link_token: '',
           integrations: integrationsList,
           branding,
+          prefers_dark_mode: darkModePreference,
         },
         (err, html) => this.safeRender(res, err, html)
       );
@@ -103,14 +107,17 @@ class LinkPreviewController {
         throw new Error(`Failed to retrieve environment ${environmentId}`);
       }
 
-      let branding = environment.branding;
+      let opts = environment.branding as BrandingOptions;
       if (brandingOverride && typeof brandingOverride === 'string') {
         try {
-          branding = JSON.parse(brandingOverride);
+          opts = JSON.parse(brandingOverride);
         } catch {}
-      } else {
-        branding = await environmentService.getEnvironmentBranding(environmentId, prefersDarkMode);
       }
+
+      const darkModePreference =
+        opts.appearance === 'dark' || (opts.appearance === 'system' && prefersDarkMode);
+      const { light_mode, dark_mode, ...rest } = opts;
+      const branding = darkModePreference ? { ...rest, ...dark_mode } : { ...rest, ...light_mode };
 
       const serverUrl = getServerUrl();
       if (!serverUrl) {
@@ -147,9 +154,13 @@ class LinkPreviewController {
           integration: {
             provider: integration.provider,
             display_name: providerSpec.display_name,
-            logo_url: providerSpec.logo_url,
+            logo_url:
+              darkModePreference && providerSpec.logo_dark_url
+                ? providerSpec.logo_dark_url
+                : providerSpec.logo_url,
           },
           branding,
+          prefers_dark_mode: darkModePreference,
         },
         (err, html) => this.safeRender(res, err, html)
       );

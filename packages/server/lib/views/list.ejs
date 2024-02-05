@@ -13,47 +13,114 @@
       }
       * {       
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI (Custom)', Roboto, 'Helvetica Neue', 'Open Sans (Custom)', system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+        --background-color: <%= "#" + branding.page_background %>;
+        --border-color: <%= prefers_dark_mode ? "rgba(255, 255, 255, .1)" : "rgba(0, 0, 0, .1)" %>;
+        --text-color: <%= prefers_dark_mode ? "rgba(255, 255, 255, 1)" : "rgba(28, 32, 36, 1)" %>;
+        --border-radius: var(--border-radius-<%= branding.border_radius %>);
+        --border-radius-none: 0px;
+        --border-radius-small: 3px;
+        --border-radius-medium: 6px;
+        --border-radius-large: 12px;
+        --border-radius-full: 18px;
       }
       main {
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        background-color: <%= "#" + branding.page_background %>;
+        height: 100%;
+        min-height: 500px;
+        background-color: var(--background-color);
       }
       .container {
+        display: flex;
+        flex-direction: column;
+        flex-grow: 1;
         width: calc(100% - 40px);
-        height: 100%;
-        max-width: 450px;
-        max-height: 500px;
-        padding: 0;
-        border: 1px solid #ccc;
-        border-radius: 4px;
+        height: calc(100% - 40px);
+        max-width: 400px;
+        max-height: 445px;
         margin: 20px;
+      }
+      .header {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+      }
+      .header h1 {
+        font-size: 26px;
+        font-weight: 500;
+        letter-spacing: normal;
+        line-height: normal;
+        margin: 0 0 25px 0;
+        padding: 0;
+        color: var(--text-color);
+      }
+      .integrations {
+        display: flex;
+        flex-direction: column;
+        flex-grow: 1;
+        width: 100%;
+        height: 100%;
+        max-height: 384px;
+        border: 1px solid var(--border-color);
+        border-radius: calc(var(--border-radius) * 1.5);
+        background-color: <%= prefers_dark_mode ? "rgba(0, 0, 0, .1)" : "transparent" %>;
       }
       .search-box {
         display: flex;
         align-items: center;
         position: relative;
-        padding: 7px;
-        margin: 7px;
+        padding: 0;
+        margin: 0;
+        border-bottom: 1px solid var(--border-color);
       }
       .search-box svg {
         display: inline-flex;
         position: absolute;
         left: 15px;
-        color: #5f5f5f;
+        width: 20px;
+        height: auto;
+        color: var(--text-color);
+        opacity: 0.6;
       }
+      .search-box:focus-within svg {
+        opacity: 1;
+      } 
       #search {
         width: 100%;
-        padding: 7px 7px 7px 28px;
-        border: 1px solid #ccc;
-        border-radius: 3px;
+        padding: 15px 0px 15px 42px;
+        border: none;
+        background: none;
+        border-radius: 0;
         font-size: 15px;
+        outline: none;
+        color: var(--text-color);
+      }
+      #search::placeholder {
+        color: var(--text-color);
+        opacity: 0.6;
+      }
+      .scroll-area {
+        position: relative;
+        overflow: hidden;
+        width: 100%;
+        height: 100%;
+      }
+      .scroll-area .viewport {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        height: 100%;
+        overscroll-behavior-x: contain;
+        overflow: hidden auto;
+        outline: 0;
       }
       ul {
         display: flex;
         flex-direction: column;
+        flex-grow: 1;
         margin: 0;
         padding: 0;
         list-style: none;
@@ -64,13 +131,31 @@
       }
       .integration-item a {
         text-decoration: none;
-        color: #000;
+        color: var(--text-color);
+      }
+      .integration-item .details {
+        display: flex;
+        align-items: center;
+        justify-content: start;
+        width: 100%;
+      }
+      .integration-item .arrow {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .integration-item .arrow svg {
+        color: var(--text-color);
+        opacity: 0.6;
+      }
+      .integration-item:last-child .integration-item-inner {
+        border-bottom: none;
       }
       .integration-item-inner {
         display: flex;
         align-items: center;
         justify-content: start;
-        border-bottom: 1px solid #ccc;
+        border-bottom: 1px solid var(--border-color);
         padding: 12px;
         text-align: center;
       }
@@ -78,9 +163,10 @@
         display: flex;
         align-items: center;
         justify-content: center;
+        padding-right: 12px;
       }
       .integration-logo img {
-        max-width: 48px;
+        max-width: 36px;
         width: 100%;
         height: auto;
         display: block;
@@ -88,7 +174,20 @@
       .integration-item-inner p {
         font-size: 15px;
         margin: 0;
-        padding: 10px 0 5px 0;
+        padding: 0;
+      }
+      #no-results {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+      }
+      #no-results p {
+        padding: 0;
+        margin: 0;
+        font-size: 15px;
+        opacity: 0.6;
       }
     </style>
     <script>
@@ -125,46 +224,69 @@
   </head>
   <body>
     <main>
-      <div class="container">
+    <div class="container">
+      <div class="header">
+        <h1>Choose an integration</h1>
+      </div>
+      <div class="integrations">
         <div class="search-box">
           <svg width="16" height="16" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M10 6.5C10 8.433 8.433 10 6.5 10C4.567 10 3 8.433 3 6.5C3 4.567 4.567 3 6.5 3C8.433 3 10 4.567 10 6.5ZM9.30884 10.0159C8.53901 10.6318 7.56251 11 6.5 11C4.01472 11 2 8.98528 2 6.5C2 4.01472 4.01472 2 6.5 2C8.98528 2 11 4.01472 11 6.5C11 7.56251 10.6318 8.53901 10.0159 9.30884L12.8536 12.1464C13.0488 12.3417 13.0488 12.6583 12.8536 12.8536C12.6583 13.0488 12.3417 13.0488 12.1464 12.8536L9.30884 10.0159Z" fill="currentColor" fill-rule="evenodd" clip-rule="evenodd"></path>
           </svg>
           <input type="text" id="search" placeholder="Search integrations" oninput="filterIntegrations()" />
         </div>
-        <ul id="integration-list">
-          <% integrations.forEach((integration) => { %>
-            <li class="integration-item" data-name="<%= integration.display_name %>">
-              <% if (is_preview) { %>
-                <a href="#" onclick="navigate('<%= server_url %>/link-preview/<%= link_token %>/i/<%= integration.provider %>')">
-                  <div class="integration-item-inner">
-                    <% if (integration.logo_url) { %>
-                      <div class="integration-logo">
-                        <img src="<%= integration.logo_url %>" alt="<%= integration.display_name %>" />
+        <div class="scroll-area">
+          <div class="viewport">
+            <ul id="integration-list">
+              <% integrations.forEach((integration) => { %>
+                <li class="integration-item" data-name="<%= integration.display_name %>">
+                  <% if (is_preview) { %>
+                    <a href="#" onclick="navigate('<%= server_url %>/link-preview/<%= link_token %>/i/<%= integration.provider %>')">
+                      <div class="integration-item-inner">
+                        <div class="details">
+                          <% if (integration.logo_url) { %>
+                            <div class="integration-logo">
+                              <img src="<%= integration.logo_url %>" alt="<%= integration.display_name %>" />
+                            </div>
+                          <% } %>
+                          <p><%= integration.display_name %></p>
+                        </div>
+                        <div class="arrow">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="9 18 15 12 9 6"></polyline>
+                          </svg>
+                        </div>
                       </div>
-                    <% } %>
-                    <p><%= integration.display_name %></p>
-                  </div>
-                </a>
-              <% } else { %>  
-                <a href="<%= server_url %>/link/<%= link_token %>/i/<%= integration.provider %>">
-                  <div class="integration-item-inner">
-                    <% if (integration.logo_url) { %>
-                      <div class="integration-logo">
-                        <img src="<%= integration.logo_url %>" alt="<%= integration.display_name %>" />
+                    </a>
+                  <% } else { %>  
+                    <a href="<%= server_url %>/link/<%= link_token %>/i/<%= integration.provider %>">
+                      <div class="integration-item-inner">
+                        <div class="details">
+                          <% if (integration.logo_url) { %>
+                            <div class="integration-logo">
+                              <img src="<%= integration.logo_url %>" alt="<%= integration.display_name %>" />
+                            </div>
+                          <% } %>
+                          <p><%= integration.display_name %></p>
+                        </div>
+                        <div class="arrow">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="9 18 15 12 9 6"></polyline>
+                          </svg>
+                        </div>
                       </div>
-                    <% } %>
-                    <p><%= integration.display_name %></p>
-                  </div>
-                </a>
-              <% } %>
-            </li>
-          <% }) %>
-        </ul>
-        <div id="no-results" style="display: none;">
-          <p>No integrations found</p>
+                    </a>
+                  <% } %>
+                </li>
+              <% }) %>
+              <div id="no-results" style="display: none;">
+                <p>No integrations found</p>
+              </div>
+            </ul>
+          </div>
         </div>
       </div>
+    </div>
     </main>
   </body>
 </html>

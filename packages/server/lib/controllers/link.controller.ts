@@ -151,6 +151,7 @@ class LinkController {
           link_token: token,
           integrations: integrationsList,
           branding,
+          prefers_dark_mode: prefersDarkMode,
         },
         (err, html) => this.safeRender(res, activityId, branding, err, html)
       );
@@ -312,10 +313,13 @@ class LinkController {
           integration: {
             provider: integration.provider,
             display_name: providerSpec.display_name,
-            logo_url: providerSpec.logo_url,
-            logo_dark_url: providerSpec.logo_dark_url,
+            logo_url:
+              prefersDarkMode && providerSpec.logo_dark_url
+                ? providerSpec.logo_dark_url
+                : providerSpec.logo_url,
           },
           branding,
+          prefers_dark_mode: prefersDarkMode,
         },
         (err, html) => this.safeRender(res, activityId, branding, err, html)
       );
