@@ -5,14 +5,20 @@ import environmentService from '../services/environment.service';
 import errorService from '../services/error.service';
 import integrationService from '../services/integration.service';
 import providerService from '../services/provider.service';
-import { BrandingOptions } from '../types';
-import { DEFAULT_ERROR_MESSAGE, ENVIRONMENT_ID_LOCALS_KEY, getServerUrl } from '../utils/constants';
+import { ConsentTemplateData, ErrorTemplateData, ListTemplateData } from '../types';
+import {
+  DEFAULT_BRANDING,
+  DEFAULT_ERROR_MESSAGE,
+  ENVIRONMENT_ID_LOCALS_KEY,
+  getServerUrl,
+} from '../utils/constants';
 
 class LinkPreviewController {
   public async listView(req: Request, res: Response) {
     const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
     const prefersDarkMode = req.query['prefers_dark_mode'] === 'true';
-    const brandingOverride = req.query['branding'];
+    const override = req.query['branding'];
+    let branding;
 
     try {
       const environment = await environmentService.getEnvironmentById(environmentId);
@@ -20,17 +26,12 @@ class LinkPreviewController {
         throw new Error(`Failed to retrieve environment ${environmentId}`);
       }
 
-      let opts = environment.branding as BrandingOptions;
-      if (brandingOverride && typeof brandingOverride === 'string') {
+      branding = environment.branding;
+      if (override && typeof override === 'string') {
         try {
-          opts = JSON.parse(brandingOverride);
+          branding = JSON.parse(override);
         } catch {}
       }
-
-      const darkModePreference =
-        opts.appearance === 'dark' || (opts.appearance === 'system' && prefersDarkMode);
-      const { light_mode, dark_mode, ...rest } = opts;
-      const branding = darkModePreference ? { ...rest, ...dark_mode } : { ...rest, ...light_mode };
 
       const serverUrl = getServerUrl();
       if (!serverUrl) {
@@ -51,6 +52,7 @@ class LinkPreviewController {
             const err = new Error(`Provider specification not found for ${integration.provider}`);
             await errorService.reportError(err);
           }
+
           return { ...integration, provider_spec: providerSpec };
         })
       );
@@ -63,31 +65,31 @@ class LinkPreviewController {
         return {
           provider: integration.provider,
           display_name: integration.provider_spec.display_name,
-          logo_url:
-            darkModePreference && integration.provider_spec.logo_dark_url
-              ? integration.provider_spec.logo_dark_url
-              : integration.provider_spec.logo_url,
+          logo_url: integration.provider_spec.logo_url,
+          logo_dark_url: integration.provider_spec.logo_dark_url,
         };
       });
 
-      res.render(
-        'list',
-        {
-          is_preview: true,
-          server_url: serverUrl,
-          link_token: '',
-          integrations: integrationsList,
-          branding,
-          prefers_dark_mode: darkModePreference,
-        },
-        (err, html) => this.safeRender(res, err, html)
-      );
+      const data: ListTemplateData = {
+        is_preview: true,
+        server_url: serverUrl,
+        link_token: '_',
+        integrations: integrationsList,
+        branding,
+        prefers_dark_mode: prefersDarkMode,
+      };
+
+      res.render('list', data);
     } catch (err) {
       await errorService.reportError(err);
 
-      res.render('error', { message: DEFAULT_ERROR_MESSAGE }, (err, html) => {
-        this.safeRender(res, err, html);
-      });
+      const data: ErrorTemplateData = {
+        error_message: DEFAULT_ERROR_MESSAGE,
+        branding: branding || DEFAULT_BRANDING,
+        prefers_dark_mode: prefersDarkMode,
+      };
+
+      res.render('error', data);
     }
   }
 
@@ -95,11 +97,8 @@ class LinkPreviewController {
     const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
     const prefersDarkMode = req.query['prefers_dark_mode'] === 'true';
     const integrationProvider = req.params['integration'];
-    const brandingOverride = req.query['branding'];
-
-    if (!integrationProvider) {
-      return res.render('error', { message: 'No integration selected' });
-    }
+    const override = req.query['branding'];
+    let branding;
 
     try {
       const environment = await environmentService.getEnvironmentById(environmentId);
@@ -107,21 +106,26 @@ class LinkPreviewController {
         throw new Error(`Failed to retrieve environment ${environmentId}`);
       }
 
-      let opts = environment.branding as BrandingOptions;
-      if (brandingOverride && typeof brandingOverride === 'string') {
+      branding = environment.branding;
+      if (override && typeof override === 'string') {
         try {
-          opts = JSON.parse(brandingOverride);
+          branding = JSON.parse(override);
         } catch {}
       }
-
-      const darkModePreference =
-        opts.appearance === 'dark' || (opts.appearance === 'system' && prefersDarkMode);
-      const { light_mode, dark_mode, ...rest } = opts;
-      const branding = darkModePreference ? { ...rest, ...dark_mode } : { ...rest, ...light_mode };
 
       const serverUrl = getServerUrl();
       if (!serverUrl) {
         throw new Error('SERVER_URL is undefined');
+      }
+
+      if (!integrationProvider) {
+        const data: ErrorTemplateData = {
+          error_message: 'No integration selected',
+          branding,
+          prefers_dark_mode: prefersDarkMode,
+        };
+
+        return res.render('error', data);
       }
 
       const integration = await integrationService.getIntegrationByProvider(
@@ -134,9 +138,13 @@ class LinkPreviewController {
       }
 
       if (!integration.is_enabled) {
-        return res.render('error', { message: 'Integration is disabled' }, (err, html) => {
-          this.safeRender(res, err, html);
-        });
+        const data: ErrorTemplateData = {
+          error_message: 'Integration is disabled',
+          branding,
+          prefers_dark_mode: prefersDarkMode,
+        };
+
+        return res.render('error', data);
       }
 
       const providerSpec = await providerService.getProviderSpec(integration.provider);
@@ -144,48 +152,32 @@ class LinkPreviewController {
         throw new Error(`Provider specification not found for ${integration.provider}`);
       }
 
-      res.render(
-        'consent',
-        {
-          is_preview: true,
-          server_url: serverUrl,
-          link_token: '',
-          can_choose_integration: true,
-          integration: {
-            provider: integration.provider,
-            display_name: providerSpec.display_name,
-            logo_url:
-              darkModePreference && providerSpec.logo_dark_url
-                ? providerSpec.logo_dark_url
-                : providerSpec.logo_url,
-          },
-          branding,
-          prefers_dark_mode: darkModePreference,
+      const data: ConsentTemplateData = {
+        is_preview: true,
+        server_url: serverUrl,
+        link_token: '_',
+        can_choose_integration: true,
+        integration: {
+          provider: integration.provider,
+          display_name: providerSpec.display_name,
+          logo_url: providerSpec.logo_url,
+          logo_dark_url: providerSpec.logo_dark_url,
         },
-        (err, html) => this.safeRender(res, err, html)
-      );
+        branding,
+        prefers_dark_mode: prefersDarkMode,
+      };
+
+      res.render('consent', data);
     } catch (err) {
       await errorService.reportError(err);
 
-      res.render('error', { message: DEFAULT_ERROR_MESSAGE }, (err, html) => {
-        this.safeRender(res, err, html);
-      });
-    }
-  }
+      const data: ErrorTemplateData = {
+        error_message: DEFAULT_ERROR_MESSAGE,
+        branding: branding || DEFAULT_BRANDING,
+        prefers_dark_mode: prefersDarkMode,
+      };
 
-  private safeRender(res: Response, err: Error, html: string) {
-    if (err) {
-      errorService.reportError(err);
-
-      res.render('error', { message: DEFAULT_ERROR_MESSAGE }, (err, html) => {
-        if (err) {
-          res.send(DEFAULT_ERROR_MESSAGE);
-        } else {
-          res.send(html);
-        }
-      });
-    } else {
-      res.send(html);
+      res.render('error', data);
     }
   }
 }

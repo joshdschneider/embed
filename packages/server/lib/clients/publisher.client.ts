@@ -4,7 +4,7 @@ import type { RedisClientType } from 'redis';
 import { createClient } from 'redis';
 import { v4 } from 'uuid';
 import type { WebSocket } from 'ws';
-import { Branding } from '../types';
+import { Branding, DefaultTemplateData, ErrorTemplateData } from '../types';
 import { DEFAULT_BRANDING, getRedisUrl } from '../utils/constants';
 import { appendParamsToUrl } from '../utils/helpers';
 
@@ -178,12 +178,14 @@ export class Publisher {
       linkMethod,
       redirectUrl,
       branding,
+      prefersDarkMode,
     }: {
       error: string;
       wsClientId?: string;
       linkMethod?: string;
       redirectUrl?: string;
       branding?: Branding;
+      prefersDarkMode?: boolean;
     }
   ) {
     if (wsClientId) {
@@ -200,10 +202,13 @@ export class Publisher {
       const errorRedirectUrl = appendParamsToUrl(redirectUrl, { error });
       res.redirect(errorRedirectUrl);
     } else {
-      res.render('error', {
-        message: error,
+      const data: ErrorTemplateData = {
+        error_message: error,
         branding: branding || DEFAULT_BRANDING,
-      });
+        prefers_dark_mode: prefersDarkMode || false,
+      };
+
+      res.render('error', data);
     }
   }
 
@@ -215,12 +220,14 @@ export class Publisher {
       linkMethod,
       redirectUrl,
       branding,
+      prefersDarkMode,
     }: {
       linkedAccountId: string;
       wsClientId?: string;
       linkMethod?: string;
       redirectUrl?: string;
       branding?: Branding;
+      prefersDarkMode?: boolean;
     }
   ) {
     if (wsClientId) {
@@ -244,9 +251,12 @@ export class Publisher {
 
       res.redirect(successRedirectUrl);
     } else {
-      res.render('finish', {
+      const data: DefaultTemplateData = {
         branding: branding || DEFAULT_BRANDING,
-      });
+        prefers_dark_mode: prefersDarkMode || false,
+      };
+
+      res.render('finish', data);
     }
   }
 

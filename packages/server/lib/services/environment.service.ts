@@ -1,5 +1,5 @@
 import { ApiKey, Environment } from '@prisma/client';
-import { Branding, BrandingOptions } from '../types';
+import { Branding } from '../types';
 import { DEFAULT_BRANDING } from '../utils/constants';
 import { prisma } from '../utils/prisma';
 import encryptionService from './encryption.service';
@@ -95,24 +95,18 @@ class EnvironmentService {
     }
   }
 
-  public async getEnvironmentBranding(
-    environmentId: string,
-    prefersDarkMode?: boolean
-  ): Promise<Branding> {
+  public async getEnvironmentBranding(environmentId: string): Promise<Branding> {
     try {
       const environment = await this.getEnvironmentById(environmentId);
-      if (environment) {
-        const { light_mode, dark_mode, ...rest } = environment.branding as BrandingOptions;
-        const darkMode =
-          rest.appearance === 'dark' || (rest.appearance === 'system' && prefersDarkMode);
-        return darkMode ? { ...rest, ...dark_mode } : { ...rest, ...light_mode };
+      if (!environment) {
+        return DEFAULT_BRANDING;
       }
+
+      return environment.branding as Branding;
     } catch (err) {
       await errorService.reportError(err);
+      return DEFAULT_BRANDING;
     }
-
-    const { light_mode, dark_mode, ...rest } = DEFAULT_BRANDING;
-    return prefersDarkMode ? { ...rest, ...dark_mode } : { ...rest, ...light_mode };
   }
 }
 

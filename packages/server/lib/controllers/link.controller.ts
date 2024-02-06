@@ -9,7 +9,14 @@ import integrationService from '../services/integration.service';
 import linkTokenService from '../services/linkToken.service';
 import linkedAccountService from '../services/linkedAccount.service';
 import providerService from '../services/provider.service';
-import { Branding, LogLevel } from '../types';
+import {
+  ApiKeyTemplateData,
+  BasicTemplateData,
+  ConfigTemplateData,
+  ConsentTemplateData,
+  ListTemplateData,
+  LogLevel,
+} from '../types';
 import { DEFAULT_ERROR_MESSAGE, getServerUrl } from '../utils/constants';
 import {
   Resource,
@@ -35,6 +42,7 @@ class LinkController {
         linkMethod,
         wsClientId,
         redirectUrl,
+        prefersDarkMode,
       });
     }
 
@@ -46,6 +54,7 @@ class LinkController {
         wsClientId,
         linkMethod,
         redirectUrl,
+        prefersDarkMode,
       });
     }
 
@@ -66,10 +75,7 @@ class LinkController {
     }
 
     const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
-    const branding = await environmentService.getEnvironmentBranding(
-      linkToken.environment_id,
-      prefersDarkMode
-    );
+    const branding = await environmentService.getEnvironmentBranding(linkToken.environment_id);
 
     try {
       const serverUrl = getServerUrl();
@@ -98,6 +104,7 @@ class LinkController {
           linkMethod,
           redirectUrl,
           branding,
+          prefersDarkMode,
         });
       }
 
@@ -130,10 +137,8 @@ class LinkController {
         return {
           provider: integration.provider,
           display_name: integration.provider_spec.display_name,
-          logo_url:
-            prefersDarkMode && integration.provider_spec.logo_dark_url
-              ? integration.provider_spec.logo_dark_url
-              : integration.provider_spec.logo_url,
+          logo_url: integration.provider_spec.logo_url,
+          logo_dark_url: integration.provider_spec.logo_dark_url,
         };
       });
 
@@ -143,18 +148,16 @@ class LinkController {
         message: `User viewed select integration screen`,
       });
 
-      res.render(
-        'list',
-        {
-          is_preview: false,
-          server_url: serverUrl,
-          link_token: token,
-          integrations: integrationsList,
-          branding,
-          prefers_dark_mode: prefersDarkMode,
-        },
-        (err, html) => this.safeRender(res, activityId, branding, err, html)
-      );
+      const data: ListTemplateData = {
+        is_preview: false,
+        server_url: serverUrl,
+        link_token: token,
+        integrations: integrationsList,
+        branding,
+        prefers_dark_mode: prefersDarkMode,
+      };
+
+      res.render('list', data);
     } catch (err) {
       await errorService.reportError(err);
 
@@ -170,6 +173,7 @@ class LinkController {
         linkMethod,
         redirectUrl,
         branding,
+        prefersDarkMode,
       });
     }
   }
@@ -197,10 +201,7 @@ class LinkController {
     const prefersDarkMode = linkToken.prefers_dark_mode || false;
 
     const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
-    const branding = await environmentService.getEnvironmentBranding(
-      linkToken.environment_id,
-      prefersDarkMode
-    );
+    const branding = await environmentService.getEnvironmentBranding(linkToken.environment_id);
 
     try {
       if (!integrationProvider) {
@@ -218,6 +219,7 @@ class LinkController {
           linkMethod,
           redirectUrl,
           branding,
+          prefersDarkMode,
         });
       }
 
@@ -239,6 +241,7 @@ class LinkController {
           linkMethod,
           redirectUrl,
           branding,
+          prefersDarkMode,
         });
       }
 
@@ -257,6 +260,7 @@ class LinkController {
           linkMethod,
           redirectUrl,
           branding,
+          prefersDarkMode,
         });
       }
 
@@ -289,6 +293,7 @@ class LinkController {
           linkMethod,
           redirectUrl,
           branding,
+          prefersDarkMode,
         });
       }
 
@@ -303,26 +308,22 @@ class LinkController {
         message: `User viewed consent screen`,
       });
 
-      res.render(
-        'consent',
-        {
-          is_preview: false,
-          server_url: serverUrl,
-          link_token: token,
-          can_choose_integration: linkToken.can_choose_integration,
-          integration: {
-            provider: integration.provider,
-            display_name: providerSpec.display_name,
-            logo_url:
-              prefersDarkMode && providerSpec.logo_dark_url
-                ? providerSpec.logo_dark_url
-                : providerSpec.logo_url,
-          },
-          branding,
-          prefers_dark_mode: prefersDarkMode,
+      const data: ConsentTemplateData = {
+        is_preview: false,
+        server_url: serverUrl,
+        link_token: token,
+        can_choose_integration: linkToken.can_choose_integration,
+        integration: {
+          provider: integration.provider,
+          display_name: providerSpec.display_name,
+          logo_url: providerSpec.logo_url,
+          logo_dark_url: providerSpec.logo_dark_url,
         },
-        (err, html) => this.safeRender(res, activityId, branding, err, html)
-      );
+        branding,
+        prefers_dark_mode: prefersDarkMode,
+      };
+
+      res.render('consent', data);
     } catch (err) {
       await errorService.reportError(err);
 
@@ -338,6 +339,7 @@ class LinkController {
         linkMethod,
         redirectUrl,
         branding,
+        prefersDarkMode,
       });
     }
   }
@@ -365,10 +367,7 @@ class LinkController {
     const prefersDarkMode = linkToken.prefers_dark_mode || false;
 
     const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
-    const branding = await environmentService.getEnvironmentBranding(
-      linkToken.environment_id,
-      prefersDarkMode
-    );
+    const branding = await environmentService.getEnvironmentBranding(linkToken.environment_id);
 
     try {
       if (linkToken.expires_at < now()) {
@@ -386,6 +385,7 @@ class LinkController {
           linkMethod,
           redirectUrl,
           branding,
+          prefersDarkMode,
         });
       }
 
@@ -404,6 +404,7 @@ class LinkController {
           linkMethod,
           redirectUrl,
           branding,
+          prefersDarkMode,
         });
       }
 
@@ -431,6 +432,7 @@ class LinkController {
           linkMethod,
           redirectUrl,
           branding,
+          prefersDarkMode,
         });
       }
 
@@ -540,6 +542,7 @@ class LinkController {
             linkMethod,
             redirectUrl,
             branding,
+            prefersDarkMode,
           });
         default:
           throw new Error(
@@ -561,6 +564,7 @@ class LinkController {
         linkMethod,
         redirectUrl,
         branding,
+        prefersDarkMode,
       });
     }
   }
@@ -586,10 +590,7 @@ class LinkController {
     const prefersDarkMode = linkToken.prefers_dark_mode || false;
 
     const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
-    const branding = await environmentService.getEnvironmentBranding(
-      linkToken.environment_id,
-      prefersDarkMode
-    );
+    const branding = await environmentService.getEnvironmentBranding(linkToken.environment_id);
 
     try {
       if (linkToken.expires_at < now()) {
@@ -607,6 +608,7 @@ class LinkController {
           linkMethod,
           redirectUrl,
           branding,
+          prefersDarkMode,
         });
       }
 
@@ -625,6 +627,7 @@ class LinkController {
           linkMethod,
           redirectUrl,
           branding,
+          prefersDarkMode,
         });
       }
 
@@ -643,6 +646,7 @@ class LinkController {
           linkMethod,
           redirectUrl,
           branding,
+          prefersDarkMode,
         });
       }
 
@@ -675,24 +679,24 @@ class LinkController {
           payload: { configuration_fields: keys },
         });
 
-        return res.render(
-          'config',
-          {
-            server_url: serverUrl,
-            link_token: token,
-            integration: {
-              provider: providerSpec.slug,
-              display_name: providerSpec.display_name,
-              logo_url: providerSpec.logo_url,
-            },
-            configuration_fields: keys.map((key) => ({
-              name: key,
-              label: formatKeyToReadableText(key),
-            })),
-            branding,
+        const data: ConfigTemplateData = {
+          server_url: serverUrl,
+          link_token: token,
+          integration: {
+            provider: providerSpec.slug,
+            display_name: providerSpec.display_name,
+            logo_url: providerSpec.logo_url,
+            logo_dark_url: providerSpec.logo_dark_url,
           },
-          (err, html) => this.safeRender(res, activityId, branding, err, html)
-        );
+          configuration_fields: keys.map((key) => ({
+            name: key,
+            label: formatKeyToReadableText(key),
+          })),
+          branding,
+          prefers_dark_mode: prefersDarkMode,
+        };
+
+        return res.render('config', data);
       }
 
       const oauthUrl = appendParamsToUrl(`${serverUrl}/oauth/authorize`, {
@@ -715,6 +719,7 @@ class LinkController {
         linkMethod,
         redirectUrl,
         branding,
+        prefersDarkMode,
       });
     }
   }
@@ -742,10 +747,7 @@ class LinkController {
     const prefersDarkMode = linkToken.prefers_dark_mode || false;
 
     const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
-    const branding = await environmentService.getEnvironmentBranding(
-      linkToken.environment_id,
-      prefersDarkMode
-    );
+    const branding = await environmentService.getEnvironmentBranding(linkToken.environment_id);
 
     try {
       if (!config || typeof config !== 'object') {
@@ -763,6 +765,7 @@ class LinkController {
           linkMethod,
           redirectUrl,
           branding,
+          prefersDarkMode,
         });
       }
 
@@ -781,6 +784,7 @@ class LinkController {
           linkMethod,
           redirectUrl,
           branding,
+          prefersDarkMode,
         });
       }
 
@@ -799,6 +803,7 @@ class LinkController {
           linkMethod,
           redirectUrl,
           branding,
+          prefersDarkMode,
         });
       }
 
@@ -817,6 +822,7 @@ class LinkController {
           linkMethod,
           redirectUrl,
           branding,
+          prefersDarkMode,
         });
       }
 
@@ -860,6 +866,7 @@ class LinkController {
         linkMethod,
         redirectUrl,
         branding,
+        prefersDarkMode,
       });
     }
   }
@@ -885,10 +892,7 @@ class LinkController {
     const prefersDarkMode = linkToken.prefers_dark_mode || false;
 
     const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
-    const branding = await environmentService.getEnvironmentBranding(
-      linkToken.environment_id,
-      prefersDarkMode
-    );
+    const branding = await environmentService.getEnvironmentBranding(linkToken.environment_id);
 
     try {
       if (linkToken.expires_at < now()) {
@@ -906,6 +910,7 @@ class LinkController {
           linkMethod,
           redirectUrl,
           branding,
+          prefersDarkMode,
         });
       }
 
@@ -924,6 +929,7 @@ class LinkController {
           linkMethod,
           redirectUrl,
           branding,
+          prefersDarkMode,
         });
       }
 
@@ -942,6 +948,7 @@ class LinkController {
           linkMethod,
           redirectUrl,
           branding,
+          prefersDarkMode,
         });
       }
 
@@ -950,22 +957,31 @@ class LinkController {
         throw new Error('SERVER_URL is undefined');
       }
 
+      const providerSpec = await providerService.getProviderSpec(linkToken.integration_provider);
+      if (!providerSpec) {
+        throw new Error(`Provider specification not found for ${linkToken.integration_provider}`);
+      }
+
       await activityService.createActivityLog(activityId, {
         timestamp: now(),
         level: LogLevel.Info,
         message: `User viewed API key input screen`,
       });
 
-      res.render(
-        'api-key',
-        {
-          server_url: serverUrl,
-          link_token: token,
-          integration: { provider: linkToken.integration_provider },
-          branding,
+      const data: ApiKeyTemplateData = {
+        server_url: serverUrl,
+        link_token: token,
+        integration: {
+          provider: providerSpec.slug,
+          display_name: providerSpec.display_name,
+          logo_url: providerSpec.logo_url,
+          logo_dark_url: providerSpec.logo_dark_url,
         },
-        (err, html) => this.safeRender(res, activityId, branding, err, html)
-      );
+        branding,
+        prefers_dark_mode: prefersDarkMode,
+      };
+
+      res.render('api-key', data);
     } catch (err) {
       await errorService.reportError(err);
 
@@ -981,6 +997,7 @@ class LinkController {
         linkMethod,
         redirectUrl,
         branding,
+        prefersDarkMode,
       });
     }
   }
@@ -1008,10 +1025,7 @@ class LinkController {
     const prefersDarkMode = linkToken.prefers_dark_mode || false;
 
     const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
-    const branding = await environmentService.getEnvironmentBranding(
-      linkToken.environment_id,
-      prefersDarkMode
-    );
+    const branding = await environmentService.getEnvironmentBranding(linkToken.environment_id);
 
     try {
       if (!apiKey || typeof apiKey !== 'string') {
@@ -1029,6 +1043,7 @@ class LinkController {
           linkMethod,
           redirectUrl,
           branding,
+          prefersDarkMode,
         });
       }
 
@@ -1047,6 +1062,7 @@ class LinkController {
           linkMethod,
           redirectUrl,
           branding,
+          prefersDarkMode,
         });
       }
 
@@ -1065,6 +1081,7 @@ class LinkController {
           linkMethod,
           redirectUrl,
           branding,
+          prefersDarkMode,
         });
       }
 
@@ -1083,6 +1100,7 @@ class LinkController {
           linkMethod,
           redirectUrl,
           branding,
+          prefersDarkMode,
         });
       }
 
@@ -1125,6 +1143,7 @@ class LinkController {
         linkMethod,
         redirectUrl,
         branding,
+        prefersDarkMode,
       });
     } catch (err) {
       await errorService.reportError(err);
@@ -1141,6 +1160,7 @@ class LinkController {
         linkMethod,
         redirectUrl,
         branding,
+        prefersDarkMode,
       });
     }
   }
@@ -1166,10 +1186,7 @@ class LinkController {
     const prefersDarkMode = linkToken.prefers_dark_mode || false;
 
     const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
-    const branding = await environmentService.getEnvironmentBranding(
-      linkToken.environment_id,
-      prefersDarkMode
-    );
+    const branding = await environmentService.getEnvironmentBranding(linkToken.environment_id);
 
     try {
       if (linkToken.expires_at < now()) {
@@ -1187,6 +1204,7 @@ class LinkController {
           linkMethod,
           redirectUrl,
           branding,
+          prefersDarkMode,
         });
       }
 
@@ -1205,6 +1223,7 @@ class LinkController {
           linkMethod,
           redirectUrl,
           branding,
+          prefersDarkMode,
         });
       }
 
@@ -1223,6 +1242,7 @@ class LinkController {
           linkMethod,
           redirectUrl,
           branding,
+          prefersDarkMode,
         });
       }
 
@@ -1231,22 +1251,31 @@ class LinkController {
         throw new Error('SERVER_URL is undefined');
       }
 
+      const providerSpec = await providerService.getProviderSpec(linkToken.integration_provider);
+      if (!providerSpec) {
+        throw new Error(`Provider specification not found for ${linkToken.integration_provider}`);
+      }
+
       await activityService.createActivityLog(activityId, {
         timestamp: now(),
         level: LogLevel.Info,
         message: `User viewed username/password input screen`,
       });
 
-      res.render(
-        'basic',
-        {
-          server_url: serverUrl,
-          link_token: token,
-          integration: { provider: linkToken.integration_provider },
-          branding,
+      const data: BasicTemplateData = {
+        server_url: serverUrl,
+        link_token: token,
+        integration: {
+          provider: providerSpec.slug,
+          display_name: providerSpec.display_name,
+          logo_url: providerSpec.logo_url,
+          logo_dark_url: providerSpec.logo_dark_url,
         },
-        (err, html) => this.safeRender(res, activityId, branding, err, html)
-      );
+        branding,
+        prefers_dark_mode: prefersDarkMode,
+      };
+
+      res.render('basic', data);
     } catch (err) {
       await errorService.reportError(err);
 
@@ -1262,6 +1291,7 @@ class LinkController {
         linkMethod,
         redirectUrl,
         branding,
+        prefersDarkMode,
       });
     }
   }
@@ -1290,10 +1320,7 @@ class LinkController {
     const prefersDarkMode = linkToken.prefers_dark_mode || false;
 
     const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
-    const branding = await environmentService.getEnvironmentBranding(
-      linkToken.environment_id,
-      prefersDarkMode
-    );
+    const branding = await environmentService.getEnvironmentBranding(linkToken.environment_id);
 
     try {
       if (!username || typeof username !== 'string') {
@@ -1311,6 +1338,7 @@ class LinkController {
           linkMethod,
           redirectUrl,
           branding,
+          prefersDarkMode,
         });
       }
 
@@ -1329,6 +1357,7 @@ class LinkController {
           linkMethod,
           redirectUrl,
           branding,
+          prefersDarkMode,
         });
       }
 
@@ -1347,6 +1376,7 @@ class LinkController {
           linkMethod,
           redirectUrl,
           branding,
+          prefersDarkMode,
         });
       }
 
@@ -1365,6 +1395,7 @@ class LinkController {
           linkMethod,
           redirectUrl,
           branding,
+          prefersDarkMode,
         });
       }
 
@@ -1383,6 +1414,7 @@ class LinkController {
           linkMethod,
           redirectUrl,
           branding,
+          prefersDarkMode,
         });
       }
 
@@ -1425,6 +1457,7 @@ class LinkController {
         linkMethod,
         redirectUrl,
         branding,
+        prefersDarkMode,
       });
     } catch (err) {
       await errorService.reportError(err);
@@ -1441,35 +1474,8 @@ class LinkController {
         linkMethod,
         redirectUrl,
         branding,
+        prefersDarkMode,
       });
-    }
-  }
-
-  private safeRender(
-    res: Response,
-    activityId: string | null,
-    branding: Branding,
-    err: Error,
-    html: string
-  ) {
-    if (err) {
-      errorService.reportError(err);
-
-      activityService.createActivityLog(activityId, {
-        timestamp: now(),
-        level: LogLevel.Error,
-        message: 'Internal server error',
-      });
-
-      res.render('error', { message: DEFAULT_ERROR_MESSAGE, branding }, (err, html) => {
-        if (err) {
-          res.send(DEFAULT_ERROR_MESSAGE);
-        } else {
-          res.send(html);
-        }
-      });
-    } else {
-      res.send(html);
     }
   }
 }

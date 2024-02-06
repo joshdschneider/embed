@@ -1,7 +1,18 @@
 <!doctype html>
-<html>
+<html class="theme-<%= branding.appearance === "dark" || (branding.appearance === "system" && prefers_dark_mode) ? "dark" : "light" %>">
   <head>
     <title>List</title>
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        const windowDarkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const brandingAppearance = "<%= branding.appearance %>"
+        const prefersDarkMode = "<%= prefers_dark_mode %>"
+        const isPreview = "<%= is_preview %>"
+        if (windowDarkMode && brandingAppearance === "system" && prefersDarkMode === "false" && isPreview === "false") {
+          window.location.href = "<%= server_url %>/link/<%= link_token %>?prefers_dark_mode=true";
+        }
+      });
+    </script>
     <style>
       html,
       body,
@@ -11,17 +22,26 @@
         margin: 0;
         padding: 0;
       }
-      * {       
+      * {
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI (Custom)', Roboto, 'Helvetica Neue', 'Open Sans (Custom)', system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
-        --background-color: <%= "#" + branding.page_background %>;
-        --border-color: <%= prefers_dark_mode ? "rgba(255, 255, 255, .1)" : "rgba(0, 0, 0, .1)" %>;
-        --text-color: <%= prefers_dark_mode ? "rgba(255, 255, 255, 1)" : "rgba(28, 32, 36, 1)" %>;
-        --border-radius: var(--border-radius-<%= branding.border_radius %>);
         --border-radius-none: 0px;
         --border-radius-small: 3px;
         --border-radius-medium: 6px;
         --border-radius-large: 12px;
         --border-radius-full: 18px;
+        --border-radius: var(--border-radius-<%= branding.border_radius %>);
+      }
+      .theme-light {       
+        --background-color: <%= "#" + branding.light_mode.page_background %>;
+        --background-color-secondary: transparent;
+        --border-color: rgba(0, 0, 0, .1);
+        --text-color: rgba(28, 32, 36, 1);
+      }
+      .theme-dark {       
+        --background-color: <%= "#" + branding.dark_mode.page_background %>;
+        --background-color-secondary: rgba(0, 0, 0, .1);
+        --border-color: rgba(255, 255, 255, .1);
+        --text-color: rgba(255, 255, 255, 1);
       }
       main {
         display: flex;
@@ -66,7 +86,7 @@
         max-height: 384px;
         border: 1px solid var(--border-color);
         border-radius: calc(var(--border-radius) * 1.5);
-        background-color: <%= prefers_dark_mode ? "rgba(0, 0, 0, .1)" : "transparent" %>;
+        background-color: var(--background-color-secondary);
       }
       .search-box {
         display: flex;
@@ -241,10 +261,14 @@
               <% integrations.forEach((integration) => { %>
                 <li class="integration-item" data-name="<%= integration.display_name %>">
                   <% if (is_preview) { %>
-                    <a href="#" onclick="navigate('<%= server_url %>/link-preview/<%= link_token %>/i/<%= integration.provider %>')">
+                    <a href="#" onclick="navigate('<%= server_url %>/link-preview/i/<%= integration.provider %>')">
                       <div class="integration-item-inner">
                         <div class="details">
-                          <% if (integration.logo_url) { %>
+                          <% if (integration.logo_dark_url && (branding.appearance === "dark" || (branding.appearance === "system" && prefers_dark_mode))) { %>
+                            <div class="integration-logo">
+                              <img src="<%= integration.logo_dark_url %>" alt="<%= integration.display_name %>" />
+                            </div>
+                          <% } else if (integration.logo_url) { %>
                             <div class="integration-logo">
                               <img src="<%= integration.logo_url %>" alt="<%= integration.display_name %>" />
                             </div>
@@ -262,7 +286,11 @@
                     <a href="<%= server_url %>/link/<%= link_token %>/i/<%= integration.provider %>">
                       <div class="integration-item-inner">
                         <div class="details">
-                          <% if (integration.logo_url) { %>
+                          <% if (integration.logo_dark_url && (branding.appearance === "dark" || (branding.appearance === "system" && prefers_dark_mode))) { %>
+                            <div class="integration-logo">
+                              <img src="<%= integration.logo_dark_url %>" alt="<%= integration.display_name %>" />
+                            </div>
+                          <% } else if (integration.logo_url) { %>
                             <div class="integration-logo">
                               <img src="<%= integration.logo_url %>" alt="<%= integration.display_name %>" />
                             </div>

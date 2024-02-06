@@ -46,10 +46,7 @@ class OAuthController {
     const prefersDarkMode = linkToken.prefers_dark_mode || false;
 
     const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
-    const branding = await environmentService.getEnvironmentBranding(
-      linkToken.environment_id,
-      prefersDarkMode
-    );
+    const branding = await environmentService.getEnvironmentBranding(linkToken.environment_id);
 
     try {
       if (linkToken.expires_at < now()) {
@@ -67,6 +64,7 @@ class OAuthController {
           linkMethod,
           redirectUrl,
           branding,
+          prefersDarkMode,
         });
       }
 
@@ -85,6 +83,7 @@ class OAuthController {
           linkMethod,
           redirectUrl,
           branding,
+          prefersDarkMode,
         });
       }
 
@@ -103,6 +102,7 @@ class OAuthController {
           linkMethod,
           redirectUrl,
           branding,
+          prefersDarkMode,
         });
       }
 
@@ -130,6 +130,7 @@ class OAuthController {
           linkMethod,
           redirectUrl,
           branding,
+          prefersDarkMode,
         });
       }
 
@@ -187,6 +188,7 @@ class OAuthController {
         linkMethod,
         redirectUrl,
         branding,
+        prefersDarkMode,
       });
     }
   }
@@ -210,6 +212,7 @@ class OAuthController {
     const linkMethod = linkToken.link_method || undefined;
     const wsClientId = linkToken.websocket_client_id || undefined;
     const redirectUrl = linkToken.redirect_url || undefined;
+    const prefersDarkMode = linkToken.prefers_dark_mode || false;
 
     try {
       if (integration.use_client_credentials) {
@@ -232,6 +235,7 @@ class OAuthController {
             linkMethod,
             redirectUrl,
             branding,
+            prefersDarkMode,
           });
         }
       }
@@ -269,6 +273,7 @@ class OAuthController {
             linkMethod,
             redirectUrl,
             branding,
+            prefersDarkMode,
           });
         }
       }
@@ -342,6 +347,7 @@ class OAuthController {
         linkMethod,
         redirectUrl,
         branding,
+        prefersDarkMode,
       });
     }
   }
@@ -365,6 +371,7 @@ class OAuthController {
     const linkMethod = linkToken.link_method || undefined;
     const wsClientId = linkToken.websocket_client_id || undefined;
     const redirectUrl = linkToken.redirect_url || undefined;
+    const prefersDarkMode = linkToken.prefers_dark_mode || false;
 
     try {
       const callbackUrl = getOauthCallbackUrl();
@@ -413,6 +420,7 @@ class OAuthController {
         linkMethod,
         redirectUrl,
         branding,
+        prefersDarkMode,
       });
     }
   }
@@ -446,10 +454,7 @@ class OAuthController {
     const prefersDarkMode = linkToken.prefers_dark_mode || false;
 
     const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
-    const branding = await environmentService.getEnvironmentBranding(
-      linkToken.environment_id,
-      prefersDarkMode
-    );
+    const branding = await environmentService.getEnvironmentBranding(linkToken.environment_id);
 
     try {
       if (!linkToken.integration_provider) {
@@ -511,6 +516,7 @@ class OAuthController {
         linkMethod,
         redirectUrl,
         branding,
+        prefersDarkMode,
       });
     }
   }
@@ -536,6 +542,7 @@ class OAuthController {
     const linkMethod = linkToken.link_method || undefined;
     const wsClientId = linkToken.websocket_client_id || undefined;
     const redirectUrl = linkToken.redirect_url || undefined;
+    const prefersDarkMode = linkToken.prefers_dark_mode || false;
 
     try {
       if (!code || typeof code !== 'string') {
@@ -620,6 +627,7 @@ class OAuthController {
         linkMethod,
         redirectUrl,
         branding,
+        prefersDarkMode,
       });
     } catch (err) {
       await errorService.reportError(err);
@@ -636,6 +644,7 @@ class OAuthController {
         linkMethod,
         redirectUrl,
         branding,
+        prefersDarkMode,
       });
     }
   }
@@ -661,6 +670,7 @@ class OAuthController {
     const linkMethod = linkToken.link_method || undefined;
     const wsClientId = linkToken.websocket_client_id || undefined;
     const redirectUrl = linkToken.redirect_url || undefined;
+    const prefersDarkMode = linkToken.prefers_dark_mode || false;
 
     try {
       const callbackMetadata = this.getMetadataFromOAuthCallback(req.query, authSpec);
@@ -729,6 +739,7 @@ class OAuthController {
         linkMethod,
         redirectUrl,
         branding,
+        prefersDarkMode,
       });
     } catch (err) {
       await errorService.reportError(err);
@@ -745,6 +756,7 @@ class OAuthController {
         linkMethod,
         redirectUrl,
         branding,
+        prefersDarkMode,
       });
     }
   }
