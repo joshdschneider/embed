@@ -1,17 +1,259 @@
 <!doctype html>
-<html>
+<html class="theme-<%= branding.appearance === "dark" || (branding.appearance === "system" && prefers_dark_mode) ? "dark" : "light" %>">
   <head>
     <title>Api Key</title>
+    <style>
+      html,
+      body,
+      main {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
+      * {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI (Custom)', Roboto, 'Helvetica Neue', 'Open Sans (Custom)', system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+        --border-radius-none: 0px;
+        --border-radius-small: 3px;
+        --border-radius-medium: 6px;
+        --border-radius-large: 12px;
+        --border-radius-full: 18px;
+        --border-radius: var(--border-radius-<%= branding.border_radius %>);
+      }
+      .theme-light {       
+        --background-color: <%= "#" + branding.light_mode.page_background %>;
+        --background-color-secondary: transparent;
+        --border-color: rgba(0, 0, 0, .1);
+        --input-border-color: rgba(0, 0, 0, .3);
+        --input-outline-color: rgba(0, 0, 0, .06);
+        --text-color: rgba(28, 32, 36, 1);
+        --button-text-color: <%= "#" + branding.light_mode.button_text %>;
+        --button-background-color: <%= "#" + branding.light_mode.button_background %>;
+      }
+      .theme-dark {       
+        --background-color: <%= "#" + branding.dark_mode.page_background %>;
+        --background-color-secondary: rgba(0, 0, 0, .1);
+        --border-color: rgba(255, 255, 255, .1);
+        --input-border-color: rgba(255, 255, 255, .3);
+        --input-outline-color: rgba(255, 255, 255, .06);
+        --text-color: rgba(255, 255, 255, 1);
+        --button-text-color: <%= "#" + branding.dark_mode.button_text %>;
+        --button-background-color: <%= "#" + branding.dark_mode.button_background %>;
+      }
+      main {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        min-height: 500px;
+        background-color: var(--background-color);
+      }
+      .container {
+        display: flex;
+        flex-direction: column;
+        width: calc(100% - 40px);
+        max-width: 285px;
+        margin: 20px;
+      }
+      .header {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+      }
+      .header h1 {
+        font-size: 24px;
+        font-weight: 500;
+        letter-spacing: normal;
+        line-height: normal;
+        margin: 0;
+        padding: 0;
+        color: var(--text-color);
+      }
+      .logos {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        margin-bottom: 25px;
+      }
+      .logos .logo {
+        width: 40px;
+        height: 40px;
+        padding: 9px;
+        border-radius: 50%;
+        object-fit: cover;
+        background: var(--background-color);
+        border: 1px solid var(--border-color);
+      }
+      .logos .logo:last-child {
+        margin-left: -5px;
+      }
+      .logos .logo img {
+        width: 100%;
+        height: 100%;
+      }
+      .text {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        margin-bottom: 20px;
+      }
+      .text h3 {
+        font-size: 18px;
+        font-weight: 500;
+        letter-spacing: normal;
+        line-height: normal;
+        margin: 0;
+        padding: 0;
+        color: var(--text-color);
+      }
+      .text p {
+        font-size: 14px;
+        font-weight: 400;
+        letter-spacing: normal;
+        line-height: normal;
+        margin: 8px 0 0 0;
+        padding: 0;
+        color: var(--text-color);
+        opacity: 0.8;
+        transition: 0.2s;
+      }
+      .text a {
+        text-decoration: none;
+        color: inherit;
+      }
+      .text p:hover {
+        opacity: 1;
+      }
+      form {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 15px;
+      }
+      .input-group {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+      }
+      .input-group label {
+        color: var(--text-color);
+        font-weight: 500;
+        font-size: 15px;
+        margin: 0 0 6px 3px;
+        letter-spacing: normal;
+        line-height: normal;
+        padding: 0;
+      }
+      .input-group input {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        appearance: none;
+        width: calc(100% - 24px);
+        margin: 0;
+        padding: 10px;
+        border: 1px solid var(--input-border-color);
+        border-radius: var(--border-radius);
+        color: var(--text-color);
+        font-size: 15px;
+        font-weight: 400;
+        letter-spacing: normal;
+        line-height: normal;
+        transition: 0.2s;
+      }
+      .input-group input:focus {
+        outline: 3px solid var(--input-outline-color);
+      }
+      .input-group small {
+        font-size: 13px;
+        color: var(--text-color);
+        margin: 4px 0 0 3px;
+        opacity: 0.7;
+      }
+      .input-group small a {
+        font-size: inherit;
+        text-decoration: none;
+        color: inherit;
+        transition: 0.2s;
+      }
+      .input-group small:hover {
+        opacity: 1;
+      }
+      form #submit {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        appearance: none;
+        width: 100%;
+        margin: 0;
+        padding: 12px;
+        border: none;
+        border-radius: var(--border-radius);
+        background-color: var(--button-background-color);
+        color: var(--button-text-color);
+        font-size: 15px;
+        font-weight: 500;
+        letter-spacing: normal;
+        line-height: normal;
+        cursor: pointer;
+      }
+      #back {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        display: flex;
+        justify-content: flex-start;
+        align-items: center;
+        gap: 3px;
+        text-decoration: none;
+        color: var(--text-color);
+        font-size: 15px;
+        opacity: 0.8;
+      }
+    </style>
   </head>
   <body>
     <main>
-      <form action="/link/<%= link_token %>/oauth" method="post">
-        <% configuration_fields.forEach((field) => { %>
-          <label for="<%= field.name %>"><%= field.label %></label>
-          <input type="text" id="<%= field.name %>" name="<%= field.name %>" /><br /><br />
-        <% }) %>
-        <input type="submit" value="Submit" />
-      </form>
+      <div class="container">
+        <div class="logos">
+          <div class="logo">
+            <% if (branding.appearance === "dark" || (branding.appearance === "system" && prefers_dark_mode)) { %>
+              <img src="<%= branding.dark_mode.logo || "#_fallback_" %>" width="100px" height="100px" />
+            <% } else { %>
+              <img src="<%= branding.light_mode.logo || "#_fallback_" %>" width="100px" height="100px" />
+            <% } %>
+          </div>
+          <div class="logo">
+            <% if (integration.logo_dark_url && (branding.appearance === "dark" || (branding.appearance === "system" && prefers_dark_mode))) { %>
+              <img src="<%= integration.logo_dark_url || "#_fallback_" %>" width="100px" height="100px" />
+            <% } else { %>
+              <img src="<%= integration.logo_url || "#_fallback_" %>" width="100px" height="100px" />
+            <% } %>
+          </div>
+        </div>
+        <form action="/link/<%= link_token %>/api-key" method="post">
+          <% configuration_fields.forEach((field) => { %>
+            <div class="input-group">
+              <label for="<%= field.name %>">Enter your <%= integration.display_name %> <%= field.label.toLowerCase() %></label>
+              <input id="<%= field.name %>" type="text" id="<%= field.name %>" name="<%= field.name %>" />
+              <small><a href="#__">Where can I find my <%= integration.display_name %> <%= field.label.toLowerCase() %>?</a></small>
+            </div>
+          <% }) %>
+          <input id="submit" type="submit" value="Submit" />
+        </form>
+      </div>
+      <a id="back" href="<%= server_url %>/link/<%= link_token %>/i/<%= integration.provider %>">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M6.85355 3.14645C7.04882 3.34171 7.04882 3.65829 6.85355 3.85355L3.70711 7H12.5C12.7761 7 13 7.22386 13 7.5C13 7.77614 12.7761 8 12.5 8H3.70711L6.85355 11.1464C7.04882 11.3417 7.04882 11.6583 6.85355 11.8536C6.65829 12.0488 6.34171 12.0488 6.14645 11.8536L2.14645 7.85355C1.95118 7.65829 1.95118 7.34171 2.14645 7.14645L6.14645 3.14645C6.34171 2.95118 6.65829 2.95118 6.85355 3.14645Z" fill="currentColor" fill-rule="evenodd" clip-rule="evenodd"></path>
+        </svg>
+        <span>Back</span>
+      </a>
     </main>
   </body>
 </html>

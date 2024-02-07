@@ -1,12 +1,15 @@
 import { useBetaLink } from '@/test/useBetaLink';
 // import { Beta } from '@/test/Beta';
 import Head from 'next/head';
+import { useState } from 'react';
 
 // const beta = Beta({ host: 'http://localhost:5555' });
 
 export default function Home() {
+  const [loading, setLoading] = useState(false);
+
   const { link } = useBetaLink({
-    linkToken: 'tok_b5555e0c36d0a232',
+    linkToken: 'tok_e902067c61e6882d',
     linkMethod: 'redirect',
     redirectUrl: 'http://localhost:3001',
     host: 'http://localhost:5555',
@@ -14,10 +17,13 @@ export default function Home() {
 
   async function openLink() {
     try {
-      // const res = await link();
-      // console.log('RESOLVED', res);
+      setLoading(true);
+      const res = await link();
+      console.log('RESOLVED', res);
     } catch (err) {
       console.log('ERROR', err);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -31,7 +37,9 @@ export default function Home() {
       </Head>
       <main>
         <div>
-          <button onClick={openLink}>Link</button>
+          <button onClick={openLink} disabled={loading}>
+            Link
+          </button>
         </div>
       </main>
     </>
