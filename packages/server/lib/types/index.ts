@@ -114,3 +114,14 @@ export interface BasicTemplateData extends DefaultTemplateData {
     logo_dark_url: string | undefined;
   };
 }
+
+export interface LinkedAccountCreatedWebhookBody {
+  event: 'linked_account.created';
+  environment: string;
+  integration: string;
+  linked_account_id: string;
+  metadata: any;
+  created_at: number;
+}
+
+export type WebhookBody = LinkedAccountCreatedWebhookBody;

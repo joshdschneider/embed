@@ -3,6 +3,7 @@ import { now } from '../utils/helpers';
 import { prisma } from '../utils/prisma';
 import encryptionService from './encryption.service';
 import errorService from './error.service';
+import webhookService from './webhook.service';
 
 class LinkedAccountService {
   public async upsertLinkedAccount(linkedAccount: LinkedAccount): Promise<{
@@ -170,6 +171,17 @@ class LinkedAccountService {
     } catch (err) {
       await errorService.reportError(err);
       return null;
+    }
+  }
+
+  public async linkedAccountCreatedHook(
+    environmentId: string,
+    linkedAccount: LinkedAccount
+  ): Promise<void> {
+    try {
+      await webhookService.sendLinkedAccountCreatedWebhook(environmentId, linkedAccount);
+    } catch (err) {
+      await errorService.reportError(err);
     }
   }
 }

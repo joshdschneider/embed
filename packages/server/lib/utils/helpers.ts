@@ -45,19 +45,16 @@ export function generateSecretKey(environment: EnvironmentType, byteLength = 16)
   return `sk_${prefix}_${crypto.randomBytes(byteLength).toString('hex')}`;
 }
 
-export function generateSecret(byteLength = 16): string {
-  return crypto.randomBytes(byteLength).toString('hex');
-}
-
 export enum Resource {
   Account = 'acc',
   ApiKey = 'key',
   Environment = 'env',
   Activity = 'act',
-  ActivityLog = 'log',
+  ActivityLog = 'actl',
   LinkedAccount = 'link',
   LinkToken = 'tok',
   Webhook = 'web',
+  WebhookLog = 'webl',
 }
 
 export function generateId(prefix: Resource, byteLength = 8): string {
@@ -66,4 +63,16 @@ export function generateId(prefix: Resource, byteLength = 8): string {
 
 export function now() {
   return Math.floor(Date.now() / 1000);
+}
+
+export function generateWebhookSigningSecret(): string {
+  return crypto.randomBytes(32).toString('hex');
+}
+
+export function getWebhookSignatureHeader(
+  payload: string,
+  secret: string
+): { 'X-Platform-Signature': string } {
+  const hash = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+  return { 'X-Platform-Signature': `sha256=${hash}` };
 }

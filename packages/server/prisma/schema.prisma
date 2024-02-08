@@ -143,7 +143,20 @@ model Webhook {
   updated_at     Int?
   deleted_at     Int?
 
+  logs WebhookLog[]
+
   environment Environment @relation(fields: [environment_id], references: [id])
+}
+
+model WebhookLog {
+  id         String  @id
+  webhook_id String
+  event      String
+  payload    Json
+  delivered  Boolean
+  timestamp  Int
+
+  webhook Webhook @relation(fields: [webhook_id], references: [id])
 }
 
 model Activity {
@@ -156,7 +169,7 @@ model Activity {
   action               String
   timestamp            Int
 
-  activity_logs ActivityLog[]
+  logs ActivityLog[]
 
   environment    Environment    @relation(fields: [environment_id], references: [id])
   linked_account LinkedAccount? @relation(fields: [linked_account_id], references: [id])

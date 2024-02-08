@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import errorService, { ErrorCode } from '../services/error.service';
 import webhookService from '../services/webhook.service';
 import { DEFAULT_ERROR_MESSAGE, ENVIRONMENT_ID_LOCALS_KEY } from '../utils/constants';
-import { Resource, generateId, generateSecret, now } from '../utils/helpers';
+import { Resource, generateId, generateWebhookSigningSecret, now } from '../utils/helpers';
 
 class WebhookController {
   public async createWebhook(req: Request, res: Response) {
@@ -39,7 +39,7 @@ class WebhookController {
         url,
         events,
         is_enabled: true,
-        secret: generateSecret(),
+        secret: generateWebhookSigningSecret(),
         secret_iv: null,
         secret_tag: null,
         created_at: now(),
@@ -91,6 +91,7 @@ class WebhookController {
         environment_id: webhook.environment_id,
         url: webhook.url,
         events: webhook.events,
+        secret: webhook.secret,
         is_enabled: webhook.is_enabled,
         created_at: webhook.created_at,
         updated_at: webhook.updated_at,

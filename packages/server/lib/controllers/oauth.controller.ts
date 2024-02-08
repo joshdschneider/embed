@@ -621,6 +621,11 @@ class OAuthController {
 
       await linkTokenService.deleteLinkToken(linkToken.id);
 
+      await linkedAccountService.linkedAccountCreatedHook(
+        linkToken.environment_id,
+        response.linkedAccount
+      );
+
       return await publisher.publishSuccess(res, {
         linkedAccountId: response.linkedAccount.id,
         wsClientId,
@@ -732,6 +737,11 @@ class OAuthController {
       });
 
       await linkTokenService.deleteLinkToken(linkToken.id);
+
+      await linkedAccountService.linkedAccountCreatedHook(
+        linkToken.environment_id,
+        response.linkedAccount
+      );
 
       return await publisher.publishSuccess(res, {
         linkedAccountId: response.linkedAccount.id,
