@@ -15,6 +15,14 @@ export function getRedisUrl() {
   return process.env['REDIS_URL'];
 }
 
+export function getTemporalUrl() {
+  return process.env['TEMPORAL_URL'] || 'localhost:7233';
+}
+
+export function getTemporalNamespace() {
+  return process.env['TEMPORAL_NAMESPACE'] || 'default';
+}
+
 export function getLocalhostUrl() {
   const serverPort = getServerPort();
   return `http://localhost:${serverPort}`;
