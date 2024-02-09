@@ -25,7 +25,7 @@ class LinkedAccountHook {
 
       const worker = await WorkerClient.getInstance();
       if (worker) {
-        worker.initiateSync(linkedAccount.id);
+        worker.initiateSync(linkedAccount);
       }
 
       await webhookService.sendLinkedAccountCreatedWebhook({

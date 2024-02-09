@@ -1,4 +1,4 @@
-import type { Integration } from '@prisma/client';
+import type { Integration, SyncModel } from '@prisma/client';
 import fs from 'fs';
 import yaml from 'js-yaml';
 import path from 'path';
@@ -32,6 +32,7 @@ class IntegrationService {
           environment_id: environmentId,
           is_enabled: true,
           use_client_credentials: false,
+          sync_frequency: 'daily',
           oauth_client_id: null,
           oauth_client_secret: null,
           oauth_scopes: null,
@@ -67,6 +68,29 @@ class IntegrationService {
           deleted_at: null,
         },
       });
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
+    }
+  }
+
+  public async getIntegrationSyncModels(
+    integrationProvider: string,
+    environmentId: string
+  ): Promise<SyncModel[] | null> {
+    try {
+      const integration = await prisma.integration.findUnique({
+        where: {
+          provider_environment_id: {
+            provider: integrationProvider,
+            environment_id: environmentId,
+          },
+          deleted_at: null,
+        },
+        select: { sync_models: true },
+      });
+
+      return integration ? integration.sync_models : null;
     } catch (err) {
       await errorService.reportError(err);
       return null;
