@@ -1,5 +1,5 @@
 {
-  "name": "@beta/link",
+  "name": "@beta/react",
   "version": "0.1.0",
   "main": "dist/index.js",
   "scripts": {
@@ -8,6 +8,10 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "devDependencies": {
+    "@types/react": "^18.2.51",
     "rimraf": "^5.0.5"
+  },
+  "dependencies": {
+    "react": "^18.2.0"
   }
 }

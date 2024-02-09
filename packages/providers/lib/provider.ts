@@ -1,5 +1,6 @@
 export abstract class Provider {
   public abstract getSpec(): ProviderSpecification;
+  // public abstract postLink(): Promise<void>;
 }
 
 export type ProviderSpecification = {
@@ -11,6 +12,7 @@ export type ProviderSpecification = {
   retry?: Retry;
   pagination?: Pagination;
   logo_url?: string;
+  logo_dark_url?: string;
   docs_url?: string;
 };
 

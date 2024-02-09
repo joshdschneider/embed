@@ -6,7 +6,11 @@ class LinkTokenService {
   public async createLinkToken(linkToken: LinkToken): Promise<LinkToken | null> {
     try {
       return await prisma.linkToken.create({
-        data: { ...linkToken, metadata: linkToken.metadata || undefined },
+        data: {
+          ...linkToken,
+          metadata: linkToken.metadata || undefined,
+          configuration: linkToken.configuration || undefined,
+        },
       });
     } catch (err) {
       await errorService.reportError(err);
@@ -25,16 +29,10 @@ class LinkTokenService {
     }
   }
 
-  public async getLinkTokenById(
-    linkTokenId: string,
-    environmentId: string
-  ): Promise<LinkToken | null> {
+  public async getLinkTokenById(linkTokenId: string): Promise<LinkToken | null> {
     try {
       return await prisma.linkToken.findUnique({
-        where: {
-          id: linkTokenId,
-          environment_id: environmentId,
-        },
+        where: { id: linkTokenId },
       });
     } catch (err) {
       await errorService.reportError(err);
@@ -44,16 +42,27 @@ class LinkTokenService {
 
   public async updateLinkToken(
     linkTokenId: string,
-    environmentId: string,
     data: Partial<LinkToken>
   ): Promise<LinkToken | null> {
     try {
       return await prisma.linkToken.update({
-        where: {
-          id: linkTokenId,
-          environment_id: environmentId,
+        where: { id: linkTokenId },
+        data: {
+          ...data,
+          metadata: data.metadata || undefined,
+          configuration: data.configuration || undefined,
         },
-        data: { ...data, metadata: data.metadata || undefined },
+      });
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
+    }
+  }
+
+  public async deleteLinkToken(linkTokenId: string): Promise<LinkToken | null> {
+    try {
+      return await prisma.linkToken.delete({
+        where: { id: linkTokenId },
       });
     } catch (err) {
       await errorService.reportError(err);

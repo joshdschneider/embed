@@ -15,6 +15,14 @@ export function getRedisUrl() {
   return process.env['REDIS_URL'];
 }
 
+export function getTemporalUrl() {
+  return process.env['TEMPORAL_URL'] || 'localhost:7233';
+}
+
+export function getTemporalNamespace() {
+  return process.env['TEMPORAL_NAMESPACE'] || 'default';
+}
+
 export function getLocalhostUrl() {
   const serverPort = getServerPort();
   return `http://localhost:${serverPort}`;
@@ -40,23 +48,9 @@ export function getAuthTokenSecret() {
   return process.env['BETA_CLOUD_AUTH_TOKEN_SECRET'];
 }
 
-export const SUPPORTED_LANGUAGES = [
-  'da', // Danish ('da')
-  'nl', // Dutch ('nl')
-  'en', // English ('en')
-  'et', // Estonian ('et')
-  'fr', // French ('fr')
-  'de', // German ('de')
-  'it', // Italian ('it')
-  'lv', // Latvian ('lv')
-  'lt', // Lithuanian ('lt')
-  'no', // Norwegian ('no')
-  'pl', // Polish ('pl')
-  'pt', // Portuguese ('pt')
-  'ro', // Romanian ('ro')
-  'es', // Spanish ('es')
-  'sv', // Swedish ('sv')
-];
+export function getInternalApiKey() {
+  return process.env['BETA_CLOUD_INTERNAL_API_KEY'];
+}
 
 export const ACCOUNT_ID_LOCALS_KEY = 'beta_account_id';
 export const ENVIRONMENT_ID_LOCALS_KEY = 'beta_environment_id';
@@ -66,5 +60,45 @@ export const ENCRYPTION_KEY_SALT = 'X89FHEGqR3yNK0+v7rPWxQ==';
 
 export const BETA_CLOUD_AUTH_TOKEN_KEY = 'beta_cloud_token';
 export const BETA_CLOUD_ENVIRONMENT_KEY = 'beta_cloud_enviroment';
+
+export const SUPPORTED_LANGUAGES = [
+  'da', // Danish
+  'nl', // Dutch
+  'en', // English
+  'et', // Estonian
+  'fr', // French
+  'de', // German
+  'it', // Italian
+  'lv', // Latvian
+  'lt', // Lithuanian
+  'no', // Norwegian
+  'pl', // Polish
+  'pt', // Portuguese
+  'ro', // Romanian
+  'es', // Spanish
+  'sv', // Swedish
+];
+
+export const DEFAULT_BRANDING = {
+  name: null,
+  appearance: 'system',
+  border_radius: 'medium',
+  light_mode: {
+    logo: null,
+    favicon: null,
+    page_background: 'FCFCFC',
+    button_background: '000000',
+    button_text: 'FFFFFF',
+    links: '5753C6',
+  },
+  dark_mode: {
+    logo: null,
+    favicon: null,
+    page_background: '000000',
+    button_background: 'FFFFFF',
+    button_text: '000000',
+    links: 'B1A9FF',
+  },
+};
 
 export const DEFAULT_ERROR_MESSAGE = 'Something went wrong';

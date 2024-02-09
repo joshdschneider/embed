@@ -1,80 +1,55 @@
-import type { LinkedAccount, Prisma } from '@prisma/client';
-import { DuplicateAccountBehavior } from '../types';
+import type { LinkedAccount } from '@prisma/client';
+import { now } from '../utils/helpers';
 import { prisma } from '../utils/prisma';
 import encryptionService from './encryption.service';
-import environmentService from './environment.service';
 import errorService from './error.service';
 
 class LinkedAccountService {
-  public async upsertLinkedAccount(
-    linkedAccount: LinkedAccount
-  ): Promise<
-    | { success: true; linkedAccount: LinkedAccount; action: 'created' | 'updated' }
-    | { success: false; reason: 'duplicate_account' | 'internal_server_error' }
-  > {
+  public async upsertLinkedAccount(linkedAccount: LinkedAccount): Promise<{
+    linkedAccount: LinkedAccount;
+    action: 'created' | 'updated';
+  } | null> {
     try {
       const encryptedLinkedAccount = encryptionService.encryptLinkedAccount(linkedAccount);
 
-      const duplicateLinkedAccount = await prisma.linkedAccount.findFirst({
+      const duplicateLinkedAccount = await prisma.linkedAccount.findUnique({
         where: {
-          environment_id: linkedAccount.environment_id,
-          integration_provider: linkedAccount.integration_provider,
-          credentials: encryptedLinkedAccount.credentials as Prisma.JsonFilter<'LinkedAccount'>,
+          id: encryptedLinkedAccount.id,
           deleted_at: null,
         },
       });
 
       if (duplicateLinkedAccount) {
-        const environment = await environmentService.getEnvironmentById(
-          linkedAccount.environment_id
-        );
+        const existingLinkedAccount = await prisma.linkedAccount.update({
+          where: { id: duplicateLinkedAccount.id },
+          data: {
+            integration_provider: encryptedLinkedAccount.integration_provider,
+            configuration: encryptedLinkedAccount.configuration || undefined,
+            credentials: encryptedLinkedAccount.credentials,
+            credentials_iv: encryptedLinkedAccount.credentials_iv,
+            credentials_tag: encryptedLinkedAccount.credentials_tag,
+            consent_given: encryptedLinkedAccount.consent_given,
+            consent_ip: encryptedLinkedAccount.consent_ip,
+            consent_date: encryptedLinkedAccount.consent_date,
+            updated_at: encryptedLinkedAccount.updated_at,
+          },
+        });
 
-        const duplicateAccountBehavior =
-          environment?.duplicate_account_behavior as DuplicateAccountBehavior;
-
-        if (duplicateAccountBehavior === DuplicateAccountBehavior.ThrowError) {
-          return { success: false, reason: 'duplicate_account' };
-        }
-
-        if (duplicateAccountBehavior === DuplicateAccountBehavior.UseExisting) {
-          const existingLinkedAccount = await prisma.linkedAccount.update({
-            where: {
-              id: encryptedLinkedAccount.id,
-              environment_id: encryptedLinkedAccount.environment_id,
-            },
-            data: {
-              ...encryptedLinkedAccount,
-              credentials: encryptedLinkedAccount.credentials || undefined,
-              configuration: encryptedLinkedAccount.configuration || undefined,
-              metadata: encryptedLinkedAccount.metadata || undefined,
-            },
-          });
-
-          return {
-            success: true,
-            linkedAccount: existingLinkedAccount,
-            action: 'updated',
-          };
-        }
+        return { linkedAccount: existingLinkedAccount, action: 'updated' };
       }
 
       const newLinkedAccount = await prisma.linkedAccount.create({
         data: {
           ...encryptedLinkedAccount,
-          credentials: encryptedLinkedAccount.credentials || {},
           configuration: encryptedLinkedAccount.configuration || {},
           metadata: encryptedLinkedAccount.metadata || undefined,
         },
       });
 
-      return {
-        success: true,
-        linkedAccount: newLinkedAccount,
-        action: 'created',
-      };
+      return { linkedAccount: newLinkedAccount, action: 'created' };
     } catch (err) {
       await errorService.reportError(err);
-      return { success: false, reason: 'internal_server_error' };
+      return null;
     }
   }
 
@@ -152,6 +127,46 @@ class LinkedAccountService {
         firstId: firstId || null,
         lastId: lastId || null,
       };
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
+    }
+  }
+
+  public async getLinkedAccountById(linkedAccountId: string): Promise<LinkedAccount | null> {
+    try {
+      const linkedAccount = await prisma.linkedAccount.findUnique({
+        where: { id: linkedAccountId, deleted_at: null },
+      });
+
+      if (!linkedAccount) {
+        return null;
+      }
+
+      return encryptionService.decryptLinkedAccount(linkedAccount);
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
+    }
+  }
+
+  public async deleteLinkedAccount(linkedAccountId: string): Promise<LinkedAccount | null> {
+    try {
+      const linkedAccount = await prisma.linkedAccount.findUnique({
+        where: { id: linkedAccountId },
+      });
+
+      if (!linkedAccount) {
+        return null;
+      }
+
+      return await prisma.linkedAccount.update({
+        where: {
+          id: linkedAccountId,
+          deleted_at: null,
+        },
+        data: { deleted_at: now() },
+      });
     } catch (err) {
       await errorService.reportError(err);
       return null;

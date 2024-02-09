@@ -1,6 +1,8 @@
 slug: klaviyo
 display_name: Klaviyo
 base_url: https://a.klaviyo.com
+docs_url: https://developers.klaviyo.com/en/reference/api_overview
+logo_url: https://beta-l1k2j3.s3.amazonaws.com/klaviyo.svg
 auth:
   scheme: API_KEY
 headers:
