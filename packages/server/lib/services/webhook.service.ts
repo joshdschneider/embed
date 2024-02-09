@@ -109,10 +109,11 @@ class WebhookService {
     }
   }
 
-  private async sendWebhook(webhook: Webhook, data: WebhookBody): Promise<void> {
+  private async sendWebhook(webhook: Webhook, data: WebhookBody): Promise<boolean> {
+    let delivered = false;
+
     try {
       const signatureHeader = getWebhookSignatureHeader(JSON.stringify(data), webhook.secret);
-
       const response = await backOff(
         () => {
           return fetch(webhook.url, {
@@ -128,12 +129,13 @@ class WebhookService {
         throw new Error(`Failed to send webhook to ${webhook.url}`);
       }
 
-      await this.createWebhookLog(webhook.id, data, true);
+      delivered = true;
     } catch (err) {
       await errorService.reportError(err);
-
-      await this.createWebhookLog(webhook.id, data, false);
     }
+
+    await this.createWebhookLog(webhook.id, data, delivered);
+    return delivered;
   }
 
   public async sendLinkedAccountCreatedWebhook({
@@ -156,10 +158,12 @@ class WebhookService {
       return;
     }
 
+    const results = [];
+
     try {
       for (const webhook of enabledWebhooks) {
         if (webhook.events.includes('linked_account.created')) {
-          await this.sendWebhook(webhook, {
+          const delivered = await this.sendWebhook(webhook, {
             event: 'linked_account.created',
             environment: environment.type,
             integration: linkedAccount.integration_provider,
@@ -167,17 +171,25 @@ class WebhookService {
             metadata: linkedAccount.metadata || {},
             created_at: linkedAccount.created_at,
           });
+          results.push({ delivered, url: webhook.url });
         }
       }
+
+      const deliveredCount = results.filter((result) => result.delivered).length;
+      if (deliveredCount === 0) {
+        throw new Error('Failed to deliver webhook(s)');
+      }
+
+      const message =
+        deliveredCount === enabledWebhooks.length
+          ? `Webhook delivered to ${deliveredCount} endpoints`
+          : `Webhook delivered to ${deliveredCount} out of ${enabledWebhooks.length} endpoints`;
 
       await activityService.createActivityLog(activityId, {
         timestamp: now(),
         level: LogLevel.Info,
-        message: `Webhook delivered to ${enabledWebhooks.length} URL(s)`,
-        payload: {
-          event: 'linked_account.created',
-          urls: enabledWebhooks.map((hook) => hook.url),
-        },
+        message,
+        payload: { event: 'linked_account.created', results },
       });
     } catch (err) {
       await errorService.reportError(err);
@@ -186,10 +198,7 @@ class WebhookService {
         timestamp: now(),
         level: LogLevel.Error,
         message: `Failed to deliver webhook`,
-        payload: {
-          event: 'linked_account.created',
-          urls: enabledWebhooks.map((hook) => hook.url),
-        },
+        payload: { event: 'linked_account.created', results },
       });
     }
   }

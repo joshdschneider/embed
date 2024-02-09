@@ -47,7 +47,19 @@ class WorkerClient {
     }
   }
 
-  public async initiateSync(linkedAccountId: string): Promise<void> {}
+  public async initiateSync(linkedAccountId: string): Promise<void> {
+    if (!this.client) {
+      return;
+    }
+
+    const handle = await this.client.workflow.start('playLottery', {
+      taskQueue: 'syncs',
+      workflowId: '123',
+      args: [{ guess: 2983746 }],
+    });
+
+    console.log('Workflow started', handle.workflowId);
+  }
 }
 
 export default WorkerClient;
