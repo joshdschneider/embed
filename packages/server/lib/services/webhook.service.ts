@@ -1,8 +1,9 @@
 import { LinkedAccount, Webhook } from '@prisma/client';
 import { backOff } from 'exponential-backoff';
-import { WebhookBody } from '../types';
+import { LogLevel, WebhookBody } from '../types';
 import { Resource, generateId, getWebhookSignatureHeader, now } from '../utils/helpers';
 import { prisma } from '../utils/prisma';
+import activityService from './activity.service';
 import encryptionService from './encryption.service';
 import environmentService from './environment.service';
 import errorService from './error.service';
@@ -135,23 +136,28 @@ class WebhookService {
     }
   }
 
-  public async sendLinkedAccountCreatedWebhook(
-    environmentId: string,
-    linkedAccount: LinkedAccount
-  ): Promise<void> {
+  public async sendLinkedAccountCreatedWebhook({
+    environmentId,
+    linkedAccount,
+    activityId,
+  }: {
+    environmentId: string;
+    linkedAccount: LinkedAccount;
+    activityId: string | null;
+  }): Promise<void> {
+    const webhooks = await this.listWebhooks(environmentId);
+    if (!webhooks) {
+      return;
+    }
+
+    const enabledWebhooks = webhooks.filter((webhook) => webhook.is_enabled);
+    const environment = await environmentService.getEnvironmentById(environmentId);
+    if (!environment) {
+      return;
+    }
+
     try {
-      const webhooks = await this.listWebhooks(environmentId);
-      if (!webhooks) {
-        return;
-      }
-
-      const enabledWebhooks = webhooks.filter((webhook) => webhook.is_enabled);
-      const environment = await environmentService.getEnvironmentById(environmentId);
-      if (!environment) {
-        return;
-      }
-
-      enabledWebhooks.forEach(async (webhook) => {
+      for (const webhook of enabledWebhooks) {
         if (webhook.events.includes('linked_account.created')) {
           await this.sendWebhook(webhook, {
             event: 'linked_account.created',
@@ -162,9 +168,29 @@ class WebhookService {
             created_at: linkedAccount.created_at,
           });
         }
+      }
+
+      await activityService.createActivityLog(activityId, {
+        timestamp: now(),
+        level: LogLevel.Info,
+        message: `Webhook delivered to ${enabledWebhooks.length} URL(s)`,
+        payload: {
+          event: 'linked_account.created',
+          urls: enabledWebhooks.map((hook) => hook.url),
+        },
       });
     } catch (err) {
       await errorService.reportError(err);
+
+      await activityService.createActivityLog(activityId, {
+        timestamp: now(),
+        level: LogLevel.Error,
+        message: `Failed to deliver webhook`,
+        payload: {
+          event: 'linked_account.created',
+          urls: enabledWebhooks.map((hook) => hook.url),
+        },
+      });
     }
   }
 }

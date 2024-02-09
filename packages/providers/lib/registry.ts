@@ -44,4 +44,17 @@ export class Registry {
 
     return specs;
   }
+
+  // public async postLink(slug: string): Promise<void> {
+  //   await this.load(slug);
+  //   const provider = this.providers[slug];
+
+  //   if (!provider) {
+  //     throw new Error(`Failed to load provider ${slug}`);
+  //   }
+
+  //   if (provider.postLink) {
+  //     return provider.postLink();
+  //   }
+  // }
 }

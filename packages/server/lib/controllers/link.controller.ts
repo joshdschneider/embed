@@ -2,6 +2,7 @@ import { AuthScheme, ProviderSpecification } from '@beta/providers';
 import { Integration } from '@prisma/client';
 import { Request, Response } from 'express';
 import publisher from '../clients/publisher.client';
+import linkedAccountHook from '../hooks/linkedAccount.hook';
 import activityService from '../services/activity.service';
 import environmentService from '../services/environment.service';
 import errorService from '../services/error.service';
@@ -536,10 +537,11 @@ class LinkController {
 
           await linkTokenService.deleteLinkToken(linkToken.id);
 
-          await linkedAccountService.linkedAccountCreatedHook(
-            linkToken.environment_id,
-            response.linkedAccount
-          );
+          await linkedAccountHook.linkedAccountCreated({
+            environmentId: linkToken.environment_id,
+            linkedAccount: response.linkedAccount,
+            activityId,
+          });
 
           return await publisher.publishSuccess(res, {
             linkedAccountId: response.linkedAccount.id,
@@ -1142,10 +1144,11 @@ class LinkController {
 
       await linkTokenService.deleteLinkToken(linkToken.id);
 
-      await linkedAccountService.linkedAccountCreatedHook(
-        linkToken.environment_id,
-        response.linkedAccount
-      );
+      await linkedAccountHook.linkedAccountCreated({
+        environmentId: linkToken.environment_id,
+        linkedAccount: response.linkedAccount,
+        activityId,
+      });
 
       return await publisher.publishSuccess(res, {
         linkedAccountId: response.linkedAccount.id,
@@ -1461,10 +1464,11 @@ class LinkController {
 
       await linkTokenService.deleteLinkToken(linkToken.id);
 
-      await linkedAccountService.linkedAccountCreatedHook(
-        linkToken.environment_id,
-        response.linkedAccount
-      );
+      await linkedAccountHook.linkedAccountCreated({
+        environmentId: linkToken.environment_id,
+        linkedAccount: response.linkedAccount,
+        activityId,
+      });
 
       return await publisher.publishSuccess(res, {
         linkedAccountId: response.linkedAccount.id,

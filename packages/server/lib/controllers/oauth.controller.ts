@@ -6,6 +6,7 @@ import SimpleOAuth2 from 'simple-oauth2';
 import { OAuth1Client } from '../clients/oauth1.client';
 import { getSimpleOAuth2ClientConfig } from '../clients/oauth2.client';
 import publisher from '../clients/publisher.client';
+import linkedAccountHook from '../hooks/linkedAccount.hook';
 import activityService from '../services/activity.service';
 import environmentService from '../services/environment.service';
 import errorService from '../services/error.service';
@@ -621,10 +622,11 @@ class OAuthController {
 
       await linkTokenService.deleteLinkToken(linkToken.id);
 
-      await linkedAccountService.linkedAccountCreatedHook(
-        linkToken.environment_id,
-        response.linkedAccount
-      );
+      await linkedAccountHook.linkedAccountCreated({
+        environmentId: linkToken.environment_id,
+        linkedAccount: response.linkedAccount,
+        activityId,
+      });
 
       return await publisher.publishSuccess(res, {
         linkedAccountId: response.linkedAccount.id,
@@ -738,10 +740,11 @@ class OAuthController {
 
       await linkTokenService.deleteLinkToken(linkToken.id);
 
-      await linkedAccountService.linkedAccountCreatedHook(
-        linkToken.environment_id,
-        response.linkedAccount
-      );
+      await linkedAccountHook.linkedAccountCreated({
+        environmentId: linkToken.environment_id,
+        linkedAccount: response.linkedAccount,
+        activityId,
+      });
 
       return await publisher.publishSuccess(res, {
         linkedAccountId: response.linkedAccount.id,

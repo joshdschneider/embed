@@ -1,5 +1,6 @@
 export abstract class Provider {
   public abstract getSpec(): ProviderSpecification;
+  // public abstract postLink(): Promise<void>;
 }
 
 export type ProviderSpecification = {
