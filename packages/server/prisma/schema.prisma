@@ -72,35 +72,17 @@ model Integration {
   oauth_client_id        String?
   oauth_client_secret    String?
   oauth_scopes           String?
+  sync_frequency         String?
   rank                   Int?
   created_at             Int
   updated_at             Int?
   deleted_at             Int?
 
+  sync_models SyncModel[]
+
   environment Environment @relation(fields: [environment_id], references: [id])
 
   @@unique([provider, environment_id])
-}
-
-model LinkedAccount {
-  id                   String  @id
-  environment_id       String
-  integration_provider String
-  credentials          String
-  credentials_iv       String?
-  credentials_tag      String?
-  configuration        Json
-  metadata             Json?
-  consent_given        Boolean @default(false)
-  consent_ip           String?
-  consent_date         Int?
-  created_at           Int
-  updated_at           Int?
-  deleted_at           Int?
-
-  activities Activity[]
-
-  environment Environment @relation(fields: [environment_id], references: [id])
 }
 
 model LinkToken {
@@ -128,6 +110,70 @@ model LinkToken {
   activities Activity[]
 
   environment Environment @relation(fields: [environment_id], references: [id])
+}
+
+model LinkedAccount {
+  id                   String  @id
+  environment_id       String
+  integration_provider String
+  credentials          String
+  credentials_iv       String?
+  credentials_tag      String?
+  configuration        Json
+  metadata             Json?
+  consent_given        Boolean @default(false)
+  consent_ip           String?
+  consent_date         Int?
+  created_at           Int
+  updated_at           Int?
+  deleted_at           Int?
+
+  activities Activity[]
+  syncs      Sync[]
+
+  environment Environment @relation(fields: [environment_id], references: [id])
+}
+
+model SyncModel {
+  id                   String   @id
+  integration_provider String
+  environment_id       String
+  name                 String
+  is_enabled           Boolean
+  required_scopes      String[]
+  excluded_fields      String[]
+  sync_frequency       String?
+  created_at           Int
+  updated_at           Int?
+  deleted_at           Int?
+
+  syncs Sync[]
+
+  integration Integration @relation(fields: [integration_provider, environment_id], references: [provider, environment_id])
+}
+
+model Sync {
+  id                String @id
+  linked_account_id String
+  model_id          String
+  frequency         String
+  created_at        Int
+  updated_at        Int?
+  deleted_at        Int?
+
+  job SyncJob[]
+
+  linked_account LinkedAccount @relation(fields: [linked_account_id], references: [id])
+  model          SyncModel     @relation(fields: [model_id], references: [id])
+}
+
+model SyncJob {
+  id      String @id
+  sync_id String
+  type    String
+  status  String
+
+  sync Sync @relation(fields: [sync_id], references: [id])
 }
 
 model Webhook {

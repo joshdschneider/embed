@@ -1,7 +1,11 @@
+import { LinkedAccount } from '@prisma/client';
 import { Connection, Client as TemporalClient } from '@temporalio/client';
 import fs from 'fs';
 import errorService from '../services/error.service';
+import integrationService from '../services/integration.service';
+import syncService from '../services/sync.service';
 import { getTemporalNamespace, getTemporalUrl, isProd } from '../utils/constants';
+import { Resource, generateId, now } from '../utils/helpers';
 
 const namespace = getTemporalNamespace();
 
@@ -47,18 +51,61 @@ class WorkerClient {
     }
   }
 
-  public async initiateSync(linkedAccountId: string): Promise<void> {
-    if (!this.client) {
-      return;
+  public async initiateSync(linkedAccount: LinkedAccount): Promise<void> {
+    try {
+      if (!this.client) {
+        throw new Error('Failed to initialize Temporal client');
+      }
+
+      const integration = await integrationService.getIntegrationByProvider(
+        linkedAccount.integration_provider,
+        linkedAccount.environment_id
+      );
+
+      if (!integration) {
+        throw new Error(`Failed to retrieve ${linkedAccount.integration_provider} integration`);
+      }
+
+      const syncModels = await integrationService.getIntegrationSyncModels(
+        linkedAccount.integration_provider,
+        linkedAccount.environment_id
+      );
+
+      if (!syncModels) {
+        throw new Error(
+          `Failed to retrieve sync models for ${linkedAccount.integration_provider} integration`
+        );
+      }
+
+      const enabledSyncModels = syncModels.filter((syncModel) => syncModel.is_enabled);
+
+      for (const syncModel of enabledSyncModels) {
+        const sync = await syncService.createSync({
+          id: generateId(Resource.Sync),
+          linked_account_id: linkedAccount.id,
+          model_id: syncModel.id,
+          frequency: syncModel.sync_frequency || integration.sync_frequency || 'provider default',
+          created_at: now(),
+          updated_at: now(),
+          deleted_at: null,
+        });
+
+        if (sync) {
+          await this.client.workflow.start('syncModel', {
+            taskQueue: 'syncs',
+            workflowId: sync.id,
+            args: [
+              {
+                syncId: sync.id,
+                linkedAccountId: linkedAccount.id,
+              },
+            ],
+          });
+        }
+      }
+    } catch (err) {
+      await errorService.reportError(err);
     }
-
-    const handle = await this.client.workflow.start('playLottery', {
-      taskQueue: 'syncs',
-      workflowId: '123',
-      args: [{ guess: 2983746 }],
-    });
-
-    console.log('Workflow started', handle.workflowId);
   }
 }
 
