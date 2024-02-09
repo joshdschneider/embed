@@ -1,4 +1,6 @@
 import { ApiKey, Environment } from '@prisma/client';
+import { Branding } from '../types';
+import { DEFAULT_BRANDING } from '../utils/constants';
 import { prisma } from '../utils/prisma';
 import encryptionService from './encryption.service';
 import errorService from './error.service';
@@ -7,7 +9,10 @@ class EnvironmentService {
   public async createEnvironment(environment: Environment): Promise<Environment | null> {
     try {
       return await prisma.environment.create({
-        data: environment,
+        data: {
+          ...environment,
+          branding: environment.branding || DEFAULT_BRANDING,
+        },
       });
     } catch (err) {
       await errorService.reportError(err);
@@ -81,12 +86,26 @@ class EnvironmentService {
         where: { id: environmentId },
         data: {
           enable_new_integrations: environment.enable_new_integrations,
-          duplicate_account_behavior: environment.duplicate_account_behavior,
+          branding: environment.branding || undefined,
         },
       });
     } catch (err) {
       await errorService.reportError(err);
       return null;
+    }
+  }
+
+  public async getEnvironmentBranding(environmentId: string): Promise<Branding> {
+    try {
+      const environment = await this.getEnvironmentById(environmentId);
+      if (!environment) {
+        return DEFAULT_BRANDING;
+      }
+
+      return environment.branding as Branding;
+    } catch (err) {
+      await errorService.reportError(err);
+      return DEFAULT_BRANDING;
     }
   }
 }

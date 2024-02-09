@@ -1,10 +1,12 @@
+import crypto from 'crypto';
 import type { Response } from 'express';
 import type { RedisClientType } from 'redis';
 import { createClient } from 'redis';
 import { v4 } from 'uuid';
 import type { WebSocket } from 'ws';
-import { getRedisUrl } from '../utils/constants';
-import { closeWindow } from '../utils/helpers';
+import { Branding, DefaultTemplateData, ErrorTemplateData } from '../types';
+import { DEFAULT_BRANDING, getRedisUrl } from '../utils/constants';
+import { appendParamsToUrl } from '../utils/helpers';
 
 enum MessageType {
   ConnectionAck = 'connection_ack',
@@ -111,7 +113,6 @@ class WebSocketPublisher {
 
   public publish(wsClientId: string, message: string): boolean {
     const client = this.wsClients.get(wsClientId);
-
     if (client) {
       client.send(message);
       return true;
@@ -141,7 +142,6 @@ export class Publisher {
 
   public async subscribe(ws: WebSocket, wsClientId = v4()) {
     this.wsPublisher.subscribe(ws, wsClientId);
-
     if (this.redisPublisher) {
       const onMessage = async (message: string, channel: string) => {
         this.wsPublisher.publish(channel, message);
@@ -154,7 +154,6 @@ export class Publisher {
 
   public async unsubscribe(wsClientId: string) {
     this.wsPublisher.unsubscribe(wsClientId);
-
     if (this.redisPublisher) {
       await this.redisPublisher.unsubscribe(wsClientId);
     }
@@ -162,7 +161,6 @@ export class Publisher {
 
   public async publish(wsClientId: string, message: string): Promise<boolean> {
     const delivered = this.wsPublisher.publish(wsClientId, message);
-
     if (!delivered) {
       if (this.redisPublisher) {
         await this.redisPublisher.publish(wsClientId, message);
@@ -177,48 +175,64 @@ export class Publisher {
     {
       error,
       wsClientId,
-      integrationProvider,
-      linkedAccountId,
+      linkMethod,
+      redirectUrl,
+      branding,
+      prefersDarkMode,
     }: {
       error: string;
-      integrationProvider?: string;
-      linkedAccountId?: string;
       wsClientId?: string;
+      linkMethod?: string;
+      redirectUrl?: string;
+      branding?: Branding;
+      prefersDarkMode?: boolean;
     }
   ) {
     if (wsClientId) {
-      const data = JSON.stringify({
-        message_type: MessageType.Error,
-        integration: integrationProvider,
-        linked_account_id: linkedAccountId,
-        error,
-      });
-
+      const data = JSON.stringify({ message_type: MessageType.Error, error });
       const published = await this.publish(wsClientId, data);
       if (published) {
         await this.unsubscribe(wsClientId);
       }
     }
 
-    closeWindow(res);
+    if (linkMethod === 'popup') {
+      this.closePopup(res);
+    } else if (linkMethod === 'redirect' && redirectUrl) {
+      const errorRedirectUrl = appendParamsToUrl(redirectUrl, { error });
+      res.redirect(errorRedirectUrl);
+    } else {
+      const data: ErrorTemplateData = {
+        error_message: error,
+        branding: branding || DEFAULT_BRANDING,
+        prefers_dark_mode: prefersDarkMode || false,
+      };
+
+      res.render('error', data);
+    }
   }
 
   public async publishSuccess(
     res: Response,
     {
-      integrationProvider,
       linkedAccountId,
       wsClientId,
+      linkMethod,
+      redirectUrl,
+      branding,
+      prefersDarkMode,
     }: {
-      integrationProvider: string;
       linkedAccountId: string;
       wsClientId?: string;
+      linkMethod?: string;
+      redirectUrl?: string;
+      branding?: Branding;
+      prefersDarkMode?: boolean;
     }
   ) {
     if (wsClientId) {
       const data = JSON.stringify({
         message_type: MessageType.Success,
-        integration: integrationProvider,
         linked_account_id: linkedAccountId,
       });
 
@@ -228,7 +242,28 @@ export class Publisher {
       }
     }
 
-    closeWindow(res);
+    if (linkMethod === 'popup') {
+      this.closePopup(res);
+    } else if (linkMethod === 'redirect' && redirectUrl) {
+      const successRedirectUrl = appendParamsToUrl(redirectUrl, {
+        linked_account_id: linkedAccountId,
+      });
+
+      res.redirect(successRedirectUrl);
+    } else {
+      const data: DefaultTemplateData = {
+        branding: branding || DEFAULT_BRANDING,
+        prefers_dark_mode: prefersDarkMode || false,
+      };
+
+      res.render('finish', data);
+    }
+  }
+
+  private closePopup(res: Response) {
+    const nonce = crypto.randomBytes(16).toString('base64');
+    res.setHeader('Content-Security-Policy', `script-src 'nonce-${nonce}'`);
+    res.render('close', { nonce });
   }
 }
 

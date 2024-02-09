@@ -9,7 +9,7 @@ linkTokenRouter.use(authMiddleware.apiKeyAuth.bind(authMiddleware));
 linkTokenRouter.route('/').post(linkTokenController.createLinkToken.bind(linkTokenController));
 
 linkTokenRouter
-  .route('/:link_token_id')
+  .route('/:token')
   .get(linkTokenController.retrieveLinkToken.bind(linkTokenController));
 
 linkTokenRouter.route('/').put(linkTokenController.modifyLinkToken.bind(linkTokenController));

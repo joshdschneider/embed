@@ -1,4 +1,4 @@
-import { User } from '@prisma/client';
+import { Account, User } from '@prisma/client';
 import { prisma } from '../utils/prisma';
 import errorService from './error.service';
 
@@ -12,10 +12,11 @@ class UserService {
     }
   }
 
-  public async getUserById(userId: string): Promise<User | null> {
+  public async getUserById(userId: string): Promise<(User & { account: Account }) | null> {
     try {
       return await prisma.user.findUnique({
         where: { id: userId, deleted_at: null },
+        include: { account: true },
       });
     } catch (err) {
       await errorService.reportError(err);

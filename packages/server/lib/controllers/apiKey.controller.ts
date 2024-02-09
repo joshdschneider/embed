@@ -4,7 +4,7 @@ import environmentService from '../services/environment.service';
 import errorService, { ErrorCode } from '../services/error.service';
 import { EnvironmentType } from '../types';
 import { DEFAULT_ERROR_MESSAGE, ENVIRONMENT_ID_LOCALS_KEY } from '../utils/constants';
-import { Resource, generateId, generateSecreyKey, now } from '../utils/helpers';
+import { Resource, generateId, generateSecretKey, now } from '../utils/helpers';
 
 class ApiKeyController {
   public async generateApiKey(req: Request, res: Response) {
@@ -24,7 +24,7 @@ class ApiKeyController {
       const apiKey = await apiKeyService.createApiKey({
         id: generateId(Resource.ApiKey),
         environment_id: environmentId,
-        key: generateSecreyKey(type),
+        key: generateSecretKey(type),
         key_iv: null,
         key_tag: null,
         name: name || null,
@@ -40,7 +40,7 @@ class ApiKeyController {
         });
       }
 
-      res.status(201).json({
+      res.status(200).json({
         object: 'api_key',
         id: apiKey.id,
         environment_id: apiKey.environment_id,

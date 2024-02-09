@@ -1,6 +1,9 @@
 import { Request, Response } from 'express';
+import activityService from '../services/activity.service';
 import errorService, { ErrorCode } from '../services/error.service';
 import linkTokenService from '../services/linkToken.service';
+import linkedAccountService from '../services/linkedAccount.service';
+import { LogAction, LogLevel } from '../types';
 import {
   DEFAULT_ERROR_MESSAGE,
   ENVIRONMENT_ID_LOCALS_KEY,
@@ -13,13 +16,39 @@ class LinkTokenController {
   public async createLinkToken(req: Request, res: Response) {
     try {
       const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
-      const { integration, expires_in_mins, language, redirect_url, metadata } = req.body;
+      const { integration, linked_account_id, expires_in_mins, language, redirect_url, metadata } =
+        req.body;
 
       if (integration && typeof integration !== 'string') {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
           message: 'Invalid integration',
         });
+      }
+
+      if (linked_account_id) {
+        if (typeof linked_account_id !== 'string') {
+          return errorService.errorResponse(res, {
+            code: ErrorCode.BadRequest,
+            message: 'Invalid linked account ID',
+          });
+        }
+
+        const linkedAccount = await linkedAccountService.getLinkedAccountById(linked_account_id);
+
+        if (!linkedAccount) {
+          return errorService.errorResponse(res, {
+            code: ErrorCode.NotFound,
+            message: 'Failed to re-link account; Linked account not found',
+          });
+        }
+
+        if (linkedAccount.integration_provider !== integration) {
+          return errorService.errorResponse(res, {
+            code: ErrorCode.BadRequest,
+            message: `Linked account ${linked_account_id} must re-link to ${linkedAccount.integration_provider}`,
+          });
+        }
       }
 
       const minMinutes = 30;
@@ -68,10 +97,21 @@ class LinkTokenController {
         id: generateId(Resource.LinkToken),
         environment_id: environmentId,
         integration_provider: integration || null,
+        linked_account_id: linked_account_id || null,
         expires_at: expiresAt,
         language: language || null,
         redirect_url: redirect_url || null,
         metadata: metadata || null,
+        can_choose_integration: !integration,
+        consent_given: false,
+        consent_ip: null,
+        consent_date: null,
+        configuration: null,
+        code_verifier: null,
+        prefers_dark_mode: false,
+        request_token_secret: null,
+        websocket_client_id: null,
+        link_method: null,
         created_at: now(),
         updated_at: now(),
       });
@@ -83,11 +123,39 @@ class LinkTokenController {
         });
       }
 
+      const activityId = await activityService.createActivity({
+        id: generateId(Resource.Activity),
+        environment_id: linkToken.environment_id,
+        integration_provider: linkToken.integration_provider,
+        link_token_id: linkToken.id,
+        linked_account_id: null,
+        level: LogLevel.Info,
+        action: LogAction.Link,
+        timestamp: now(),
+      });
+
+      if (activityId) {
+        await activityService.createActivityLog(activityId, {
+          level: LogLevel.Info,
+          message: 'Link token created',
+          timestamp: now(),
+          payload: {
+            token: linkToken.id,
+            url: this.buildLinkTokenUrl(linkToken.id),
+            expires_in_mins: this.expiresInMinutes(linkToken.expires_at),
+            integration: linkToken.integration_provider,
+            redirect_url: linkToken.redirect_url,
+            language: linkToken.language,
+            metadata: linkToken.metadata,
+          },
+        });
+      }
+
       res.status(201).send({
         object: 'link_token',
         token: linkToken.id,
-        url: `${getServerUrl()}/link/${linkToken.id}`,
-        expires_in_mins: Math.floor((linkToken.expires_at - now()) / 60),
+        url: this.buildLinkTokenUrl(linkToken.id),
+        expires_in_mins: this.expiresInMinutes(linkToken.expires_at),
         integration: linkToken.integration_provider,
         redirect_url: linkToken.redirect_url,
         language: linkToken.language,
@@ -120,8 +188,8 @@ class LinkTokenController {
       const linkTokensList = linkTokens.map((linkToken) => {
         return {
           token: linkToken.id,
-          url: `${getServerUrl()}/link/${linkToken.id}`,
-          expires_in_mins: Math.floor((linkToken.expires_at - now()) / 60),
+          url: this.buildLinkTokenUrl(linkToken.id),
+          expires_in_mins: this.expiresInMinutes(linkToken.expires_at),
           integration: linkToken.integration_provider,
           redirect_url: linkToken.redirect_url,
           language: linkToken.language,
@@ -147,16 +215,15 @@ class LinkTokenController {
 
   public async retrieveLinkToken(req: Request, res: Response) {
     try {
-      const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
-      const linkTokenId = req.params['link_token_id'];
-      if (!linkTokenId) {
+      const token = req.params['token'];
+      if (!token) {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
-          message: 'Link token ID missing',
+          message: 'Token missing',
         });
       }
 
-      const linkToken = await linkTokenService.getLinkTokenById(linkTokenId, environmentId);
+      const linkToken = await linkTokenService.getLinkTokenById(token);
       if (!linkToken) {
         return errorService.errorResponse(res, {
           code: ErrorCode.NotFound,
@@ -167,8 +234,8 @@ class LinkTokenController {
       res.status(201).send({
         object: 'link_token',
         token: linkToken.id,
-        url: `${getServerUrl()}/link/${linkToken.id}`,
-        expires_in_mins: Math.floor((linkToken.expires_at - now()) / 60),
+        url: this.buildLinkTokenUrl(linkToken.id),
+        expires_in_mins: this.expiresInMinutes(linkToken.expires_at),
         integration: linkToken.integration_provider,
         redirect_url: linkToken.redirect_url,
         language: linkToken.language,
@@ -248,7 +315,7 @@ class LinkTokenController {
         });
       }
 
-      const linkToken = await linkTokenService.updateLinkToken(linkTokenId, environmentId, {
+      const linkToken = await linkTokenService.updateLinkToken(linkTokenId, {
         integration_provider: integration || null,
         expires_at: expiresAt,
         language: language || null,
@@ -267,8 +334,8 @@ class LinkTokenController {
       res.status(201).send({
         object: 'link_token',
         token: linkToken.id,
-        url: `${getServerUrl()}/link/${linkToken.id}`,
-        expires_in_mins: Math.floor((linkToken.expires_at - now()) / 60),
+        url: this.buildLinkTokenUrl(linkToken.id),
+        expires_in_mins: this.expiresInMinutes(linkToken.expires_at),
         integration: linkToken.integration_provider,
         redirect_url: linkToken.redirect_url,
         language: linkToken.language,
@@ -284,6 +351,19 @@ class LinkTokenController {
         message: DEFAULT_ERROR_MESSAGE,
       });
     }
+  }
+
+  private buildLinkTokenUrl(token: string) {
+    const serverUrl = getServerUrl();
+    if (!serverUrl) {
+      throw new Error('Server URL is not defined');
+    }
+
+    return `${serverUrl}/link/${token}`;
+  }
+
+  private expiresInMinutes(expiresAt: number) {
+    return Math.floor((expiresAt - now()) / 60);
   }
 }
 

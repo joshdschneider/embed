@@ -1,4 +1,4 @@
-import { ApiKey, LinkedAccount } from '@prisma/client';
+import { ApiKey, LinkedAccount, Webhook } from '@prisma/client';
 import crypto, { CipherGCMTypes } from 'crypto';
 import { getEncryptonKey } from '../utils/constants';
 
@@ -72,11 +72,11 @@ class EncryptionService {
       return linkedAccount;
     }
 
-    const [credentials, iv, tag] = this.encrypt(JSON.stringify(linkedAccount.credentials));
+    const [credentials, iv, tag] = this.encrypt(linkedAccount.credentials);
 
     const encryptedLinkedAccount: LinkedAccount = {
       ...linkedAccount,
-      credentials: { encrypted: credentials },
+      credentials: credentials,
       credentials_iv: iv,
       credentials_tag: tag,
     };
@@ -89,22 +89,50 @@ class EncryptionService {
       return linkedAccount;
     }
 
-    const credentials = linkedAccount.credentials as {
-      encrypted: string;
-    };
-
     const decrypted = this.decrypt(
-      credentials['encrypted'],
+      linkedAccount.credentials,
       linkedAccount.credentials_iv,
       linkedAccount.credentials_tag
     );
 
     const decryptedLinkedAccount: LinkedAccount = {
       ...linkedAccount,
-      credentials: JSON.parse(decrypted),
+      credentials: decrypted,
     };
 
     return decryptedLinkedAccount;
+  }
+
+  public encryptWebhook(webhook: Webhook): Webhook {
+    if (!this.shouldEncrypt()) {
+      return webhook;
+    }
+
+    const [secret, iv, tag] = this.encrypt(webhook.secret);
+
+    const encryptedWebhook: Webhook = {
+      ...webhook,
+      secret: secret,
+      secret_iv: iv,
+      secret_tag: tag,
+    };
+
+    return encryptedWebhook;
+  }
+
+  public decryptWebhook(webhook: Webhook): Webhook {
+    if (!webhook.secret_iv || !webhook.secret_tag) {
+      return webhook;
+    }
+
+    const decrypted = this.decrypt(webhook.secret, webhook.secret_iv, webhook.secret_tag);
+
+    const decryptedWebhook: Webhook = {
+      ...webhook,
+      secret: decrypted,
+    };
+
+    return decryptedWebhook;
   }
 }
 

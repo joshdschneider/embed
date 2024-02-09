@@ -1,6 +1,7 @@
 import type { OAuth1 as OAuth1Spec } from '@beta/providers';
 import type { Integration } from '@prisma/client';
 import OAuth1 from 'oauth';
+import integrationService from '../services/integration.service';
 
 export type OAuth1RequestTokenResult = {
   request_token: string;
@@ -22,13 +23,15 @@ export class OAuth1Client {
   constructor({ integration, specification, callbackUrl }: OAuth1ClientOptions) {
     this.integration = integration;
     this.specification = specification;
-    const headers = { 'User-Agent': 'Alpha' };
+
+    const headers = { 'User-Agent': 'Beta' };
+    const { client_id, client_secret } = integrationService.loadClientCredentials(integration);
 
     this.client = new OAuth1.OAuth(
       this.specification.request_url,
       this.specification.token_url,
-      this.integration.oauth_client_id!,
-      this.integration.oauth_client_secret!,
+      client_id,
+      client_secret,
       '1.0A',
       callbackUrl || null,
       this.specification.signature_method,
@@ -44,14 +47,14 @@ export class OAuth1Client {
   }
 
   async getOAuthRequestToken(): Promise<OAuth1RequestTokenResult> {
-    let additionalTokenParams = {};
+    let tokenParams = {};
     if (this.specification.request_params) {
-      additionalTokenParams = this.specification.request_params;
+      tokenParams = this.specification.request_params;
     }
 
     const promise = new Promise<OAuth1RequestTokenResult>((resolve, reject) => {
       this.client.getOAuthRequestToken(
-        additionalTokenParams,
+        tokenParams,
         (
           error: { statusCode: number; data?: any },
           token: any,
@@ -88,11 +91,10 @@ export class OAuth1Client {
       tokenParams = this.specification.token_params;
     }
 
-    // Main method in the oauth lib doesn't
-    // expose the extra params needed
     return new Promise<any>((resolve, reject) => {
       // @ts-ignore
       tokenParams['oauth_verifier'] = tokenVerifier;
+
       // @ts-ignore
       this.client._performSecureRequest(
         oauthToken,
@@ -115,6 +117,7 @@ export class OAuth1Client {
               // @ts-ignore
               parsedFull[pair[0]] = pair[1];
             }
+
             resolve(parsedFull);
           }
         }

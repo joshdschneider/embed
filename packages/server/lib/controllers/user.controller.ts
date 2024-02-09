@@ -5,9 +5,9 @@ import environmentService from '../services/environment.service';
 import errorService, { ErrorCode } from '../services/error.service';
 import integrationService from '../services/integration.service';
 import userService from '../services/user.service';
-import { DuplicateAccountBehavior, EnvironmentType } from '../types';
-import { DEFAULT_ERROR_MESSAGE } from '../utils/constants';
-import { Resource, generateId, generateSecreyKey, now } from '../utils/helpers';
+import { AccountType, EnvironmentType } from '../types';
+import { DEFAULT_BRANDING, DEFAULT_ERROR_MESSAGE } from '../utils/constants';
+import { Resource, generateId, generateSecretKey, now } from '../utils/helpers';
 
 class UserController {
   public async createUser(req: Request, res: Response) {
@@ -33,6 +33,8 @@ class UserController {
 
       const account = await accountService.createAccount({
         id: generateId(Resource.Account),
+        name: null,
+        type: AccountType.Personal,
         cloud_organization_id: cloud_organization_id || null,
       });
 
@@ -65,8 +67,8 @@ class UserController {
         id: generateId(Resource.Environment),
         account_id: account.id,
         type: EnvironmentType.Staging,
-        duplicate_account_behavior: DuplicateAccountBehavior.CreateNew,
         enable_new_integrations: true,
+        branding: DEFAULT_BRANDING,
         created_at: now(),
         updated_at: now(),
         deleted_at: null,
@@ -82,7 +84,7 @@ class UserController {
       const apiKey = await apiKeyService.createApiKey({
         id: generateId(Resource.ApiKey),
         environment_id: stagingEnvironment.id,
-        key: generateSecreyKey(EnvironmentType.Staging),
+        key: generateSecretKey(EnvironmentType.Staging),
         key_iv: null,
         key_tag: null,
         name: null,
@@ -139,10 +141,13 @@ class UserController {
       return res.status(200).json({
         object: 'user',
         id: user.id,
-        account_id: user.account_id,
         email: user.email,
         first_name: user.first_name,
         last_name: user.last_name,
+        account: {
+          object: 'account',
+          ...user.account,
+        },
       });
     } catch (err) {
       await errorService.reportError(err);

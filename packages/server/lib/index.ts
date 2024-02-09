@@ -13,24 +13,34 @@ import apiKeyRouter from './routes/apiKey.router';
 import environmentRouter from './routes/environment.router';
 import healthRouter from './routes/health.router';
 import integrationRouter from './routes/integration.router';
+import jobRouter from './routes/job.router';
+import linkRouter from './routes/link.router';
+import linkPreviewRouter from './routes/linkPreview.router';
 import linkTokenRouter from './routes/linkToken.router';
 import linkedAccountRouter from './routes/linkedAccount.router';
+import oauthRouter from './routes/oauth.router';
 import providerRouter from './routes/provider.router';
 import userRouter from './routes/user.router';
-import { getServerPort, getWebsocketsPath, isCloud } from './utils/constants';
+import webhookRouter from './routes/webhook.router';
+import { getServerPort, getWebsocketsPath, isCloud, isProd } from './utils/constants';
 import { corsOptions } from './utils/cors';
 import { setupSelfHosted } from './utils/selfHosted';
 
 function setupExpressApp() {
   const app = express();
 
-  app.use(helmet());
+  app.use(cors(corsOptions));
   app.use(express.json({ limit: '75mb' }));
   app.use(express.urlencoded({ extended: true }));
-  app.use(cors(corsOptions));
+
+  if (isProd()) {
+    app.use(helmet());
+    app.set('trust proxy', true);
+  }
 
   app.set('view engine', 'ejs');
   app.set('views', path.join(__dirname, 'views'));
+  app.use(express.static(path.join(__dirname, 'public')));
 
   app.use('/health', healthRouter);
   app.use('/users', userRouter);
@@ -38,8 +48,13 @@ function setupExpressApp() {
   app.use('/api-keys', apiKeyRouter);
   app.use('/integrations', integrationRouter);
   app.use('/providers', providerRouter);
+  app.use('/oauth', oauthRouter);
+  app.use('/link', linkRouter);
+  app.use('/link-preview', linkPreviewRouter);
   app.use('/link-tokens', linkTokenRouter);
   app.use('/linked-accounts', linkedAccountRouter);
+  app.use('/jobs', jobRouter);
+  app.use('/webhooks', webhookRouter);
 
   return app;
 }
@@ -51,7 +66,6 @@ async function setupWebSockets(server: http.Server) {
   });
 
   await publisher.connect();
-
   wss.on('connection', async (ws: WebSocket) => {
     await publisher.subscribe(ws);
   });
@@ -60,7 +74,6 @@ async function setupWebSockets(server: http.Server) {
 async function start() {
   const app = setupExpressApp();
   const server = http.createServer(app);
-
   await setupWebSockets(server);
 
   if (!isCloud()) {
