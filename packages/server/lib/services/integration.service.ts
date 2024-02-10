@@ -32,7 +32,6 @@ class IntegrationService {
           environment_id: environmentId,
           is_enabled: true,
           use_client_credentials: false,
-          sync_frequency: 'daily',
           oauth_client_id: null,
           oauth_client_secret: null,
           oauth_scopes: null,
@@ -90,7 +89,13 @@ class IntegrationService {
         select: { sync_models: true },
       });
 
-      return integration ? integration.sync_models : null;
+      if (!integration) {
+        throw new Error(
+          `Integration ${integrationProvider} not found in environment ${environmentId}`
+        );
+      }
+
+      return integration.sync_models;
     } catch (err) {
       await errorService.reportError(err);
       return null;

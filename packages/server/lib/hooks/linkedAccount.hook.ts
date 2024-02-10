@@ -1,6 +1,7 @@
 import { LinkedAccount } from '@prisma/client';
 import WorkerClient from '../clients/worker.client';
 import errorService from '../services/error.service';
+import integrationService from '../services/integration.service';
 import webhookService from '../services/webhook.service';
 
 class LinkedAccountHook {
@@ -13,26 +14,27 @@ class LinkedAccountHook {
     linkedAccount: LinkedAccount;
     activityId: string | null;
   }): Promise<void> {
+    await webhookService.sendLinkedAccountCreatedWebhook({
+      environmentId,
+      linkedAccount,
+      activityId,
+    });
+
     try {
-      /**
-        Execute post-link function
-        - If model sync frequency is real-time
-        - Get unique ID(s) for mapping from provider
-        - Create webhook on provider
-        - Save mapping on linked account
-        - Process incoming webhooks with mapping lookup
-       */
+      const syncModels = await integrationService.getIntegrationSyncModels(
+        linkedAccount.integration_provider,
+        linkedAccount.environment_id
+      );
 
-      const worker = await WorkerClient.getInstance();
-      if (worker) {
-        worker.initiateSync(linkedAccount);
+      if (Array.isArray(syncModels)) {
+        const enabledSyncModels = syncModels.filter((syncModel) => syncModel.is_enabled);
+        if (enabledSyncModels.length > 0) {
+          const worker = await WorkerClient.getInstance();
+          if (worker) {
+            worker.initiateSyncs(linkedAccount, enabledSyncModels);
+          }
+        }
       }
-
-      await webhookService.sendLinkedAccountCreatedWebhook({
-        environmentId,
-        linkedAccount,
-        activityId,
-      });
     } catch (err) {
       await errorService.reportError(err);
     }

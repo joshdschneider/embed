@@ -7,13 +7,13 @@ export class Registry {
     [key: string]: Provider;
   } = {};
 
-  public async load(slug: string): Promise<void> {
+  private async load(slug: string): Promise<void> {
     const providerPath = path.join(__dirname, slug);
     const module = await import(providerPath);
     this.providers[slug] = new module.default();
   }
 
-  public async loadAll(): Promise<void> {
+  private async loadAll(): Promise<void> {
     const dir = path.join(__dirname);
     const slugs = await fs.readdir(dir);
 
@@ -28,12 +28,14 @@ export class Registry {
     }
   }
 
-  public getProviderSpec(slug: string): ProviderSpecification | null {
+  public async getProviderSpec(slug: string): Promise<ProviderSpecification | null> {
+    await this.load(slug);
     const provider = this.providers[slug];
     return provider ? provider.getSpec() : null;
   }
 
-  public getAllProviderSpecs(): ProviderSpecification[] | null {
+  public async getAllProviderSpecs(): Promise<ProviderSpecification[] | null> {
+    await this.loadAll();
     const specs = [];
     for (const provider in this.providers) {
       const spec = this.providers[provider]?.getSpec();
