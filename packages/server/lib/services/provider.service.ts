@@ -11,8 +11,7 @@ class ProviderService {
 
   public async listProviders(): Promise<ProviderSpecification[] | null> {
     try {
-      await this.registry.loadAll();
-      return this.registry.getAllProviderSpecs();
+      return await this.registry.getAllProviderSpecs();
     } catch (err) {
       errorService.reportError(err);
       return null;
@@ -21,8 +20,7 @@ class ProviderService {
 
   public async getProviderSpec(providerSlug: string): Promise<ProviderSpecification | null> {
     try {
-      await this.registry.load(providerSlug);
-      return this.registry.getProviderSpec(providerSlug);
+      return await this.registry.getProviderSpec(providerSlug);
     } catch (err) {
       errorService.reportError(err);
       return null;

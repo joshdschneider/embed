@@ -61,6 +61,9 @@ export const ENCRYPTION_KEY_SALT = 'X89FHEGqR3yNK0+v7rPWxQ==';
 export const BETA_CLOUD_AUTH_TOKEN_KEY = 'beta_cloud_token';
 export const BETA_CLOUD_ENVIRONMENT_KEY = 'beta_cloud_enviroment';
 
+export const SYNC_TASK_QUEUE = 'syncs';
+export const ACTIONS_TASK_QUEUE = 'actions';
+
 export const SUPPORTED_LANGUAGES = [
   'da', // Danish
   'nl', // Dutch

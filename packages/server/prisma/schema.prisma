@@ -72,7 +72,6 @@ model Integration {
   oauth_client_id        String?
   oauth_client_secret    String?
   oauth_scopes           String?
-  sync_frequency         String?
   rank                   Int?
   created_at             Int
   updated_at             Int?
@@ -140,9 +139,9 @@ model SyncModel {
   environment_id       String
   name                 String
   is_enabled           Boolean
-  required_scopes      String[]
+  frequency            String
+  auto_start           Boolean
   excluded_fields      String[]
-  sync_frequency       String?
   created_at           Int
   updated_at           Int?
   deleted_at           Int?
@@ -150,6 +149,8 @@ model SyncModel {
   syncs Sync[]
 
   integration Integration @relation(fields: [integration_provider, environment_id], references: [provider, environment_id])
+
+  @@unique([name, integration_provider])
 }
 
 model Sync {
@@ -161,17 +162,21 @@ model Sync {
   updated_at        Int?
   deleted_at        Int?
 
-  job SyncJob[]
+  jobs       SyncJob[]
+  activities Activity[]
 
   linked_account LinkedAccount @relation(fields: [linked_account_id], references: [id])
   model          SyncModel     @relation(fields: [model_id], references: [id])
+
+  @@unique([model_id, linked_account_id])
 }
 
 model SyncJob {
-  id      String @id
+  id      String  @id
   sync_id String
   type    String
   status  String
+  run_id  String?
 
   sync Sync @relation(fields: [sync_id], references: [id])
 }
@@ -211,6 +216,8 @@ model Activity {
   integration_provider String?
   linked_account_id    String?
   link_token_id        String?
+  sync_id              String?
+  action_id            String?
   level                String
   action               String
   timestamp            Int
@@ -220,6 +227,7 @@ model Activity {
   environment    Environment    @relation(fields: [environment_id], references: [id])
   linked_account LinkedAccount? @relation(fields: [linked_account_id], references: [id])
   link_token     LinkToken?     @relation(fields: [link_token_id], references: [id])
+  sync           Sync?          @relation(fields: [sync_id], references: [id])
 }
 
 model ActivityLog {

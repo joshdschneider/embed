@@ -127,29 +127,29 @@ class LinkTokenController {
         id: generateId(Resource.Activity),
         environment_id: linkToken.environment_id,
         integration_provider: linkToken.integration_provider,
-        link_token_id: linkToken.id,
         linked_account_id: null,
+        link_token_id: linkToken.id,
+        action_id: null,
+        sync_id: null,
         level: LogLevel.Info,
         action: LogAction.Link,
         timestamp: now(),
       });
 
-      if (activityId) {
-        await activityService.createActivityLog(activityId, {
-          level: LogLevel.Info,
-          message: 'Link token created',
-          timestamp: now(),
-          payload: {
-            token: linkToken.id,
-            url: this.buildLinkTokenUrl(linkToken.id),
-            expires_in_mins: this.expiresInMinutes(linkToken.expires_at),
-            integration: linkToken.integration_provider,
-            redirect_url: linkToken.redirect_url,
-            language: linkToken.language,
-            metadata: linkToken.metadata,
-          },
-        });
-      }
+      await activityService.createActivityLog(activityId, {
+        level: LogLevel.Info,
+        message: 'Link token created',
+        timestamp: now(),
+        payload: {
+          token: linkToken.id,
+          url: this.buildLinkTokenUrl(linkToken.id),
+          expires_in_mins: this.expiresInMinutes(linkToken.expires_at),
+          integration: linkToken.integration_provider,
+          redirect_url: linkToken.redirect_url,
+          language: linkToken.language,
+          metadata: linkToken.metadata,
+        },
+      });
 
       res.status(201).send({
         object: 'link_token',

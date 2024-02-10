@@ -50,6 +50,7 @@ export enum Resource {
   ApiKey = 'key',
   Environment = 'env',
   Sync = 'sync',
+  SyncJob = 'syncj',
   Activity = 'act',
   ActivityLog = 'actl',
   LinkedAccount = 'link',
