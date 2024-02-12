@@ -8,15 +8,17 @@
     "packages/worker"
   ],
   "scripts": {
-    "install:all": "npm install",
+    "install:all": "npm i && cd docs && npm i",
     "lint": "eslint . --ext .ts,.tsx",
     "lint:fix": "eslint . --ext .ts,.tsx --fix",
     "clean:all": "npm run clean --workspaces",
-    "build:all": "npm run build --workspaces",
+    "build:all": "npm run server:generate && npm run build --workspaces",
     "test:all": "npm run test --workspaces",
-    "docs:dev": "cd docs && npm run dev",
+    "server:generate": "npm run generate -w @kit/server",
+    "server:migrate": "npm run migrate -w @kit/server",
     "server:dev": "npm run dev -w @kit/server",
-    "worker:dev": "npm run dev -w @kit/worker"
+    "worker:dev": "npm run dev -w @kit/worker",
+    "docs:dev": "cd docs && npm run dev"
   },
   "devDependencies": {
     "@tsconfig/recommended": "^1.0.3",
