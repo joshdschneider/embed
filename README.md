@@ -1,3 +1,3 @@
-# Beta
+# Kit
 
 TODO

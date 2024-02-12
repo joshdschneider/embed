@@ -1,3 +1,3 @@
-## Beta React
+## Kit React
 
 TODO

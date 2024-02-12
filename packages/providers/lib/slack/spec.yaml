@@ -2,7 +2,7 @@ slug: slack
 display_name: Slack
 base_url: https://slack.com/api
 docs_url: https://api.slack.com/apis
-logo_url: https://beta-l1k2j3.s3.amazonaws.com/slack.svg
+logo_url: https://kit-integrations.s3.amazonaws.com/slack.svg
 auth:
   scheme: OAUTH2
   authorization_url: https://slack.com/oauth/v2/authorize

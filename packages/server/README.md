@@ -1,3 +1,3 @@
-## Beta Server
+## Kit Server
 
 TODO
