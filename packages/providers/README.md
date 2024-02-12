@@ -1,3 +1,3 @@
-## Beta Integration Providers
+## Kit Integration Providers
 
 TODO

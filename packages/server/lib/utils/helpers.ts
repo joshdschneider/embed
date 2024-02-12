@@ -49,6 +49,8 @@ export enum Resource {
   Account = 'acc',
   ApiKey = 'key',
   Environment = 'env',
+  Sync = 'sync',
+  SyncJob = 'syncj',
   Activity = 'act',
   ActivityLog = 'actl',
   LinkedAccount = 'link',
@@ -72,7 +74,7 @@ export function generateWebhookSigningSecret(): string {
 export function getWebhookSignatureHeader(
   payload: string,
   secret: string
-): { 'X-Platform-Signature': string } {
+): { 'X-Kit-Signature': string } {
   const hash = crypto.createHmac('sha256', secret).update(payload).digest('hex');
-  return { 'X-Platform-Signature': `sha256=${hash}` };
+  return { 'X-Kit-Signature': `sha256=${hash}` };
 }

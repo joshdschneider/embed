@@ -77,30 +77,11 @@ model Integration {
   updated_at             Int?
   deleted_at             Int?
 
+  sync_models SyncModel[]
+
   environment Environment @relation(fields: [environment_id], references: [id])
 
   @@unique([provider, environment_id])
-}
-
-model LinkedAccount {
-  id                   String  @id
-  environment_id       String
-  integration_provider String
-  credentials          String
-  credentials_iv       String?
-  credentials_tag      String?
-  configuration        Json
-  metadata             Json?
-  consent_given        Boolean @default(false)
-  consent_ip           String?
-  consent_date         Int?
-  created_at           Int
-  updated_at           Int?
-  deleted_at           Int?
-
-  activities Activity[]
-
-  environment Environment @relation(fields: [environment_id], references: [id])
 }
 
 model LinkToken {
@@ -128,6 +109,76 @@ model LinkToken {
   activities Activity[]
 
   environment Environment @relation(fields: [environment_id], references: [id])
+}
+
+model LinkedAccount {
+  id                   String  @id
+  environment_id       String
+  integration_provider String
+  credentials          String
+  credentials_iv       String?
+  credentials_tag      String?
+  configuration        Json
+  metadata             Json?
+  consent_given        Boolean @default(false)
+  consent_ip           String?
+  consent_date         Int?
+  created_at           Int
+  updated_at           Int?
+  deleted_at           Int?
+
+  activities Activity[]
+  syncs      Sync[]
+
+  environment Environment @relation(fields: [environment_id], references: [id])
+}
+
+model SyncModel {
+  id                   String   @id
+  integration_provider String
+  environment_id       String
+  name                 String
+  is_enabled           Boolean
+  frequency            String
+  auto_start           Boolean
+  excluded_fields      String[]
+  created_at           Int
+  updated_at           Int?
+  deleted_at           Int?
+
+  syncs Sync[]
+
+  integration Integration @relation(fields: [integration_provider, environment_id], references: [provider, environment_id])
+
+  @@unique([name, integration_provider])
+}
+
+model Sync {
+  id                String @id
+  linked_account_id String
+  model_id          String
+  frequency         String
+  created_at        Int
+  updated_at        Int?
+  deleted_at        Int?
+
+  jobs       SyncJob[]
+  activities Activity[]
+
+  linked_account LinkedAccount @relation(fields: [linked_account_id], references: [id])
+  model          SyncModel     @relation(fields: [model_id], references: [id])
+
+  @@unique([model_id, linked_account_id])
+}
+
+model SyncJob {
+  id      String  @id
+  sync_id String
+  type    String
+  status  String
+  run_id  String?
+
+  sync Sync @relation(fields: [sync_id], references: [id])
 }
 
 model Webhook {
@@ -165,6 +216,8 @@ model Activity {
   integration_provider String?
   linked_account_id    String?
   link_token_id        String?
+  sync_id              String?
+  action_id            String?
   level                String
   action               String
   timestamp            Int
@@ -174,6 +227,7 @@ model Activity {
   environment    Environment    @relation(fields: [environment_id], references: [id])
   linked_account LinkedAccount? @relation(fields: [linked_account_id], references: [id])
   link_token     LinkToken?     @relation(fields: [link_token_id], references: [id])
+  sync           Sync?          @relation(fields: [sync_id], references: [id])
 }
 
 model ActivityLog {

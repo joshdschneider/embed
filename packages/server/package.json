@@ -1,18 +1,17 @@
 {
-  "name": "@beta/server",
+  "name": "@kit/server",
   "version": "0.1.0",
   "main": "dist/index.js",
   "scripts": {
     "clean": "rimraf tsconfig.tsbuildinfo dist/*",
-    "tsc": "tsc",
     "copy": "ts-node scripts/copy",
+    "tsc": "tsc",
     "build": "run-s clean tsc copy",
+    "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "run-s build start",
-    "start": "node dist/index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node dist/index.js"
   },
   "dependencies": {
-    "@beta/providers": "^0.1.0",
     "@prisma/client": "^5.7.1",
     "cookies": "^0.9.1",
     "cors": "^2.8.5",

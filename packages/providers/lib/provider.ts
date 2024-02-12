@@ -1,6 +1,5 @@
 export abstract class Provider {
   public abstract getSpec(): ProviderSpecification;
-  // public abstract postLink(): Promise<void>;
 }
 
 export type ProviderSpecification = {
@@ -14,6 +13,8 @@ export type ProviderSpecification = {
   logo_url?: string;
   logo_dark_url?: string;
   docs_url?: string;
+  syncs?: Syncs;
+  models?: Models;
 };
 
 export enum AuthScheme {
@@ -103,4 +104,19 @@ export type Pagination = LinkPagination | CursorPagination | OffsetPagination;
 export interface Retry {
   at?: string;
   after?: string;
+}
+
+export interface Syncs {
+  [key: string]: {
+    display_name: string;
+    description: string;
+    default_enabled?: boolean;
+    default_frequency?: string;
+    default_auto_start?: boolean;
+    model: string;
+  };
+}
+
+export interface Models {
+  [key: string]: any;
 }

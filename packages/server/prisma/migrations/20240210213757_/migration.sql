@@ -67,6 +67,32 @@ CREATE TABLE "Integration" (
 );
 
 -- CreateTable
+CREATE TABLE "LinkToken" (
+    "id" TEXT NOT NULL,
+    "environment_id" TEXT NOT NULL,
+    "integration_provider" TEXT,
+    "linked_account_id" TEXT,
+    "expires_at" INTEGER NOT NULL,
+    "language" TEXT,
+    "redirect_url" TEXT,
+    "metadata" JSONB,
+    "can_choose_integration" BOOLEAN NOT NULL,
+    "consent_given" BOOLEAN NOT NULL DEFAULT false,
+    "consent_ip" TEXT,
+    "consent_date" INTEGER,
+    "configuration" JSONB,
+    "websocket_client_id" TEXT,
+    "link_method" TEXT,
+    "prefers_dark_mode" BOOLEAN NOT NULL DEFAULT false,
+    "code_verifier" TEXT,
+    "request_token_secret" TEXT,
+    "created_at" INTEGER NOT NULL,
+    "updated_at" INTEGER,
+
+    CONSTRAINT "LinkToken_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "LinkedAccount" (
     "id" TEXT NOT NULL,
     "environment_id" TEXT NOT NULL,
@@ -87,28 +113,44 @@ CREATE TABLE "LinkedAccount" (
 );
 
 -- CreateTable
-CREATE TABLE "LinkToken" (
+CREATE TABLE "SyncModel" (
     "id" TEXT NOT NULL,
+    "integration_provider" TEXT NOT NULL,
     "environment_id" TEXT NOT NULL,
-    "integration_provider" TEXT,
-    "linked_account_id" TEXT,
-    "expires_at" INTEGER NOT NULL,
-    "language" TEXT,
-    "redirect_url" TEXT,
-    "metadata" JSONB,
-    "can_choose_integration" BOOLEAN NOT NULL,
-    "consent_given" BOOLEAN NOT NULL DEFAULT false,
-    "consent_ip" TEXT,
-    "consent_date" INTEGER,
-    "configuration" JSONB,
-    "websocket_client_id" TEXT,
-    "link_method" TEXT,
-    "code_verifier" TEXT,
-    "request_token_secret" TEXT,
+    "name" TEXT NOT NULL,
+    "is_enabled" BOOLEAN NOT NULL,
+    "frequency" TEXT NOT NULL,
+    "auto_start" BOOLEAN NOT NULL,
+    "excluded_fields" TEXT[],
     "created_at" INTEGER NOT NULL,
     "updated_at" INTEGER,
+    "deleted_at" INTEGER,
 
-    CONSTRAINT "LinkToken_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "SyncModel_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Sync" (
+    "id" TEXT NOT NULL,
+    "linked_account_id" TEXT NOT NULL,
+    "model_id" TEXT NOT NULL,
+    "frequency" TEXT NOT NULL,
+    "created_at" INTEGER NOT NULL,
+    "updated_at" INTEGER,
+    "deleted_at" INTEGER,
+
+    CONSTRAINT "Sync_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "SyncJob" (
+    "id" TEXT NOT NULL,
+    "sync_id" TEXT NOT NULL,
+    "type" TEXT NOT NULL,
+    "status" TEXT NOT NULL,
+    "run_id" TEXT,
+
+    CONSTRAINT "SyncJob_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -129,12 +171,26 @@ CREATE TABLE "Webhook" (
 );
 
 -- CreateTable
+CREATE TABLE "WebhookLog" (
+    "id" TEXT NOT NULL,
+    "webhook_id" TEXT NOT NULL,
+    "event" TEXT NOT NULL,
+    "payload" JSONB NOT NULL,
+    "delivered" BOOLEAN NOT NULL,
+    "timestamp" INTEGER NOT NULL,
+
+    CONSTRAINT "WebhookLog_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "Activity" (
     "id" TEXT NOT NULL,
     "environment_id" TEXT NOT NULL,
     "integration_provider" TEXT,
     "linked_account_id" TEXT,
     "link_token_id" TEXT,
+    "sync_id" TEXT,
+    "action_id" TEXT,
     "level" TEXT NOT NULL,
     "action" TEXT NOT NULL,
     "timestamp" INTEGER NOT NULL,
@@ -160,6 +216,12 @@ CREATE UNIQUE INDEX "ApiKey_key_key" ON "ApiKey"("key");
 -- CreateIndex
 CREATE UNIQUE INDEX "Integration_provider_environment_id_key" ON "Integration"("provider", "environment_id");
 
+-- CreateIndex
+CREATE UNIQUE INDEX "SyncModel_name_integration_provider_key" ON "SyncModel"("name", "integration_provider");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Sync_model_id_linked_account_id_key" ON "Sync"("model_id", "linked_account_id");
+
 -- AddForeignKey
 ALTER TABLE "User" ADD CONSTRAINT "User_account_id_fkey" FOREIGN KEY ("account_id") REFERENCES "Account"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
@@ -173,13 +235,28 @@ ALTER TABLE "ApiKey" ADD CONSTRAINT "ApiKey_environment_id_fkey" FOREIGN KEY ("e
 ALTER TABLE "Integration" ADD CONSTRAINT "Integration_environment_id_fkey" FOREIGN KEY ("environment_id") REFERENCES "Environment"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "LinkedAccount" ADD CONSTRAINT "LinkedAccount_environment_id_fkey" FOREIGN KEY ("environment_id") REFERENCES "Environment"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "LinkToken" ADD CONSTRAINT "LinkToken_environment_id_fkey" FOREIGN KEY ("environment_id") REFERENCES "Environment"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "LinkedAccount" ADD CONSTRAINT "LinkedAccount_environment_id_fkey" FOREIGN KEY ("environment_id") REFERENCES "Environment"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "SyncModel" ADD CONSTRAINT "SyncModel_integration_provider_environment_id_fkey" FOREIGN KEY ("integration_provider", "environment_id") REFERENCES "Integration"("provider", "environment_id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Sync" ADD CONSTRAINT "Sync_linked_account_id_fkey" FOREIGN KEY ("linked_account_id") REFERENCES "LinkedAccount"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Sync" ADD CONSTRAINT "Sync_model_id_fkey" FOREIGN KEY ("model_id") REFERENCES "SyncModel"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "SyncJob" ADD CONSTRAINT "SyncJob_sync_id_fkey" FOREIGN KEY ("sync_id") REFERENCES "Sync"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "Webhook" ADD CONSTRAINT "Webhook_environment_id_fkey" FOREIGN KEY ("environment_id") REFERENCES "Environment"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "WebhookLog" ADD CONSTRAINT "WebhookLog_webhook_id_fkey" FOREIGN KEY ("webhook_id") REFERENCES "Webhook"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Activity" ADD CONSTRAINT "Activity_environment_id_fkey" FOREIGN KEY ("environment_id") REFERENCES "Environment"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -189,6 +266,9 @@ ALTER TABLE "Activity" ADD CONSTRAINT "Activity_linked_account_id_fkey" FOREIGN 
 
 -- AddForeignKey
 ALTER TABLE "Activity" ADD CONSTRAINT "Activity_link_token_id_fkey" FOREIGN KEY ("link_token_id") REFERENCES "LinkToken"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Activity" ADD CONSTRAINT "Activity_sync_id_fkey" FOREIGN KEY ("sync_id") REFERENCES "Sync"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "ActivityLog" ADD CONSTRAINT "ActivityLog_activity_id_fkey" FOREIGN KEY ("activity_id") REFERENCES "Activity"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

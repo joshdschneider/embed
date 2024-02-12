@@ -1,10 +1,10 @@
 {
-  "name": "@beta/js",
+  "name": "@kit/js",
   "version": "0.1.0",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc",
     "clean": "rimraf tsconfig.tsbuildinfo dist/*",
+    "build": "tsc",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "devDependencies": {

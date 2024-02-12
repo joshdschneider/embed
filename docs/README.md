@@ -1,3 +1,3 @@
-## Beta Documentation
+## Kit Documentation
 
 TODO

@@ -1,4 +1,4 @@
-import { AuthScheme, ProviderSpecification } from '@beta/providers';
+import { AuthScheme, ProviderSpecification } from '@kit/providers';
 import { Integration } from '@prisma/client';
 import { Request, Response } from 'express';
 import publisher from '../clients/publisher.client';

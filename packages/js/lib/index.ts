@@ -1,20 +1,20 @@
-const DEFAULT_HOST = 'https://api.beta.com';
+const DEFAULT_HOST = 'https://api.kit.zip';
 const DEFAULT_WEBSOCKET_PATH = '/';
 
-export type BetaOptions = {
+export type KitOptions = {
   host?: string;
   websocketPath?: string;
 };
 
-export function Beta(options?: BetaOptions) {
-  return new BetaLink(options);
+export function Kit(options?: KitOptions) {
+  return new KitLink(options);
 }
 
-class BetaLink {
+class KitLink {
   private hostBaseUrl: string;
   private websocketBaseUrl: string;
 
-  constructor(options?: BetaOptions) {
+  constructor(options?: KitOptions) {
     const host = options?.host || DEFAULT_HOST;
     const websocketPath = options?.websocketPath || DEFAULT_WEBSOCKET_PATH;
     this.hostBaseUrl = host.endsWith('/') ? host.slice(0, -1) : host;

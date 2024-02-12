@@ -1,4 +1,4 @@
-import { AuthScheme, OAuth, OAuth1, OAuth2 } from '@beta/providers';
+import { AuthScheme, OAuth, OAuth1, OAuth2 } from '@kit/providers';
 import { Integration, LinkToken } from '@prisma/client';
 import crypto from 'crypto';
 import { Request, Response } from 'express';

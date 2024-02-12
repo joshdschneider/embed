@@ -1,4 +1,4 @@
-import { AuthScheme } from '@beta/providers';
+import { AuthScheme } from '@kit/providers';
 import { Integration } from '@prisma/client';
 import { Request, Response } from 'express';
 import errorService, { ErrorCode } from '../services/error.service';

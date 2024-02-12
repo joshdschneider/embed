@@ -1,4 +1,4 @@
-import { OAuth2, OAuthAuthorizationMethod, OAuthBodyFormat } from '@beta/providers';
+import { OAuth2, OAuthAuthorizationMethod, OAuthBodyFormat } from '@kit/providers';
 import type { Integration } from '@prisma/client';
 import integrationService from '../services/integration.service';
 import { interpolateString } from '../utils/helpers';
@@ -13,7 +13,7 @@ export function getSimpleOAuth2ClientConfig(
   const strippedTokenUrl = specification.token_url.replace(/configuration\./g, '');
   const tokenUrl = new URL(interpolateString(strippedTokenUrl, configuration));
 
-  const headers = { 'User-Agent': 'Beta' };
+  const headers = { 'User-Agent': 'Kit' };
   const { client_id, client_secret } = integrationService.loadClientCredentials(integration);
 
   return {
