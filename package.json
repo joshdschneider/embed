@@ -1,15 +1,22 @@
 {
-  "name": "beta",
+  "name": "kit",
   "workspaces": [
     "packages/js",
     "packages/providers",
     "packages/react",
-    "packages/server"
+    "packages/server",
+    "packages/worker"
   ],
   "scripts": {
+    "install:all": "npm install",
     "lint": "eslint . --ext .ts,.tsx",
     "lint:fix": "eslint . --ext .ts,.tsx --fix",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "clean:all": "npm run clean --workspaces",
+    "build:all": "npm run build --workspaces",
+    "test:all": "npm run test --workspaces",
+    "docs:dev": "cd docs && npm run dev",
+    "server:dev": "npm run dev -w @kit/server",
+    "worker:dev": "npm run dev -w @kit/worker"
   },
   "devDependencies": {
     "@tsconfig/recommended": "^1.0.3",

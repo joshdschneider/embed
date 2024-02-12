@@ -12,5 +12,26 @@ paginate:
   limit_name_in_request: per_page
   link_rel_in_response_header: next
 docs_url: https://docs.github.com/en/rest
-logo_url: https://beta-l1k2j3.s3.amazonaws.com/github.svg
-logo_dark_url: https://beta-l1k2j3.s3.amazonaws.com/github-dark.svg
+logo_url: https://kit-integrations.s3.amazonaws.com/github.svg
+logo_dark_url: https://kit-integrations.s3.amazonaws.com/github-dark.svg
+syncs:
+  issues:
+    display_name: Issues
+    description: Sync all issues for a Github repository
+    default_enabled: true
+    default_frequency: every day
+    default_auto_start: true
+    model: Issue
+models:
+  Issue:
+    id: integer
+    owner: string
+    repo: string
+    issue_number: number
+    title: string
+    author: string
+    author_id: string
+    state: string
+    date_created: date
+    date_last_modified: date
+    body: string

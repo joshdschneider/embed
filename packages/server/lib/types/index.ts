@@ -22,6 +22,20 @@ export enum LogAction {
   Action = 'action',
 }
 
+export enum SyncStatus {
+  Running = 'running',
+  Paused = 'paused',
+  Stopped = 'stopped',
+  Success = 'success',
+  Error = 'error',
+}
+
+export enum SyncType {
+  Initial = 'initial',
+  Incremental = 'incremental',
+  Full = 'full',
+}
+
 export type Branding = {
   name: string | null;
   appearance: string;

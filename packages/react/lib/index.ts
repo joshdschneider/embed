@@ -1,9 +1,9 @@
 import { useCallback } from 'react';
 
-const DEFAULT_HOST = 'https://api.beta.com';
+const DEFAULT_HOST = 'https://api.kit.zip';
 const DEFAULT_WEBSOCKET_PATH = '/';
 
-export type UseBetaLinkProps = {
+export type UseKitLinkProps = {
   linkToken: string;
   linkMethod?: 'popup' | 'redirect';
   redirectUrl?: string;
@@ -17,13 +17,13 @@ enum MessageType {
   Success = 'success',
 }
 
-export const useBetaLink = ({
+export const useKitLink = ({
   linkToken,
   linkMethod,
   redirectUrl,
   host,
   websocketPath,
-}: UseBetaLinkProps) => {
+}: UseKitLinkProps) => {
   const appendParamsToUrl = (url: string, params: Record<string, string>) => {
     const baseUrl = new URL(url);
     Object.entries(params).forEach(([key, value]) => {

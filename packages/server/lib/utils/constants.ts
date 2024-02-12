@@ -41,25 +41,28 @@ export function isProd() {
 }
 
 export function isCloud() {
-  return process.env['BETA_CLOUD']?.toLowerCase() === 'true';
+  return process.env['KIT_CLOUD']?.toLowerCase() === 'true';
 }
 
 export function getAuthTokenSecret() {
-  return process.env['BETA_CLOUD_AUTH_TOKEN_SECRET'];
+  return process.env['KIT_CLOUD_AUTH_TOKEN_SECRET'];
 }
 
 export function getInternalApiKey() {
-  return process.env['BETA_CLOUD_INTERNAL_API_KEY'];
+  return process.env['KIT_CLOUD_INTERNAL_API_KEY'];
 }
 
-export const ACCOUNT_ID_LOCALS_KEY = 'beta_account_id';
-export const ENVIRONMENT_ID_LOCALS_KEY = 'beta_environment_id';
+export const ACCOUNT_ID_LOCALS_KEY = 'kit_account_id';
+export const ENVIRONMENT_ID_LOCALS_KEY = 'kit_environment_id';
 
 export const ENCRYPTION_KEY_BYTE_LENGTH = 32;
 export const ENCRYPTION_KEY_SALT = 'X89FHEGqR3yNK0+v7rPWxQ==';
 
-export const BETA_CLOUD_AUTH_TOKEN_KEY = 'beta_cloud_token';
-export const BETA_CLOUD_ENVIRONMENT_KEY = 'beta_cloud_enviroment';
+export const KIT_CLOUD_AUTH_TOKEN_KEY = 'kit_cloud_token';
+export const KIT_CLOUD_ENVIRONMENT_KEY = 'kit_cloud_enviroment';
+
+export const SYNC_TASK_QUEUE = 'syncs';
+export const ACTIONS_TASK_QUEUE = 'actions';
 
 export const SUPPORTED_LANGUAGES = [
   'da', // Danish
