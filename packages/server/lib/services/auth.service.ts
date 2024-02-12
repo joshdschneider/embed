@@ -3,7 +3,7 @@ import { NextFunction, Request, Response } from 'express';
 import { jwtVerify } from 'jose';
 import {
   ACCOUNT_ID_LOCALS_KEY,
-  BETA_CLOUD_ENVIRONMENT_KEY,
+  KIT_CLOUD_ENVIRONMENT_KEY,
   DEFAULT_ERROR_MESSAGE,
   ENVIRONMENT_ID_LOCALS_KEY,
   getAuthTokenSecret,
@@ -94,7 +94,7 @@ class AuthService {
       }
 
       const cookies = Cookies(req, res);
-      const environmentId = cookies.get(BETA_CLOUD_ENVIRONMENT_KEY);
+      const environmentId = cookies.get(KIT_CLOUD_ENVIRONMENT_KEY);
       if (!environmentId) {
         return errorService.errorResponse(res, {
           code: ErrorCode.Forbidden,

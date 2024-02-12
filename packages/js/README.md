@@ -1,3 +1,3 @@
-## Beta.js
+## Kit.js
 
 TODO

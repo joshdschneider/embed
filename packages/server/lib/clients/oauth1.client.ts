@@ -1,4 +1,4 @@
-import type { OAuth1 as OAuth1Spec } from '@beta/providers';
+import type { OAuth1 as OAuth1Spec } from '@kit/providers';
 import type { Integration } from '@prisma/client';
 import OAuth1 from 'oauth';
 import integrationService from '../services/integration.service';
@@ -24,7 +24,7 @@ export class OAuth1Client {
     this.integration = integration;
     this.specification = specification;
 
-    const headers = { 'User-Agent': 'Beta' };
+    const headers = { 'User-Agent': 'Kit' };
     const { client_id, client_secret } = integrationService.loadClientCredentials(integration);
 
     this.client = new OAuth1.OAuth(

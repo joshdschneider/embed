@@ -1,4 +1,4 @@
-import { ProviderSpecification } from '@beta/providers';
+import { ProviderSpecification } from '@kit/providers';
 import { Integration } from '@prisma/client';
 import { Request, Response } from 'express';
 import environmentService from '../services/environment.service';

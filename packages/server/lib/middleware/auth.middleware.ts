@@ -2,7 +2,7 @@ import Cookies from 'cookies';
 import type { NextFunction, Request, Response } from 'express';
 import authService from '../services/auth.service';
 import errorService, { ErrorCode } from '../services/error.service';
-import { BETA_CLOUD_AUTH_TOKEN_KEY, getInternalApiKey, isCloud } from '../utils/constants';
+import { KIT_CLOUD_AUTH_TOKEN_KEY, getInternalApiKey, isCloud } from '../utils/constants';
 
 class AuthMiddleware {
   public async apiKeyAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -16,7 +16,7 @@ class AuthMiddleware {
 
     if (isCloud()) {
       const cookies = Cookies(req, res);
-      const token = cookies.get(BETA_CLOUD_AUTH_TOKEN_KEY);
+      const token = cookies.get(KIT_CLOUD_AUTH_TOKEN_KEY);
       if (token) {
         return authService.verifyTokenEnvironment(token, req, res, next);
       }
@@ -31,7 +31,7 @@ class AuthMiddleware {
   public async cloudUserAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
     if (isCloud()) {
       const cookies = Cookies(req, res);
-      const token = cookies.get(BETA_CLOUD_AUTH_TOKEN_KEY);
+      const token = cookies.get(KIT_CLOUD_AUTH_TOKEN_KEY);
       if (token) {
         return authService.verifyTokenUser(token, req, res, next);
       }
@@ -50,7 +50,7 @@ class AuthMiddleware {
   ): Promise<void> {
     if (isCloud()) {
       const cookies = Cookies(req, res);
-      const token = cookies.get(BETA_CLOUD_AUTH_TOKEN_KEY);
+      const token = cookies.get(KIT_CLOUD_AUTH_TOKEN_KEY);
       if (token) {
         return authService.verifyTokenEnvironment(token, req, res, next);
       }

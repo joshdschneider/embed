@@ -1,5 +1,5 @@
-import type { ProviderSpecification } from '@beta/providers';
-import { Registry } from '@beta/providers';
+import type { ProviderSpecification } from '@kit/providers';
+import { Registry } from '@kit/providers';
 import errorService from './error.service';
 
 class ProviderService {
