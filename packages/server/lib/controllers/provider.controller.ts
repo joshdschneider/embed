@@ -1,5 +1,5 @@
+import { ErrorCode, errorService } from '@kit/shared';
 import type { Request, Response } from 'express';
-import errorService, { ErrorCode } from '../services/error.service';
 import providerService from '../services/provider.service';
 
 class ProviderController {

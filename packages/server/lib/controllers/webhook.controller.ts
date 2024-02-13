@@ -1,8 +1,15 @@
+import {
+  DEFAULT_ERROR_MESSAGE,
+  ENVIRONMENT_ID_LOCALS_KEY,
+  ErrorCode,
+  Resource,
+  errorService,
+  generateId,
+  now,
+} from '@kit/shared';
 import type { Request, Response } from 'express';
-import errorService, { ErrorCode } from '../services/error.service';
 import webhookService from '../services/webhook.service';
-import { DEFAULT_ERROR_MESSAGE, ENVIRONMENT_ID_LOCALS_KEY } from '../utils/constants';
-import { Resource, generateId, generateWebhookSigningSecret, now } from '../utils/helpers';
+import { generateWebhookSigningSecret } from '../utils/helpers';
 
 class WebhookController {
   public async createWebhook(req: Request, res: Response) {

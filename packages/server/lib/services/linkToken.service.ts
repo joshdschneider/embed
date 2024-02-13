@@ -1,6 +1,5 @@
 import type { LinkToken } from '@kit/shared';
-import { database } from '@kit/shared';
-import errorService from './error.service';
+import { database, errorService } from '@kit/shared';
 
 class LinkTokenService {
   public async createLinkToken(linkToken: LinkToken): Promise<LinkToken | null> {

@@ -1,6 +1,7 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
+import { getServerPort, getWebsocketsPath, isCloud, isProd } from '@kit/shared';
 import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
@@ -22,7 +23,6 @@ import oauthRouter from './routes/oauth.router';
 import providerRouter from './routes/provider.router';
 import userRouter from './routes/user.router';
 import webhookRouter from './routes/webhook.router';
-import { getServerPort, getWebsocketsPath, isCloud, isProd } from './utils/constants';
 import { corsOptions } from './utils/cors';
 import { setupSelfHosted } from './utils/selfHosted';
 

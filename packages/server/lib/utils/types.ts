@@ -8,40 +8,6 @@ export enum AccountType {
   Organization = 'organization',
 }
 
-export enum LogLevel {
-  Info = 'info',
-  Debug = 'debug',
-  Error = 'error',
-  Warn = 'warn',
-  Verbose = 'verbose',
-}
-
-export enum LogAction {
-  Link = 'link',
-  Sync = 'sync',
-  Action = 'action',
-}
-
-export enum SyncStatus {
-  Running = 'running',
-  Paused = 'paused',
-  Stopped = 'stopped',
-  Success = 'success',
-  Error = 'error',
-}
-
-export enum SyncType {
-  Initial = 'initial',
-  Incremental = 'incremental',
-  Full = 'full',
-}
-
-export enum ScheduleStatus {
-  Running = 'running',
-  Paused = 'paused',
-  Stopped = 'stopped',
-}
-
 export type Branding = {
   name: string | null;
   appearance: string;

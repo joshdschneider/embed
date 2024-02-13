@@ -1,13 +1,24 @@
 import type { LinkedAccount, Sync, SyncModel } from '@kit/shared';
+import {
+  LogAction,
+  LogLevel,
+  Resource,
+  SYNC_TASK_QUEUE,
+  ScheduleStatus,
+  SyncStatus,
+  SyncType,
+  activityService,
+  errorService,
+  generateId,
+  getTemporalNamespace,
+  getTemporalUrl,
+  isProd,
+  now,
+} from '@kit/shared';
 import { Connection, ScheduleOverlapPolicy, Client as TemporalClient } from '@temporalio/client';
 import fs from 'fs';
 import ms, { StringValue } from 'ms';
-import activityService from '../services/activity.service';
-import errorService from '../services/error.service';
 import syncService from '../services/sync.service';
-import { LogAction, LogLevel, ScheduleStatus, SyncStatus, SyncType } from '../types';
-import { SYNC_TASK_QUEUE, getTemporalNamespace, getTemporalUrl, isProd } from '../utils/constants';
-import { Resource, generateId, now } from '../utils/helpers';
 
 const namespace = getTemporalNamespace();
 
@@ -100,6 +111,7 @@ class WorkerClient {
           args: [
             {
               syncId: sync.id,
+              jobId: job.id,
               linkedAccountId: linkedAccount.id,
               activityId,
             },

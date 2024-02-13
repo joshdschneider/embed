@@ -1,10 +1,8 @@
 import type { Integration, SyncModel } from '@kit/shared';
-import { database } from '@kit/shared';
+import { database, errorService, now } from '@kit/shared';
 import fs from 'fs';
 import yaml from 'js-yaml';
 import path from 'path';
-import { now } from '../utils/helpers';
-import errorService from './error.service';
 import providerService from './provider.service';
 
 class IntegrationService {

@@ -1,6 +1,5 @@
 import type { Sync, SyncJob, SyncSchedule } from '@kit/shared';
-import { database } from '@kit/shared';
-import errorService from './error.service';
+import { database, errorService } from '@kit/shared';
 
 class SyncService {
   public async getSyncById(syncId: string): Promise<Sync | null> {

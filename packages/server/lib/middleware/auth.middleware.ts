@@ -1,8 +1,13 @@
+import {
+  ErrorCode,
+  KIT_CLOUD_AUTH_TOKEN_KEY,
+  errorService,
+  getInternalApiKey,
+  isCloud,
+} from '@kit/shared';
 import Cookies from 'cookies';
 import type { NextFunction, Request, Response } from 'express';
 import authService from '../services/auth.service';
-import errorService, { ErrorCode } from '../services/error.service';
-import { KIT_CLOUD_AUTH_TOKEN_KEY, getInternalApiKey, isCloud } from '../utils/constants';
 
 class AuthMiddleware {
   public async apiKeyAuth(req: Request, res: Response, next: NextFunction): Promise<void> {

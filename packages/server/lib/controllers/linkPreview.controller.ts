@@ -1,17 +1,17 @@
 import type { ProviderSpecification } from '@kit/providers';
 import type { Integration } from '@kit/shared';
-import type { Request, Response } from 'express';
-import environmentService from '../services/environment.service';
-import errorService from '../services/error.service';
-import integrationService from '../services/integration.service';
-import providerService from '../services/provider.service';
-import type { ConsentTemplateData, ErrorTemplateData, ListTemplateData } from '../types';
 import {
-  DEFAULT_BRANDING,
   DEFAULT_ERROR_MESSAGE,
   ENVIRONMENT_ID_LOCALS_KEY,
+  errorService,
   getServerUrl,
-} from '../utils/constants';
+} from '@kit/shared';
+import type { Request, Response } from 'express';
+import environmentService from '../services/environment.service';
+import integrationService from '../services/integration.service';
+import providerService from '../services/provider.service';
+import { DEFAULT_BRANDING } from '../utils/constants';
+import type { ConsentTemplateData, ErrorTemplateData, ListTemplateData } from '../utils/types';
 
 class LinkPreviewController {
   public async listView(req: Request, res: Response) {

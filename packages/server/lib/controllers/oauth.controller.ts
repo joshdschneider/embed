@@ -1,5 +1,14 @@
 import { AuthScheme, OAuth, OAuth1, OAuth2 } from '@kit/providers';
 import type { Integration, LinkToken } from '@kit/shared';
+import {
+  DEFAULT_ERROR_MESSAGE,
+  LogLevel,
+  Resource,
+  activityService,
+  errorService,
+  generateId,
+  now,
+} from '@kit/shared';
 import crypto from 'crypto';
 import type { Request, Response } from 'express';
 import SimpleOAuth2 from 'simple-oauth2';
@@ -7,23 +16,17 @@ import { OAuth1Client } from '../clients/oauth1.client';
 import { getSimpleOAuth2ClientConfig } from '../clients/oauth2.client';
 import publisher from '../clients/publisher.client';
 import linkedAccountHook from '../hooks/linkedAccount.hook';
-import activityService from '../services/activity.service';
 import environmentService from '../services/environment.service';
-import errorService from '../services/error.service';
 import integrationService from '../services/integration.service';
 import linkTokenService from '../services/linkToken.service';
 import linkedAccountService from '../services/linkedAccount.service';
 import providerService from '../services/provider.service';
-import { Branding, LogLevel } from '../types';
-import { DEFAULT_ERROR_MESSAGE } from '../utils/constants';
 import {
-  Resource,
   extractConfigurationKeys,
-  generateId,
   getOauthCallbackUrl,
   missesInterpolationParam,
-  now,
 } from '../utils/helpers';
+import { Branding } from '../utils/types';
 
 class OAuthController {
   public async authorize(req: Request, res: Response) {

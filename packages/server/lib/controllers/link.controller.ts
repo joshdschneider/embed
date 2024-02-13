@@ -1,32 +1,35 @@
 import { AuthScheme, ProviderSpecification } from '@kit/providers';
 import type { Integration } from '@kit/shared';
+import {
+  DEFAULT_ERROR_MESSAGE,
+  LogLevel,
+  Resource,
+  activityService,
+  errorService,
+  generateId,
+  getServerUrl,
+  now,
+} from '@kit/shared';
 import type { Request, Response } from 'express';
 import publisher from '../clients/publisher.client';
 import linkedAccountHook from '../hooks/linkedAccount.hook';
-import activityService from '../services/activity.service';
 import environmentService from '../services/environment.service';
-import errorService from '../services/error.service';
 import integrationService from '../services/integration.service';
 import linkTokenService from '../services/linkToken.service';
 import linkedAccountService from '../services/linkedAccount.service';
 import providerService from '../services/provider.service';
+import {
+  appendParamsToUrl,
+  extractConfigurationKeys,
+  formatKeyToReadableText,
+} from '../utils/helpers';
 import {
   ApiKeyTemplateData,
   BasicTemplateData,
   ConfigTemplateData,
   ConsentTemplateData,
   ListTemplateData,
-  LogLevel,
-} from '../types';
-import { DEFAULT_ERROR_MESSAGE, getServerUrl } from '../utils/constants';
-import {
-  Resource,
-  appendParamsToUrl,
-  extractConfigurationKeys,
-  formatKeyToReadableText,
-  generateId,
-  now,
-} from '../utils/helpers';
+} from '../utils/types';
 
 class LinkController {
   public async listView(req: Request, res: Response) {

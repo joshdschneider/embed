@@ -1,7 +1,11 @@
+import {
+  DEFAULT_ERROR_MESSAGE,
+  ENVIRONMENT_ID_LOCALS_KEY,
+  ErrorCode,
+  errorService,
+} from '@kit/shared';
 import type { Request, Response } from 'express';
-import errorService, { ErrorCode } from '../services/error.service';
 import linkedAccountService from '../services/linkedAccount.service';
-import { DEFAULT_ERROR_MESSAGE, ENVIRONMENT_ID_LOCALS_KEY } from '../utils/constants';
 
 class LinkedAccountController {
   public async listLinkedAccounts(req: Request, res: Response) {

@@ -1,16 +1,20 @@
-import type { Request, Response } from 'express';
-import activityService from '../services/activity.service';
-import errorService, { ErrorCode } from '../services/error.service';
-import linkTokenService from '../services/linkToken.service';
-import linkedAccountService from '../services/linkedAccount.service';
-import { LogAction, LogLevel } from '../types';
 import {
   DEFAULT_ERROR_MESSAGE,
   ENVIRONMENT_ID_LOCALS_KEY,
-  SUPPORTED_LANGUAGES,
+  ErrorCode,
+  LogAction,
+  LogLevel,
+  Resource,
+  activityService,
+  errorService,
+  generateId,
   getServerUrl,
-} from '../utils/constants';
-import { Resource, generateId, now } from '../utils/helpers';
+  now,
+} from '@kit/shared';
+import type { Request, Response } from 'express';
+import linkTokenService from '../services/linkToken.service';
+import linkedAccountService from '../services/linkedAccount.service';
+import { SUPPORTED_LANGUAGES } from '../utils/constants';
 
 class LinkTokenController {
   public async createLinkToken(req: Request, res: Response) {

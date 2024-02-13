@@ -1,9 +1,8 @@
 import type { ApiKey, Environment } from '@kit/shared';
-import { database } from '@kit/shared';
-import { Branding } from '../types';
+import { database, errorService } from '@kit/shared';
 import { DEFAULT_BRANDING } from '../utils/constants';
+import type { Branding } from '../utils/types';
 import encryptionService from './encryption.service';
-import errorService from './error.service';
 
 class EnvironmentService {
   public async createEnvironment(environment: Environment): Promise<Environment | null> {

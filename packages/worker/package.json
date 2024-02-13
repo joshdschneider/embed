@@ -9,6 +9,7 @@
     "dev": "node dist/worker.js"
   },
   "dependencies": {
+    "@kit/shared": "^0.1.0",
     "@temporalio/activity": "^1.9.0",
     "@temporalio/client": "^1.9.0",
     "@temporalio/worker": "^1.9.0",

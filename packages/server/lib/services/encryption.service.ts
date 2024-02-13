@@ -1,6 +1,6 @@
 import type { ApiKey, LinkedAccount, Webhook } from '@kit/shared';
+import { getEncryptonKey } from '@kit/shared';
 import crypto, { CipherGCMTypes } from 'crypto';
-import { getEncryptonKey } from '../utils/constants';
 
 class EncryptionService {
   private key: string | undefined;

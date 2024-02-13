@@ -1,5 +1,6 @@
 export interface InitialSyncArgs {
   syncId: string;
-  activityId: number;
+  jobId: string;
+  activityId: string | null;
   linkedAccountId: string;
 }
