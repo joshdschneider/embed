@@ -1,11 +1,11 @@
-import { Sync, SyncJob, SyncSchedule } from '@prisma/client';
-import { prisma } from '../utils/prisma';
+import type { Sync, SyncJob, SyncSchedule } from '@kit/shared';
+import { database } from '@kit/shared';
 import errorService from './error.service';
 
 class SyncService {
   public async getSyncById(syncId: string): Promise<Sync | null> {
     try {
-      return await prisma.sync.findUnique({
+      return await database.sync.findUnique({
         where: { id: syncId, deleted_at: null },
       });
     } catch (err) {
@@ -16,7 +16,7 @@ class SyncService {
 
   public async createSync(sync: Sync): Promise<Sync | null> {
     try {
-      const existingSync = await prisma.sync.findUnique({
+      const existingSync = await database.sync.findUnique({
         where: {
           model_id_linked_account_id: {
             model_id: sync.model_id,
@@ -30,7 +30,7 @@ class SyncService {
         return existingSync;
       }
 
-      return await prisma.sync.create({ data: sync });
+      return await database.sync.create({ data: sync });
     } catch (err) {
       await errorService.reportError(err);
       return null;
@@ -39,7 +39,7 @@ class SyncService {
 
   public async createSyncJob(syncJob: SyncJob): Promise<SyncJob | null> {
     try {
-      return await prisma.syncJob.create({ data: syncJob });
+      return await database.syncJob.create({ data: syncJob });
     } catch (err) {
       await errorService.reportError(err);
       return null;
@@ -48,7 +48,7 @@ class SyncService {
 
   public async updateSyncJob(syncJobId: string, data: Partial<SyncJob>): Promise<SyncJob | null> {
     try {
-      return await prisma.syncJob.update({
+      return await database.syncJob.update({
         where: { id: syncJobId },
         data,
       });
@@ -60,7 +60,7 @@ class SyncService {
 
   public async createSyncSchedule(syncSchedule: SyncSchedule): Promise<SyncSchedule | null> {
     try {
-      return await prisma.syncSchedule.create({ data: syncSchedule });
+      return await database.syncSchedule.create({ data: syncSchedule });
     } catch (err) {
       await errorService.reportError(err);
       return null;

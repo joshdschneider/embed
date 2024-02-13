@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import errorService, { ErrorCode } from '../services/error.service';
 import providerService from '../services/provider.service';
 

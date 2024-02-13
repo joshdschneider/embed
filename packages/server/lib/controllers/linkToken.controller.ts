@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import activityService from '../services/activity.service';
 import errorService, { ErrorCode } from '../services/error.service';
 import linkTokenService from '../services/linkToken.service';

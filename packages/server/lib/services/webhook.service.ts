@@ -1,8 +1,8 @@
-import { LinkedAccount, Webhook } from '@prisma/client';
+import type { LinkedAccount, Webhook } from '@kit/shared';
+import { database } from '@kit/shared';
 import { backOff } from 'exponential-backoff';
 import { LogLevel, WebhookBody } from '../types';
 import { Resource, generateId, getWebhookSignatureHeader, now } from '../utils/helpers';
-import { prisma } from '../utils/prisma';
 import activityService from './activity.service';
 import encryptionService from './encryption.service';
 import environmentService from './environment.service';
@@ -13,7 +13,7 @@ class WebhookService {
     try {
       const encryptedWebhook = encryptionService.encryptWebhook(webhook);
 
-      const createdWebhook = await prisma.webhook.create({
+      const createdWebhook = await database.webhook.create({
         data: encryptedWebhook,
       });
 
@@ -26,7 +26,7 @@ class WebhookService {
 
   public async listWebhooks(environmentId: string): Promise<Webhook[] | null> {
     try {
-      const webhooks = await prisma.webhook.findMany({
+      const webhooks = await database.webhook.findMany({
         where: { environment_id: environmentId, deleted_at: null },
       });
 
@@ -43,7 +43,7 @@ class WebhookService {
     data: Partial<Webhook>
   ): Promise<Webhook | null> {
     try {
-      const webhook = await prisma.webhook.update({
+      const webhook = await database.webhook.update({
         where: {
           id: webhookId,
           environment_id: environmentId,
@@ -66,7 +66,7 @@ class WebhookService {
 
   public async deleteWebhook(webhookId: string, environmentId: string): Promise<Webhook | null> {
     try {
-      const webhook = await prisma.webhook.findUnique({
+      const webhook = await database.webhook.findUnique({
         where: { id: webhookId, environment_id: environmentId },
       });
 
@@ -74,7 +74,7 @@ class WebhookService {
         return null;
       }
 
-      return await prisma.webhook.update({
+      return await database.webhook.update({
         where: {
           id: webhookId,
           environment_id: environmentId,
@@ -94,7 +94,7 @@ class WebhookService {
     delivered: boolean
   ): Promise<void> {
     try {
-      await prisma.webhookLog.create({
+      await database.webhookLog.create({
         data: {
           id: generateId(Resource.WebhookLog),
           webhook_id: webhookId,

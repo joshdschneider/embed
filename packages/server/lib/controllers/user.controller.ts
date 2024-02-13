@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import accountService from '../services/account.service';
 import apiKeyService from '../services/apiKey.service';
 import environmentService from '../services/environment.service';

@@ -1,4 +1,4 @@
-import { ApiKey, LinkedAccount, Webhook } from '@prisma/client';
+import type { ApiKey, LinkedAccount, Webhook } from '@kit/shared';
 import crypto, { CipherGCMTypes } from 'crypto';
 import { getEncryptonKey } from '../utils/constants';
 

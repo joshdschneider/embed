@@ -1,6 +1,6 @@
-import type { LinkedAccount } from '@prisma/client';
+import type { LinkedAccount } from '@kit/shared';
+import { database } from '@kit/shared';
 import { now } from '../utils/helpers';
-import { prisma } from '../utils/prisma';
 import encryptionService from './encryption.service';
 import errorService from './error.service';
 
@@ -12,7 +12,7 @@ class LinkedAccountService {
     try {
       const encryptedLinkedAccount = encryptionService.encryptLinkedAccount(linkedAccount);
 
-      const duplicateLinkedAccount = await prisma.linkedAccount.findUnique({
+      const duplicateLinkedAccount = await database.linkedAccount.findUnique({
         where: {
           id: encryptedLinkedAccount.id,
           deleted_at: null,
@@ -20,7 +20,7 @@ class LinkedAccountService {
       });
 
       if (duplicateLinkedAccount) {
-        const existingLinkedAccount = await prisma.linkedAccount.update({
+        const existingLinkedAccount = await database.linkedAccount.update({
           where: { id: duplicateLinkedAccount.id },
           data: {
             integration_provider: encryptedLinkedAccount.integration_provider,
@@ -38,7 +38,7 @@ class LinkedAccountService {
         return { linkedAccount: existingLinkedAccount, action: 'updated' };
       }
 
-      const newLinkedAccount = await prisma.linkedAccount.create({
+      const newLinkedAccount = await database.linkedAccount.create({
         data: {
           ...encryptedLinkedAccount,
           configuration: encryptedLinkedAccount.configuration || {},
@@ -93,7 +93,7 @@ class LinkedAccountService {
         ? [{ id: { contains: searchQuery } }, { integration_provider: { contains: searchQuery } }]
         : undefined;
 
-      let linkedAccounts = await prisma.linkedAccount.findMany({
+      let linkedAccounts = await database.linkedAccount.findMany({
         orderBy: { created_at: 'desc' },
         where: {
           environment_id: environmentId,
@@ -135,7 +135,7 @@ class LinkedAccountService {
 
   public async getLinkedAccountById(linkedAccountId: string): Promise<LinkedAccount | null> {
     try {
-      const linkedAccount = await prisma.linkedAccount.findUnique({
+      const linkedAccount = await database.linkedAccount.findUnique({
         where: { id: linkedAccountId, deleted_at: null },
       });
 
@@ -152,7 +152,7 @@ class LinkedAccountService {
 
   public async deleteLinkedAccount(linkedAccountId: string): Promise<LinkedAccount | null> {
     try {
-      const linkedAccount = await prisma.linkedAccount.findUnique({
+      const linkedAccount = await database.linkedAccount.findUnique({
         where: { id: linkedAccountId },
       });
 
@@ -160,7 +160,7 @@ class LinkedAccountService {
         return null;
       }
 
-      return await prisma.linkedAccount.update({
+      return await database.linkedAccount.update({
         where: {
           id: linkedAccountId,
           deleted_at: null,

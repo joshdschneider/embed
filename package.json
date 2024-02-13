@@ -4,6 +4,7 @@
     "packages/js",
     "packages/providers",
     "packages/react",
+    "packages/shared",
     "packages/server",
     "packages/worker"
   ],
@@ -11,11 +12,11 @@
     "install:all": "npm i && cd docs && npm i",
     "lint": "eslint . --ext .ts,.tsx",
     "lint:fix": "eslint . --ext .ts,.tsx --fix",
+    "database:generate": "npm run generate -w @kit/shared",
+    "database:migrate": "npm run migrate -w @kit/shared",
     "clean:all": "npm run clean --workspaces",
-    "build:all": "npm run server:generate && npm run build --workspaces",
+    "build:all": "npm run database:generate && npm run build --workspaces",
     "test:all": "npm run test --workspaces",
-    "server:generate": "npm run generate -w @kit/server",
-    "server:migrate": "npm run migrate -w @kit/server",
     "server:dev": "npm run dev -w @kit/server",
     "worker:dev": "npm run dev -w @kit/worker",
     "docs:dev": "cd docs && npm run dev"
