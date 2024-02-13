@@ -1,4 +1,4 @@
-import { LinkedAccount } from '@prisma/client';
+import type { LinkedAccount } from '@kit/shared';
 import WorkerClient from '../clients/worker.client';
 import errorService from '../services/error.service';
 import integrationService from '../services/integration.service';

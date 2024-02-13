@@ -1,14 +1,14 @@
-import { ApiKey, Environment } from '@prisma/client';
+import type { ApiKey, Environment } from '@kit/shared';
+import { database } from '@kit/shared';
 import { Branding } from '../types';
 import { DEFAULT_BRANDING } from '../utils/constants';
-import { prisma } from '../utils/prisma';
 import encryptionService from './encryption.service';
 import errorService from './error.service';
 
 class EnvironmentService {
   public async createEnvironment(environment: Environment): Promise<Environment | null> {
     try {
-      return await prisma.environment.create({
+      return await database.environment.create({
         data: {
           ...environment,
           branding: environment.branding || DEFAULT_BRANDING,
@@ -22,7 +22,7 @@ class EnvironmentService {
 
   public async getEnvironmentById(environmentId: string): Promise<Environment | null> {
     try {
-      return await prisma.environment.findUnique({
+      return await database.environment.findUnique({
         where: { id: environmentId },
       });
     } catch (err) {
@@ -34,7 +34,7 @@ class EnvironmentService {
   public async getEnvironmentByApiKey(key: string): Promise<Environment | null> {
     try {
       const { key: encryptedApiKey } = encryptionService.encryptApiKey({ key } as ApiKey);
-      const apiKey = await prisma.apiKey.findUnique({
+      const apiKey = await database.apiKey.findUnique({
         where: { key: encryptedApiKey },
         include: { environment: true },
       });
@@ -56,7 +56,7 @@ class EnvironmentService {
     environmentId: string
   ): Promise<Environment | null> {
     try {
-      const user = await prisma.user.findUnique({
+      const user = await database.user.findUnique({
         where: { id: userId },
         include: { account: { include: { environments: true } } },
       });
@@ -82,7 +82,7 @@ class EnvironmentService {
     environment: Partial<Environment>
   ): Promise<Environment | null> {
     try {
-      return await prisma.environment.update({
+      return await database.environment.update({
         where: { id: environmentId },
         data: {
           enable_new_integrations: environment.enable_new_integrations,

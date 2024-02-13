@@ -1,11 +1,11 @@
-import { Account, User } from '@prisma/client';
-import { prisma } from '../utils/prisma';
+import type { Account, User } from '@kit/shared';
+import { database } from '@kit/shared';
 import errorService from './error.service';
 
 class UserService {
   public async createUser(user: User): Promise<User | null> {
     try {
-      return await prisma.user.create({ data: user });
+      return await database.user.create({ data: user });
     } catch (err) {
       await errorService.reportError(err);
       return null;
@@ -14,7 +14,7 @@ class UserService {
 
   public async getUserById(userId: string): Promise<(User & { account: Account }) | null> {
     try {
-      return await prisma.user.findUnique({
+      return await database.user.findUnique({
         where: { id: userId, deleted_at: null },
         include: { account: true },
       });

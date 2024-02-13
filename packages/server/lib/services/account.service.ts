@@ -1,11 +1,11 @@
-import { Account, Environment } from '@prisma/client';
-import { prisma } from '../utils/prisma';
+import type { Account, Environment } from '@kit/shared';
+import { database } from '@kit/shared';
 import errorService from './error.service';
 
 class AccountService {
   public async createAccount(account: Account): Promise<Account | null> {
     try {
-      return await prisma.account.create({
+      return await database.account.create({
         data: account,
       });
     } catch (err) {
@@ -18,7 +18,7 @@ class AccountService {
     userId: string
   ): Promise<(Account & { environments: Environment[] }) | null> {
     try {
-      const user = await prisma.user.findUnique({
+      const user = await database.user.findUnique({
         where: { id: userId, deleted_at: null },
         include: { account: { include: { environments: true } } },
       });

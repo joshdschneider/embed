@@ -1,6 +1,6 @@
 import { AuthScheme } from '@kit/providers';
-import { Integration } from '@prisma/client';
-import { Request, Response } from 'express';
+import type { Integration } from '@kit/shared';
+import type { Request, Response } from 'express';
 import errorService, { ErrorCode } from '../services/error.service';
 import integrationService from '../services/integration.service';
 import providerService from '../services/provider.service';

@@ -1,6 +1,6 @@
 import { AuthScheme, ProviderSpecification } from '@kit/providers';
-import { Integration } from '@prisma/client';
-import { Request, Response } from 'express';
+import type { Integration } from '@kit/shared';
+import type { Request, Response } from 'express';
 import publisher from '../clients/publisher.client';
 import linkedAccountHook from '../hooks/linkedAccount.hook';
 import activityService from '../services/activity.service';

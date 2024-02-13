@@ -1,4 +1,4 @@
-import { LinkedAccount, Sync, SyncModel } from '@prisma/client';
+import type { LinkedAccount, Sync, SyncModel } from '@kit/shared';
 import { Connection, ScheduleOverlapPolicy, Client as TemporalClient } from '@temporalio/client';
 import fs from 'fs';
 import ms, { StringValue } from 'ms';

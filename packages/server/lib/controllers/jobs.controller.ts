@@ -1,9 +1,9 @@
-import { Request, Response } from 'express';
+import { database } from '@kit/shared';
+import type { Request, Response } from 'express';
 import errorService, { ErrorCode } from '../services/error.service';
 import providerService from '../services/provider.service';
 import { DEFAULT_ERROR_MESSAGE } from '../utils/constants';
 import { now } from '../utils/helpers';
-import { prisma } from '../utils/prisma';
 
 class JobsController {
   public async addNewProvider(req: Request, res: Response) {
@@ -26,15 +26,15 @@ class JobsController {
         });
       }
 
-      const all = await prisma.environment.findMany({
+      const all = await database.environment.findMany({
         include: { integrations: { select: { provider: true } } },
       });
 
       const environments = all.filter((env) => env.enable_new_integrations === true);
 
-      const result = await prisma.$transaction(
+      const result = await database.$transaction(
         environments.map((environment) => {
-          return prisma.integration.create({
+          return database.integration.create({
             data: {
               provider,
               environment_id: environment.id,

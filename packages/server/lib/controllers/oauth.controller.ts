@@ -1,7 +1,7 @@
 import { AuthScheme, OAuth, OAuth1, OAuth2 } from '@kit/providers';
-import { Integration, LinkToken } from '@prisma/client';
+import type { Integration, LinkToken } from '@kit/shared';
 import crypto from 'crypto';
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import SimpleOAuth2 from 'simple-oauth2';
 import { OAuth1Client } from '../clients/oauth1.client';
 import { getSimpleOAuth2ClientConfig } from '../clients/oauth2.client';
