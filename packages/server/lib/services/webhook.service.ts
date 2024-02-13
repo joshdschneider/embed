@@ -1,12 +1,18 @@
 import type { LinkedAccount, Webhook } from '@kit/shared';
-import { database } from '@kit/shared';
+import {
+  LogLevel,
+  Resource,
+  activityService,
+  database,
+  errorService,
+  generateId,
+  now,
+} from '@kit/shared';
 import { backOff } from 'exponential-backoff';
-import { LogLevel, WebhookBody } from '../types';
-import { Resource, generateId, getWebhookSignatureHeader, now } from '../utils/helpers';
-import activityService from './activity.service';
+import { getWebhookSignatureHeader } from '../utils/helpers';
+import { WebhookBody } from '../utils/types';
 import encryptionService from './encryption.service';
 import environmentService from './environment.service';
-import errorService from './error.service';
 
 class WebhookService {
   public async createWebhook(webhook: Webhook): Promise<Webhook | null> {

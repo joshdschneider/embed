@@ -1,6 +1,6 @@
 import type { ProviderSpecification } from '@kit/providers';
 import { Registry } from '@kit/providers';
-import errorService from './error.service';
+import { errorService } from '@kit/shared';
 
 class ProviderService {
   private registry: Registry;

@@ -1,12 +1,13 @@
+import { getRedisUrl } from '@kit/shared';
 import crypto from 'crypto';
 import type { Response } from 'express';
 import type { RedisClientType } from 'redis';
 import { createClient } from 'redis';
 import { v4 } from 'uuid';
 import type { WebSocket } from 'ws';
-import { Branding, DefaultTemplateData, ErrorTemplateData } from '../types';
-import { DEFAULT_BRANDING, getRedisUrl } from '../utils/constants';
+import { DEFAULT_BRANDING } from '../utils/constants';
 import { appendParamsToUrl } from '../utils/helpers';
+import { Branding, DefaultTemplateData, ErrorTemplateData } from '../utils/types';
 
 enum MessageType {
   ConnectionAck = 'connection_ack',

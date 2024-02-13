@@ -1,8 +1,6 @@
 import type { ApiKey } from '@kit/shared';
-import { database } from '@kit/shared';
-import { now } from '../utils/helpers';
+import { database, errorService, now } from '@kit/shared';
 import encryptionService from './encryption.service';
-import errorService from './error.service';
 
 class ApiKeyService {
   public async createApiKey(apiKey: ApiKey): Promise<ApiKey | null> {

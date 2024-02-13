@@ -1,9 +1,6 @@
-import { database } from '@kit/shared';
+import { DEFAULT_ERROR_MESSAGE, ErrorCode, database, errorService, now } from '@kit/shared';
 import type { Request, Response } from 'express';
-import errorService, { ErrorCode } from '../services/error.service';
 import providerService from '../services/provider.service';
-import { DEFAULT_ERROR_MESSAGE } from '../utils/constants';
-import { now } from '../utils/helpers';
 
 class JobsController {
   public async addNewProvider(req: Request, res: Response) {

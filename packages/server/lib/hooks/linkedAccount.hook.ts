@@ -1,10 +1,9 @@
 import type { LinkedAccount } from '@kit/shared';
+import { Resource, errorService, generateId, now } from '@kit/shared';
 import WorkerClient from '../clients/worker.client';
-import errorService from '../services/error.service';
 import integrationService from '../services/integration.service';
 import syncService from '../services/sync.service';
 import webhookService from '../services/webhook.service';
-import { Resource, generateId, now } from '../utils/helpers';
 
 class LinkedAccountHook {
   public async linkedAccountCreated({

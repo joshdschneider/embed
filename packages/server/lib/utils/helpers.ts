@@ -1,6 +1,6 @@
+import { getLocalhostUrl, getServerUrl } from '@kit/shared';
 import crypto from 'crypto';
-import { EnvironmentType } from '../types';
-import { getLocalhostUrl, getServerUrl } from './constants';
+import { EnvironmentType } from './types';
 
 export function getOauthCallbackUrl() {
   const baseUrl = getServerUrl() || getLocalhostUrl();
@@ -43,29 +43,6 @@ export function appendParamsToUrl(url: string, params: Record<string, string>) {
 export function generateSecretKey(environment: EnvironmentType, byteLength = 16): string {
   const prefix = environment === EnvironmentType.Staging ? 'test' : 'prod';
   return `sk_${prefix}_${crypto.randomBytes(byteLength).toString('hex')}`;
-}
-
-export enum Resource {
-  Account = 'acc',
-  ApiKey = 'key',
-  Environment = 'env',
-  Sync = 'sync',
-  SyncJob = 'syncj',
-  Schedule = 'sch',
-  Activity = 'act',
-  ActivityLog = 'actl',
-  LinkedAccount = 'link',
-  LinkToken = 'tok',
-  Webhook = 'web',
-  WebhookLog = 'webl',
-}
-
-export function generateId(prefix: Resource, byteLength = 8): string {
-  return `${prefix}_${crypto.randomBytes(byteLength).toString('hex')}`;
-}
-
-export function now() {
-  return Math.floor(Date.now() / 1000);
 }
 
 export function generateWebhookSigningSecret(): string {

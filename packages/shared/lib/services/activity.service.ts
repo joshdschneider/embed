@@ -1,8 +1,8 @@
-import type { Activity, ActivityLog } from '@kit/shared';
-import { database } from '@kit/shared';
+import type { Activity, ActivityLog } from '@prisma/client';
 import logger from '../clients/logger.client';
-import { LogLevel } from '../types';
-import { Resource, generateId } from '../utils/helpers';
+import { database } from '../utils/database';
+import { LogLevel, Resource } from '../utils/enums';
+import { generateId } from '../utils/helpers';
 import errorService from './error.service';
 
 class ActivityService {

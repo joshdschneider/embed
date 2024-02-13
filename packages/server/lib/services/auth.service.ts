@@ -1,15 +1,16 @@
+import {
+  ACCOUNT_ID_LOCALS_KEY,
+  DEFAULT_ERROR_MESSAGE,
+  ENVIRONMENT_ID_LOCALS_KEY,
+  ErrorCode,
+  KIT_CLOUD_ENVIRONMENT_KEY,
+  errorService,
+  getAuthTokenSecret,
+} from '@kit/shared';
 import Cookies from 'cookies';
 import { NextFunction, Request, Response } from 'express';
 import { jwtVerify } from 'jose';
-import {
-  ACCOUNT_ID_LOCALS_KEY,
-  KIT_CLOUD_ENVIRONMENT_KEY,
-  DEFAULT_ERROR_MESSAGE,
-  ENVIRONMENT_ID_LOCALS_KEY,
-  getAuthTokenSecret,
-} from '../utils/constants';
 import environmentService from './environment.service';
-import errorService, { ErrorCode } from './error.service';
 
 class AuthService {
   public async verifyApiKey(apiKey: string, req: Request, res: Response, next: NextFunction) {

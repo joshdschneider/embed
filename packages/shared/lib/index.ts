@@ -1,3 +1,6 @@
+import activityService from './services/activity.service';
+import errorService from './services/error.service';
+
 export type {
   Account,
   Activity,
@@ -15,4 +18,10 @@ export type {
   Webhook,
   WebhookLog,
 } from '@prisma/client';
-export { database } from './database';
+
+export * from './utils/constants';
+export * from './utils/database';
+export * from './utils/enums';
+export * from './utils/helpers';
+
+export { activityService, errorService };
