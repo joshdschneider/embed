@@ -1,4 +1,4 @@
-import { Sync, SyncJob } from '@prisma/client';
+import { Sync, SyncJob, SyncSchedule } from '@prisma/client';
 import { prisma } from '../utils/prisma';
 import errorService from './error.service';
 
@@ -52,6 +52,15 @@ class SyncService {
         where: { id: syncJobId },
         data,
       });
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
+    }
+  }
+
+  public async createSyncSchedule(syncSchedule: SyncSchedule): Promise<SyncSchedule | null> {
+    try {
+      return await prisma.syncSchedule.create({ data: syncSchedule });
     } catch (err) {
       await errorService.reportError(err);
       return null;

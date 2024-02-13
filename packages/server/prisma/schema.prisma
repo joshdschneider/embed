@@ -163,6 +163,7 @@ model Sync {
   deleted_at        Int?
 
   jobs       SyncJob[]
+  schedules  SyncSchedule[]
   activities Activity[]
 
   linked_account LinkedAccount @relation(fields: [linked_account_id], references: [id])
@@ -178,7 +179,21 @@ model SyncJob {
   status  String
   run_id  String?
 
+  schedules SyncSchedule[]
+
   sync Sync @relation(fields: [sync_id], references: [id])
+}
+
+model SyncSchedule {
+  id          String @id
+  sync_id     String
+  sync_job_id String
+  status      String
+  frequency   String
+  offset      Int
+
+  sync     Sync    @relation(fields: [sync_id], references: [id])
+  sync_job SyncJob @relation(fields: [sync_job_id], references: [id])
 }
 
 model Webhook {

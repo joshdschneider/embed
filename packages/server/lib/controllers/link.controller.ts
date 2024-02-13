@@ -537,11 +537,21 @@ class LinkController {
 
           await linkTokenService.deleteLinkToken(linkToken.id);
 
-          await linkedAccountHook.linkedAccountCreated({
-            environmentId: linkToken.environment_id,
-            linkedAccount: response.linkedAccount,
-            activityId,
-          });
+          if (response.action === 'created') {
+            await linkedAccountHook.linkedAccountCreated({
+              environmentId: linkToken.environment_id,
+              linkedAccount: response.linkedAccount,
+              activityId,
+            });
+          } else if (response.action === 'updated') {
+            await linkedAccountHook.linkedAccountUpdated({
+              environmentId: linkToken.environment_id,
+              linkedAccount: response.linkedAccount,
+              activityId,
+            });
+          } else {
+            throw new Error('Invalid action returned from linked account upsert');
+          }
 
           return await publisher.publishSuccess(res, {
             linkedAccountId: response.linkedAccount.id,
@@ -1144,11 +1154,21 @@ class LinkController {
 
       await linkTokenService.deleteLinkToken(linkToken.id);
 
-      await linkedAccountHook.linkedAccountCreated({
-        environmentId: linkToken.environment_id,
-        linkedAccount: response.linkedAccount,
-        activityId,
-      });
+      if (response.action === 'created') {
+        await linkedAccountHook.linkedAccountCreated({
+          environmentId: linkToken.environment_id,
+          linkedAccount: response.linkedAccount,
+          activityId,
+        });
+      } else if (response.action === 'updated') {
+        await linkedAccountHook.linkedAccountUpdated({
+          environmentId: linkToken.environment_id,
+          linkedAccount: response.linkedAccount,
+          activityId,
+        });
+      } else {
+        throw new Error('Invalid action returned from linked account upsert');
+      }
 
       return await publisher.publishSuccess(res, {
         linkedAccountId: response.linkedAccount.id,
@@ -1464,11 +1484,21 @@ class LinkController {
 
       await linkTokenService.deleteLinkToken(linkToken.id);
 
-      await linkedAccountHook.linkedAccountCreated({
-        environmentId: linkToken.environment_id,
-        linkedAccount: response.linkedAccount,
-        activityId,
-      });
+      if (response.action === 'created') {
+        await linkedAccountHook.linkedAccountCreated({
+          environmentId: linkToken.environment_id,
+          linkedAccount: response.linkedAccount,
+          activityId,
+        });
+      } else if (response.action === 'updated') {
+        await linkedAccountHook.linkedAccountUpdated({
+          environmentId: linkToken.environment_id,
+          linkedAccount: response.linkedAccount,
+          activityId,
+        });
+      } else {
+        throw new Error('Invalid action returned from linked account upsert');
+      }
 
       return await publisher.publishSuccess(res, {
         linkedAccountId: response.linkedAccount.id,
