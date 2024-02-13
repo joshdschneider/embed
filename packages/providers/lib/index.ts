@@ -2,10 +2,13 @@ export { AuthScheme, OAuthAuthorizationMethod, OAuthBodyFormat, Provider } from 
 export type {
   ApiAuth,
   Auth,
+  CursorPagination,
+  LinkPagination,
   NoAuth,
   OAuth,
   OAuth1,
   OAuth2,
+  OffsetPagination,
   Pagination,
   ProviderSpecification,
   Retry,

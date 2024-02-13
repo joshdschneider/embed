@@ -6,11 +6,7 @@ export type KitOptions = {
   websocketPath?: string;
 };
 
-export function Kit(options?: KitOptions) {
-  return new KitLink(options);
-}
-
-class KitLink {
+export default class Kit {
   private hostBaseUrl: string;
   private websocketBaseUrl: string;
 

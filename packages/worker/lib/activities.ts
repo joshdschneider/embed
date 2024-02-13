@@ -27,7 +27,7 @@ export async function routeSync(args: InitialSyncArgs): Promise<boolean | object
     });
   }
 
-  return true;
+  return false;
 }
 
 export async function reportFailure(
