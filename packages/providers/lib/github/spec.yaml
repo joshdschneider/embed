@@ -19,7 +19,7 @@ syncs:
     display_name: Issues
     description: Sync all issues for a Github repository
     default_enabled: true
-    default_frequency: every day
+    default_frequency: 1d
     default_auto_start: true
     model: Issue
 models:
