@@ -1,16 +1,16 @@
-import type { Integration, SyncModel } from '@prisma/client';
+import type { Integration, SyncModel } from '@kit/shared';
+import { database } from '@kit/shared';
 import fs from 'fs';
 import yaml from 'js-yaml';
 import path from 'path';
 import { now } from '../utils/helpers';
-import { prisma } from '../utils/prisma';
 import errorService from './error.service';
 import providerService from './provider.service';
 
 class IntegrationService {
   public async createIntegration(integration: Integration): Promise<Integration | null> {
     try {
-      return await prisma.integration.create({
+      return await database.integration.create({
         data: integration,
       });
     } catch (err) {
@@ -42,7 +42,7 @@ class IntegrationService {
         };
       });
 
-      const integrations = await prisma.integration.createMany({
+      const integrations = await database.integration.createMany({
         data: [...providerIntegrations],
       });
 
@@ -58,7 +58,7 @@ class IntegrationService {
     environmentId: string
   ): Promise<Integration | null> {
     try {
-      return await prisma.integration.findUnique({
+      return await database.integration.findUnique({
         where: {
           provider_environment_id: {
             provider: integrationProvider,
@@ -78,7 +78,7 @@ class IntegrationService {
     environmentId: string
   ): Promise<SyncModel[] | null> {
     try {
-      const integration = await prisma.integration.findUnique({
+      const integration = await database.integration.findUnique({
         where: {
           provider_environment_id: {
             provider: integrationProvider,
@@ -104,7 +104,7 @@ class IntegrationService {
 
   public async listIntegrations(environmentId: string): Promise<Integration[] | null> {
     try {
-      return await prisma.integration.findMany({
+      return await database.integration.findMany({
         where: { environment_id: environmentId, deleted_at: null },
         orderBy: { rank: 'asc' },
       });
@@ -119,9 +119,9 @@ class IntegrationService {
     ranks: { provider: string; rank: number }[]
   ): Promise<Integration[] | null> {
     try {
-      const result = await prisma.$transaction(
+      const result = await database.$transaction(
         ranks.map((integration) => {
-          return prisma.integration.update({
+          return database.integration.update({
             where: {
               provider_environment_id: {
                 provider: integration.provider,
@@ -143,7 +143,7 @@ class IntegrationService {
 
   public async enableAllIntegrations(environmentId: string) {
     try {
-      const integrations = await prisma.integration.findMany({
+      const integrations = await database.integration.findMany({
         where: {
           environment_id: environmentId,
           deleted_at: null,
@@ -151,9 +151,9 @@ class IntegrationService {
         },
       });
 
-      const result = await prisma.$transaction(
+      const result = await database.$transaction(
         integrations.map((integration) => {
-          return prisma.integration.update({
+          return database.integration.update({
             where: {
               provider_environment_id: {
                 provider: integration.provider,
@@ -175,7 +175,7 @@ class IntegrationService {
 
   public async disableAllIntegrations(environmentId: string) {
     try {
-      const integrations = await prisma.integration.findMany({
+      const integrations = await database.integration.findMany({
         where: {
           environment_id: environmentId,
           deleted_at: null,
@@ -183,9 +183,9 @@ class IntegrationService {
         },
       });
 
-      const result = await prisma.$transaction(
+      const result = await database.$transaction(
         integrations.map((integration) => {
-          return prisma.integration.update({
+          return database.integration.update({
             where: {
               provider_environment_id: {
                 provider: integration.provider,
@@ -210,7 +210,7 @@ class IntegrationService {
     data: Partial<Integration>
   ): Promise<Integration | null> {
     try {
-      return await prisma.integration.update({
+      return await database.integration.update({
         where: {
           provider_environment_id: {
             provider: integrationProvider,

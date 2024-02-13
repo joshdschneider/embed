@@ -1,5 +1,5 @@
 import { OAuth2, OAuthAuthorizationMethod, OAuthBodyFormat } from '@kit/providers';
-import type { Integration } from '@prisma/client';
+import type { Integration } from '@kit/shared';
 import integrationService from '../services/integration.service';
 import { interpolateString } from '../utils/helpers';
 
