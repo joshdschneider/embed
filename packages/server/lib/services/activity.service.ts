@@ -1,14 +1,14 @@
-import type { Activity, ActivityLog } from '@prisma/client';
+import type { Activity, ActivityLog } from '@kit/shared';
+import { database } from '@kit/shared';
 import logger from '../clients/logger.client';
 import { LogLevel } from '../types';
 import { Resource, generateId } from '../utils/helpers';
-import { prisma } from '../utils/prisma';
 import errorService from './error.service';
 
 class ActivityService {
   public async createActivity(activity: Activity): Promise<string | null> {
     try {
-      const newActivity = await prisma.activity.create({
+      const newActivity = await database.activity.create({
         data: activity,
         select: { id: true },
       });
@@ -21,7 +21,7 @@ class ActivityService {
 
   public async findActivityIdByLinkToken(linkToken: string): Promise<string | null> {
     try {
-      const activity = await prisma.activity.findFirst({
+      const activity = await database.activity.findFirst({
         where: { link_token_id: linkToken },
         select: { id: true },
       });
@@ -41,7 +41,7 @@ class ActivityService {
     }
 
     try {
-      return await prisma.activity.update({
+      return await database.activity.update({
         where: { id: activityId },
         data: { ...data },
       });
@@ -67,7 +67,7 @@ class ActivityService {
     try {
       logger.log(activityLog.level, activityLog.message);
 
-      return await prisma.activityLog.create({
+      return await database.activityLog.create({
         data: {
           id: generateId(Resource.ActivityLog),
           activity_id: activityId,

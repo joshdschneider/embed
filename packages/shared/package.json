@@ -1,17 +1,16 @@
 {
-  "name": "@kit/worker",
+  "name": "@kit/shared",
   "version": "0.1.0",
   "main": "dist/index.js",
   "scripts": {
     "clean": "rimraf tsconfig.tsbuildinfo dist/*",
+    "generate": "npx prisma generate",
+    "migrate": "npx prisma migrate dev",
     "build": "tsc",
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "node dist/worker.js"
   },
   "dependencies": {
-    "@temporalio/activity": "^1.9.0",
-    "@temporalio/client": "^1.9.0",
-    "@temporalio/worker": "^1.9.0",
-    "@temporalio/workflow": "^1.9.0"
+    "@prisma/client": "^5.9.1"
   }
 }

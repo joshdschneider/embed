@@ -154,6 +154,18 @@ CREATE TABLE "SyncJob" (
 );
 
 -- CreateTable
+CREATE TABLE "SyncSchedule" (
+    "id" TEXT NOT NULL,
+    "sync_id" TEXT NOT NULL,
+    "sync_job_id" TEXT NOT NULL,
+    "status" TEXT NOT NULL,
+    "frequency" TEXT NOT NULL,
+    "offset" INTEGER NOT NULL,
+
+    CONSTRAINT "SyncSchedule_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "Webhook" (
     "id" TEXT NOT NULL,
     "environment_id" TEXT NOT NULL,
@@ -251,6 +263,12 @@ ALTER TABLE "Sync" ADD CONSTRAINT "Sync_model_id_fkey" FOREIGN KEY ("model_id") 
 
 -- AddForeignKey
 ALTER TABLE "SyncJob" ADD CONSTRAINT "SyncJob_sync_id_fkey" FOREIGN KEY ("sync_id") REFERENCES "Sync"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "SyncSchedule" ADD CONSTRAINT "SyncSchedule_sync_id_fkey" FOREIGN KEY ("sync_id") REFERENCES "Sync"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "SyncSchedule" ADD CONSTRAINT "SyncSchedule_sync_job_id_fkey" FOREIGN KEY ("sync_job_id") REFERENCES "SyncJob"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Webhook" ADD CONSTRAINT "Webhook_environment_id_fkey" FOREIGN KEY ("environment_id") REFERENCES "Environment"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

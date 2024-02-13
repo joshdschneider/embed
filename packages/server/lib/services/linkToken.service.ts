@@ -1,11 +1,11 @@
-import { LinkToken } from '@prisma/client';
-import { prisma } from '../utils/prisma';
+import type { LinkToken } from '@kit/shared';
+import { database } from '@kit/shared';
 import errorService from './error.service';
 
 class LinkTokenService {
   public async createLinkToken(linkToken: LinkToken): Promise<LinkToken | null> {
     try {
-      return await prisma.linkToken.create({
+      return await database.linkToken.create({
         data: {
           ...linkToken,
           metadata: linkToken.metadata || undefined,
@@ -20,7 +20,7 @@ class LinkTokenService {
 
   public async listLinkTokens(environmentId: string): Promise<LinkToken[] | null> {
     try {
-      return await prisma.linkToken.findMany({
+      return await database.linkToken.findMany({
         where: { environment_id: environmentId },
       });
     } catch (err) {
@@ -31,7 +31,7 @@ class LinkTokenService {
 
   public async getLinkTokenById(linkTokenId: string): Promise<LinkToken | null> {
     try {
-      return await prisma.linkToken.findUnique({
+      return await database.linkToken.findUnique({
         where: { id: linkTokenId },
       });
     } catch (err) {
@@ -45,7 +45,7 @@ class LinkTokenService {
     data: Partial<LinkToken>
   ): Promise<LinkToken | null> {
     try {
-      return await prisma.linkToken.update({
+      return await database.linkToken.update({
         where: { id: linkTokenId },
         data: {
           ...data,
@@ -61,7 +61,7 @@ class LinkTokenService {
 
   public async deleteLinkToken(linkTokenId: string): Promise<LinkToken | null> {
     try {
-      return await prisma.linkToken.delete({
+      return await database.linkToken.delete({
         where: { id: linkTokenId },
       });
     } catch (err) {
