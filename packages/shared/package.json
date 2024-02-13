@@ -11,6 +11,7 @@
     "dev": "node dist/worker.js"
   },
   "dependencies": {
+    "@kit/providers": "^0.1.0",
     "@kit/shared": "^0.1.0",
     "@prisma/client": "^5.9.1"
   }

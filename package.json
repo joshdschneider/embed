@@ -2,8 +2,9 @@
   "name": "kit",
   "workspaces": [
     "packages/js",
-    "packages/providers",
     "packages/react",
+    "packages/node",
+    "packages/providers",
     "packages/shared",
     "packages/server",
     "packages/worker"
