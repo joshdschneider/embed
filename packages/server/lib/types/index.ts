@@ -36,6 +36,12 @@ export enum SyncType {
   Full = 'full',
 }
 
+export enum ScheduleStatus {
+  Running = 'running',
+  Paused = 'paused',
+  Stopped = 'stopped',
+}
+
 export type Branding = {
   name: string | null;
   appearance: string;
@@ -136,6 +142,17 @@ export interface LinkedAccountCreatedWebhookBody {
   linked_account_id: string;
   metadata: any;
   created_at: number;
+  updated_at: number | null;
 }
 
-export type WebhookBody = LinkedAccountCreatedWebhookBody;
+export interface LinkedAccountUpdatedWebhookBody {
+  event: 'linked_account.updated';
+  environment: string;
+  integration: string;
+  linked_account_id: string;
+  metadata: any;
+  created_at: number;
+  updated_at: number | null;
+}
+
+export type WebhookBody = LinkedAccountCreatedWebhookBody | LinkedAccountUpdatedWebhookBody;

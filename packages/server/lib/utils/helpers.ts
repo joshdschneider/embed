@@ -51,6 +51,7 @@ export enum Resource {
   Environment = 'env',
   Sync = 'sync',
   SyncJob = 'syncj',
+  Schedule = 'sch',
   Activity = 'act',
   ActivityLog = 'actl',
   LinkedAccount = 'link',

@@ -170,6 +170,7 @@ class WebhookService {
             linked_account_id: linkedAccount.id,
             metadata: linkedAccount.metadata || {},
             created_at: linkedAccount.created_at,
+            updated_at: linkedAccount.updated_at,
           });
           results.push({ delivered, url: webhook.url });
         }
@@ -199,6 +200,72 @@ class WebhookService {
         level: LogLevel.Error,
         message: `Failed to deliver webhook`,
         payload: { event: 'linked_account.created', results },
+      });
+    }
+  }
+
+  public async sendLinkedAccountUpdatedWebhook({
+    environmentId,
+    linkedAccount,
+    activityId,
+  }: {
+    environmentId: string;
+    linkedAccount: LinkedAccount;
+    activityId: string | null;
+  }): Promise<void> {
+    const webhooks = await this.listWebhooks(environmentId);
+    if (!webhooks) {
+      return;
+    }
+
+    const enabledWebhooks = webhooks.filter((webhook) => webhook.is_enabled);
+    const environment = await environmentService.getEnvironmentById(environmentId);
+    if (!environment) {
+      return;
+    }
+
+    const results = [];
+
+    try {
+      for (const webhook of enabledWebhooks) {
+        if (webhook.events.includes('linked_account.updated')) {
+          const delivered = await this.sendWebhook(webhook, {
+            event: 'linked_account.updated',
+            environment: environment.type,
+            integration: linkedAccount.integration_provider,
+            linked_account_id: linkedAccount.id,
+            metadata: linkedAccount.metadata || {},
+            created_at: linkedAccount.created_at,
+            updated_at: linkedAccount.updated_at,
+          });
+          results.push({ delivered, url: webhook.url });
+        }
+      }
+
+      const deliveredCount = results.filter((result) => result.delivered).length;
+      if (deliveredCount === 0) {
+        throw new Error('Failed to deliver webhook(s)');
+      }
+
+      const message =
+        deliveredCount === enabledWebhooks.length
+          ? `Webhook delivered to ${deliveredCount} endpoints`
+          : `Webhook delivered to ${deliveredCount} out of ${enabledWebhooks.length} endpoints`;
+
+      await activityService.createActivityLog(activityId, {
+        timestamp: now(),
+        level: LogLevel.Info,
+        message,
+        payload: { event: 'linked_account.updated', results },
+      });
+    } catch (err) {
+      await errorService.reportError(err);
+
+      await activityService.createActivityLog(activityId, {
+        timestamp: now(),
+        level: LogLevel.Error,
+        message: `Failed to deliver webhook`,
+        payload: { event: 'linked_account.updated', results },
       });
     }
   }
