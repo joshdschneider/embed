@@ -54,3 +54,9 @@ export enum ScheduleStatus {
   Paused = 'paused',
   Stopped = 'stopped',
 }
+
+export enum PaginationType {
+  Cursor = 'cursor',
+  Link = 'link',
+  Offset = 'offset',
+}

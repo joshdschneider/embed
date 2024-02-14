@@ -1,5 +1,6 @@
 import activityService from './services/activity.service';
 import errorService from './services/error.service';
+import providerService from './services/provider.service';
 
 export type {
   Account,
@@ -24,4 +25,4 @@ export * from './utils/database';
 export * from './utils/enums';
 export * from './utils/helpers';
 
-export { activityService, errorService };
+export { activityService, errorService, providerService };
