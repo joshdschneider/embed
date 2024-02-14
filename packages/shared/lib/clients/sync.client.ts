@@ -12,6 +12,14 @@ type KitSyncOptions = {
 
 export type PaginateOptions = Omit<ProxyOptions, 'integration' | 'linkedAccountId'>;
 
+/**
+ * An instance of this class will be injected
+ * into provider registry's sync method so that
+ * when you implement a provider integration,
+ * you can use these methods to paginate and
+ * make authenticated requests to the provider's API
+ */
+
 export class KitSync {
   private integration: string;
   private linkedAccountId: string;
