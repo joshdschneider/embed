@@ -158,6 +158,7 @@ model Sync {
   linked_account_id String
   model_id          String
   frequency         String
+  last_synced_at    Int?
   created_at        Int
   updated_at        Int?
   deleted_at        Int?

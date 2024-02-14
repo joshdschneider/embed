@@ -1,11 +1,13 @@
 import { proxyActivities } from '@temporalio/workflow';
 import type * as activities from './activities.js';
-import { InitialSyncArgs } from './types.js';
+import { ActionArgs, ContinuousSyncArgs, InitialSyncArgs } from './types.js';
 
 const DEFAULT_TIMEOUT = '24 hours';
 const MAXIMUM_ATTEMPTS = 3;
 
-const { routeSync, reportFailure } = proxyActivities<typeof activities>({
+const { runInitialSync, runContinuousSync, executeAction, reportFailure } = proxyActivities<
+  typeof activities
+>({
   startToCloseTimeout: DEFAULT_TIMEOUT,
   scheduleToCloseTimeout: DEFAULT_TIMEOUT,
   heartbeatTimeout: '30m',
@@ -17,9 +19,24 @@ const { routeSync, reportFailure } = proxyActivities<typeof activities>({
 
 export async function initialSync(args: InitialSyncArgs): Promise<boolean | object | null> {
   try {
-    return await routeSync(args);
+    return await runInitialSync(args);
   } catch (err: any) {
-    await reportFailure(err, args, DEFAULT_TIMEOUT, MAXIMUM_ATTEMPTS);
-    return false;
+    return await reportFailure(err, args, DEFAULT_TIMEOUT, MAXIMUM_ATTEMPTS);
+  }
+}
+
+export async function continuousSync(args: ContinuousSyncArgs): Promise<boolean | object | null> {
+  try {
+    return await runContinuousSync(args);
+  } catch (e: any) {
+    return await reportFailure(e, args, DEFAULT_TIMEOUT, MAXIMUM_ATTEMPTS);
+  }
+}
+
+export async function action(args: ActionArgs): Promise<boolean | object | null> {
+  try {
+    return await executeAction(args);
+  } catch (e: any) {
+    return await reportFailure(e, args, DEFAULT_TIMEOUT, MAXIMUM_ATTEMPTS);
   }
 }

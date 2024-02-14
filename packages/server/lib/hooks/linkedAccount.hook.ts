@@ -47,6 +47,7 @@ class LinkedAccountHook {
           linked_account_id: linkedAccount.id,
           model_id: model.id,
           frequency: model.frequency,
+          last_synced_at: null,
           created_at: now(),
           updated_at: now(),
           deleted_at: null,
