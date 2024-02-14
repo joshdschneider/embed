@@ -1,6 +1,8 @@
-import type { ApiKey } from '@kit/shared';
-import { database, errorService, now } from '@kit/shared';
+import type { ApiKey } from '@prisma/client';
+import { database } from '../utils/database';
+import { now } from '../utils/helpers';
 import encryptionService from './encryption.service';
+import errorService from './error.service';
 
 class ApiKeyService {
   public async createApiKey(apiKey: ApiKey): Promise<ApiKey | null> {

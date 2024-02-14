@@ -8,7 +8,9 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
-    "copyfiles": "^2.4.1"
+    "@kit/shared": "^0.1.0",
+    "copyfiles": "^2.4.1",
+    "zod": "^3.22.4"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",

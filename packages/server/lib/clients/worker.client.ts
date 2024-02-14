@@ -110,9 +110,11 @@ class WorkerClient {
           workflowId: job.id,
           args: [
             {
+              environmentId: linkedAccount.environment_id,
+              linkedAccountId: linkedAccount.id,
+              integration: linkedAccount.integration_provider,
               syncId: sync.id,
               jobId: job.id,
-              linkedAccountId: linkedAccount.id,
               activityId,
             },
           ],
@@ -147,8 +149,10 @@ class WorkerClient {
           taskQueue: SYNC_TASK_QUEUE,
           args: [
             {
-              syncId: sync.id,
+              environmentId: linkedAccount.environment_id,
               linkedAccountId: linkedAccount.id,
+              integration: linkedAccount.integration_provider,
+              syncId: sync.id,
               activityId,
             },
           ],

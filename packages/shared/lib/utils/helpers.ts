@@ -8,3 +8,7 @@ export function generateId(prefix: Resource, byteLength = 8): string {
 export function now() {
   return Math.floor(Date.now() / 1000);
 }
+
+export function unixToDate(unixTimestamp: number) {
+  return new Date(unixTimestamp * 1000);
+}
