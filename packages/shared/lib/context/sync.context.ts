@@ -1,23 +1,43 @@
 import { ProxyOptions } from '@kit/node';
-import { CursorPagination, LinkPagination, OffsetPagination, Pagination } from '@kit/providers';
+import { PaginateOptions, Pagination } from '@kit/providers';
+import { Context } from '@temporalio/activity';
 import paginateService from '../services/paginate.service';
 import providerService from '../services/provider.service';
 import { BaseContext, BaseContextOptions } from './base.context';
 
-export type PaginateOptions = Omit<ProxyOptions, 'integration' | 'linkedAccountId'> & {
-  pagination?: Partial<CursorPagination> | Partial<LinkPagination> | Partial<OffsetPagination>;
-};
-
 export type SyncContextOptions = BaseContextOptions & {
+  syncId: string;
+  jobId: string;
+  activityId: string | null;
   lastSyncDate: Date | null;
+  context: Context;
 };
 
 export class SyncContext extends BaseContext {
+  public syncId: string;
+  public jobId: string;
+  public activityId: string | null;
   public lastSyncDate: Date | null;
+  private addedKeys: string[];
+  private updatedKeys: string[];
+  private deletedKeys: string[];
+  private interval?: NodeJS.Timeout;
 
   constructor(options: SyncContextOptions) {
     super(options);
+    this.syncId = options.syncId;
+    this.jobId = options.jobId;
+    this.activityId = options.activityId;
     this.lastSyncDate = options.lastSyncDate;
+    this.addedKeys = [];
+    this.updatedKeys = [];
+    this.deletedKeys = [];
+
+    const temporal = options.context;
+    const heartbeat = 1000 * 60 * 5; // 5 min
+    this.interval = setInterval(() => {
+      temporal.heartbeat();
+    }, heartbeat);
   }
 
   public async *paginate<T = any>(
@@ -72,5 +92,15 @@ export class SyncContext extends BaseContext {
       default:
         throw new Error(`Unsupported pagination type: ${pagination.type}`);
     }
+  }
+
+  public async batchSave() {
+    // save data
+    // update keys
+  }
+
+  public async finish() {
+    clearInterval(this.interval);
+    this.interval = undefined;
   }
 }

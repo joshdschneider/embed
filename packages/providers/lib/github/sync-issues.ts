@@ -1,5 +1,5 @@
-import { KitSyncContext } from '../types';
+import { SyncContext } from '../types';
 
-export default async function syncGithubIssues(kit: KitSyncContext) {
+export default async function syncGithubIssues(context: SyncContext) {
   //..
 }

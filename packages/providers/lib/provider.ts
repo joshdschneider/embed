@@ -1,8 +1,7 @@
 import fs from 'fs';
 import yaml from 'js-yaml';
 import path from 'path';
-import { ProviderSpecification } from '../dist';
-import { KitSyncContext, ProviderSpecificationSchema } from './types';
+import { ProviderSpecification, ProviderSpecificationSchema, SyncContext } from './types';
 
 export class Provider {
   public specification: ProviderSpecification;
@@ -17,11 +16,13 @@ export class Provider {
     }
   }
 
-  public getSpec(): ProviderSpecification {
+  public getSpecification(): ProviderSpecification {
     return this.specification;
   }
 
-  public async fetchData(model: string, kit: KitSyncContext) {
-    throw new Error(`Model ${model} not implemented on provider ${this.specification.slug}`);
+  public async syncModel(model: string, context: SyncContext) {
+    const modelPath = path.join(__dirname, this.specification.slug, `sync-${model}`);
+    const script = await import(modelPath);
+    return script.default(context);
   }
 }

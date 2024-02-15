@@ -1,7 +1,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import { Provider } from './provider';
-import { KitSyncContext, ProviderSpecification } from './types';
+import { ProviderSpecification, SyncContext } from './types';
 
 export class Registry {
   private providers: {
@@ -27,34 +27,21 @@ export class Registry {
   public async getProviderSpecification(slug: string): Promise<ProviderSpecification | null> {
     await this.load(slug);
     const provider = this.providers[slug];
-    return provider ? provider.getSpec() : null;
+    return provider ? provider.getSpecification() : null;
   }
 
   public async getAllProviderSpecifications(): Promise<ProviderSpecification[]> {
     await this.loadAll();
-    return Object.values(this.providers).map((provider) => provider.getSpec());
+    return Object.values(this.providers).map((provider) => provider.getSpecification());
   }
 
-  public async fetchData(slug: string, model: string, kit: KitSyncContext) {
+  public async syncProviderModel(slug: string, model: string, context: SyncContext): Promise<void> {
     await this.load(slug);
     const provider = this.providers[slug];
     if (!provider) {
       throw new Error(`Failed to load provider ${slug}`);
     }
 
-    return provider.fetchData(model, kit);
+    return provider.syncModel(model, context);
   }
-
-  // public async postLink(slug: string): Promise<void> {
-  //   await this.load(slug);
-  //   const provider = this.providers[slug];
-
-  //   if (!provider) {
-  //     throw new Error(`Failed to load provider ${slug}`);
-  //   }
-
-  //   if (provider.postLink) {
-  //     return provider.postLink();
-  //   }
-  // }
 }

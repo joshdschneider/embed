@@ -1,5 +1,6 @@
 import type { ProviderSpecification } from '@kit/providers';
 import { Registry } from '@kit/providers';
+import { SyncContext } from '../context/sync.context';
 import errorService from './error.service';
 
 class ProviderService {
@@ -11,7 +12,7 @@ class ProviderService {
 
   public async listProviders(): Promise<ProviderSpecification[] | null> {
     try {
-      return await this.registry.getAllProviderSpecs();
+      return await this.registry.getAllProviderSpecifications();
     } catch (err) {
       errorService.reportError(err);
       return null;
@@ -20,11 +21,19 @@ class ProviderService {
 
   public async getProviderSpec(providerSlug: string): Promise<ProviderSpecification | null> {
     try {
-      return await this.registry.getProviderSpec(providerSlug);
+      return await this.registry.getProviderSpecification(providerSlug);
     } catch (err) {
       errorService.reportError(err);
       return null;
     }
+  }
+
+  public async syncProviderModel(
+    provider: string,
+    model: string,
+    context: SyncContext
+  ): Promise<void> {
+    return await this.registry.syncProviderModel(provider, model, context);
   }
 }
 

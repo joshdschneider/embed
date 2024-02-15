@@ -1,3 +1,6 @@
+import { ActionContext } from './context/action.context';
+import { BaseContext } from './context/base.context';
+import { SyncContext } from './context/sync.context';
 import activityService from './services/activity.service';
 import apiKeyService from './services/apiKey.service';
 import encryptionService from './services/encryption.service';
@@ -28,11 +31,10 @@ export * from './utils/database';
 export * from './utils/enums';
 export * from './utils/helpers';
 
-export type { ActionContext } from './context/action.context';
-export type { BaseContext } from './context/base.context';
-export type { SyncContext } from './context/sync.context';
-
 export {
+  ActionContext,
+  BaseContext,
+  SyncContext,
   activityService,
   apiKeyService,
   encryptionService,

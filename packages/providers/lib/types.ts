@@ -1,4 +1,5 @@
-import { ActionContext, SyncContext } from '@kit/shared';
+import { ProxyOptions } from '@kit/node';
+import { AxiosResponse } from 'axios';
 import { z } from 'zod';
 
 export enum AuthScheme {
@@ -149,6 +150,22 @@ export const ProviderSpecificationSchema = z.object({
 
 export type ProviderSpecification = z.infer<typeof ProviderSpecificationSchema>;
 
-export type KitSyncContext = SyncContext;
+export interface BaseContext {
+  proxy<T = any>(options: ProxyOptions): Promise<AxiosResponse<T>>;
+  get<T = any>(options: Omit<ProxyOptions, 'method'>): Promise<AxiosResponse<T>>;
+  post<T = any>(options: Omit<ProxyOptions, 'method'>): Promise<AxiosResponse<T>>;
+  patch<T = any>(options: Omit<ProxyOptions, 'method'>): Promise<AxiosResponse<T>>;
+  put<T = any>(options: Omit<ProxyOptions, 'method'>): Promise<AxiosResponse<T>>;
+  delete<T = any>(options: Omit<ProxyOptions, 'method'>): Promise<AxiosResponse<T>>;
+}
 
-export type KitActionContext = ActionContext;
+export type PaginateOptions = Omit<ProxyOptions, 'integration' | 'linkedAccountId'> & {
+  pagination?: Partial<CursorPagination> | Partial<LinkPagination> | Partial<OffsetPagination>;
+};
+
+export interface SyncContext extends BaseContext {
+  lastSyncDate: Date | null;
+  paginate<T = any>(paginateOptions: PaginateOptions): AsyncGenerator<T[], undefined, void>;
+}
+
+export interface ActionContext extends BaseContext {}

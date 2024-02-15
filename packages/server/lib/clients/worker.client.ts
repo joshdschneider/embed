@@ -14,11 +14,11 @@ import {
   getTemporalUrl,
   isProd,
   now,
+  syncService,
 } from '@kit/shared';
 import { Connection, ScheduleOverlapPolicy, Client as TemporalClient } from '@temporalio/client';
 import fs from 'fs';
 import ms, { StringValue } from 'ms';
-import syncService from '../services/sync.service';
 
 const namespace = getTemporalNamespace();
 
