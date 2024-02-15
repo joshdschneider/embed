@@ -2,17 +2,27 @@ import { Sync, SyncJob, SyncSchedule } from '@prisma/client';
 import { Context } from '@temporalio/activity';
 import { SyncContext } from '../context/sync.context';
 import { database } from '../utils/database';
-import { SyncType } from '../utils/enums';
-import { unixToDate } from '../utils/helpers';
+import { LogLevel, SyncType } from '../utils/enums';
+import { now, unixToDate } from '../utils/helpers';
+import activityService from './activity.service';
 import apiKeyService from './apiKey.service';
 import errorService from './error.service';
+import providerService from './provider.service';
 
 class SyncService {
-  public async getSyncById(syncId: string): Promise<Sync | null> {
+  public async getSyncById(syncId: string): Promise<(Sync & { model_name: string }) | null> {
     try {
-      return await database.sync.findUnique({
+      const sync = await database.sync.findUnique({
         where: { id: syncId, deleted_at: null },
+        include: { model: { select: { name: true } } },
       });
+
+      if (!sync) {
+        return null;
+      } else {
+        const { model, ...rest } = sync;
+        return { ...rest, model_name: model.name };
+      }
     } catch (err) {
       await errorService.reportError(err);
       return null;
@@ -93,31 +103,53 @@ class SyncService {
   }) {
     const apiKeys = await apiKeyService.listApiKeys(environmentId);
     if (!apiKeys || apiKeys.length === 0 || !apiKeys[0]) {
-      throw new Error('No API keys found in environment');
+      const err = new Error(`Sync failed: No API keys found in environment`);
+      await errorService.reportError(err);
+
+      await activityService.createActivityLog(activityId, {
+        message: err.message,
+        level: LogLevel.Error,
+        timestamp: now(),
+        payload: { environmentId, linkedAccountId, integration, syncId, jobId, context },
+      });
+
+      return false;
     }
 
     const sync = await this.getSyncById(syncId);
     if (!sync) {
-      throw new Error(`Failed to get sync ${syncId}`);
+      const err = new Error(`Sync failed: Failed to fetch sync by ID ${syncId}`);
+      await errorService.reportError(err);
+
+      await activityService.createActivityLog(activityId, {
+        message: err.message,
+        level: LogLevel.Error,
+        timestamp: now(),
+        payload: { environmentId, linkedAccountId, integration, syncId, jobId, context },
+      });
+
+      return false;
     }
 
     const apiKey = apiKeys[0].key;
     const lastSyncDate = sync.last_synced_at ? unixToDate(sync.last_synced_at) : null;
 
-    const kit = new SyncContext({
+    const syncContext = new SyncContext({
       apiKey,
       integration,
       linkedAccountId,
       lastSyncDate,
+      syncId,
+      jobId,
+      activityId,
+      context,
     });
 
-    //  await providerService.
+    await providerService.syncProviderModel(integration, sync.model_name, syncContext);
 
-    // call sync model on provider registry
-    // pass in kit and model
-  }
-
-  public async reportSyncResults(syncResults: any) {
+    const results = await syncContext.finish();
+    // Update sync job
+    // Send webhook
     return true;
   }
 }

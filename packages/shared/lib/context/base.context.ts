@@ -16,7 +16,10 @@ export class BaseContext {
   constructor(options: BaseContextOptions) {
     this.integration = options.integration;
     this.linkedAccountId = options.linkedAccountId;
-    this.kit = new Kit({ apiKey: options.apiKey, host: options.host });
+    this.kit = new Kit({
+      apiKey: options.apiKey,
+      host: options.host,
+    });
   }
 
   public async proxy<T = any>(options: ProxyOptions): Promise<AxiosResponse<T>> {

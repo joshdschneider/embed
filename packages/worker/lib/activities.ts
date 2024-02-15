@@ -9,18 +9,12 @@ export async function runInitialSync(args: InitialSyncArgs): Promise<boolean | o
     message: `Starting initial sync for ${rest.linkedAccountId}`,
     level: LogLevel.Info,
     timestamp: now(),
-    payload: { ...rest },
+    payload: { ...rest, syncType: SyncType.Initial },
   });
 
   try {
     const context: Context = Context.current();
-    const syncResults = await syncService.runSync({
-      ...args,
-      type: SyncType.Initial,
-      context,
-    });
-
-    return await syncService.reportSyncResults(syncResults);
+    return await syncService.runSync({ ...args, type: SyncType.Initial, context });
   } catch (err) {
     await errorService.reportError(err);
 
@@ -28,7 +22,7 @@ export async function runInitialSync(args: InitialSyncArgs): Promise<boolean | o
       message: `Sync ${rest.syncId} failed to run`,
       level: LogLevel.Error,
       timestamp: now(),
-      payload: { ...rest },
+      payload: { ...rest, syncType: SyncType.Initial },
     });
   }
 
