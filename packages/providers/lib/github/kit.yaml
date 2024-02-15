@@ -24,7 +24,7 @@ syncs:
     model: Issue
 models:
   Issue:
-    id: integer
+    id: string
     owner: string
     repo: string
     issue_number: number

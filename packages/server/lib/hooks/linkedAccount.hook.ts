@@ -1,8 +1,7 @@
 import type { LinkedAccount } from '@kit/shared';
-import { Resource, errorService, generateId, now } from '@kit/shared';
+import { Resource, errorService, generateId, now, syncService } from '@kit/shared';
 import WorkerClient from '../clients/worker.client';
 import integrationService from '../services/integration.service';
-import syncService from '../services/sync.service';
 import webhookService from '../services/webhook.service';
 
 class LinkedAccountHook {
@@ -47,6 +46,7 @@ class LinkedAccountHook {
           linked_account_id: linkedAccount.id,
           model_id: model.id,
           frequency: model.frequency,
+          last_synced_at: null,
           created_at: now(),
           updated_at: now(),
           deleted_at: null,

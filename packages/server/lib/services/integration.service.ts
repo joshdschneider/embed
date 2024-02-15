@@ -1,9 +1,8 @@
 import type { Integration, SyncModel } from '@kit/shared';
-import { database, errorService, now } from '@kit/shared';
+import { database, errorService, now, providerService } from '@kit/shared';
 import fs from 'fs';
 import yaml from 'js-yaml';
 import path from 'path';
-import providerService from './provider.service';
 
 class IntegrationService {
   public async createIntegration(integration: Integration): Promise<Integration | null> {

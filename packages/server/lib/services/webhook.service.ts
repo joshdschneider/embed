@@ -4,6 +4,7 @@ import {
   Resource,
   activityService,
   database,
+  encryptionService,
   errorService,
   generateId,
   now,
@@ -11,7 +12,6 @@ import {
 import { backOff } from 'exponential-backoff';
 import { getWebhookSignatureHeader } from '../utils/helpers';
 import { WebhookBody } from '../utils/types';
-import encryptionService from './encryption.service';
 import environmentService from './environment.service';
 
 class WebhookService {

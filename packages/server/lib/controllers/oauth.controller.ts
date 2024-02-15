@@ -8,6 +8,7 @@ import {
   errorService,
   generateId,
   now,
+  providerService,
 } from '@kit/shared';
 import crypto from 'crypto';
 import type { Request, Response } from 'express';
@@ -20,7 +21,6 @@ import environmentService from '../services/environment.service';
 import integrationService from '../services/integration.service';
 import linkTokenService from '../services/linkToken.service';
 import linkedAccountService from '../services/linkedAccount.service';
-import providerService from '../services/provider.service';
 import {
   extractConfigurationKeys,
   getOauthCallbackUrl,
