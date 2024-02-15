@@ -1,5 +1,12 @@
+import { ActionContext } from './context/action.context';
+import { BaseContext } from './context/base.context';
+import { SyncContext } from './context/sync.context';
 import activityService from './services/activity.service';
+import apiKeyService from './services/apiKey.service';
+import encryptionService from './services/encryption.service';
 import errorService from './services/error.service';
+import providerService from './services/provider.service';
+import syncService from './services/sync.service';
 
 export type {
   Account,
@@ -24,4 +31,14 @@ export * from './utils/database';
 export * from './utils/enums';
 export * from './utils/helpers';
 
-export { activityService, errorService };
+export {
+  ActionContext,
+  BaseContext,
+  SyncContext,
+  activityService,
+  apiKeyService,
+  encryptionService,
+  errorService,
+  providerService,
+  syncService,
+};

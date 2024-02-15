@@ -14,11 +14,11 @@ import {
   getTemporalUrl,
   isProd,
   now,
+  syncService,
 } from '@kit/shared';
 import { Connection, ScheduleOverlapPolicy, Client as TemporalClient } from '@temporalio/client';
 import fs from 'fs';
 import ms, { StringValue } from 'ms';
-import syncService from '../services/sync.service';
 
 const namespace = getTemporalNamespace();
 
@@ -110,9 +110,11 @@ class WorkerClient {
           workflowId: job.id,
           args: [
             {
+              environmentId: linkedAccount.environment_id,
+              linkedAccountId: linkedAccount.id,
+              integration: linkedAccount.integration_provider,
               syncId: sync.id,
               jobId: job.id,
-              linkedAccountId: linkedAccount.id,
               activityId,
             },
           ],
@@ -147,8 +149,10 @@ class WorkerClient {
           taskQueue: SYNC_TASK_QUEUE,
           args: [
             {
-              syncId: sync.id,
+              environmentId: linkedAccount.environment_id,
               linkedAccountId: linkedAccount.id,
+              integration: linkedAccount.integration_provider,
+              syncId: sync.id,
               activityId,
             },
           ],

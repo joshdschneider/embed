@@ -2,13 +2,13 @@ import {
   DEFAULT_ERROR_MESSAGE,
   ErrorCode,
   Resource,
+  apiKeyService,
   errorService,
   generateId,
   now,
 } from '@kit/shared';
 import type { Request, Response } from 'express';
 import accountService from '../services/account.service';
-import apiKeyService from '../services/apiKey.service';
 import environmentService from '../services/environment.service';
 import integrationService from '../services/integration.service';
 import userService from '../services/user.service';

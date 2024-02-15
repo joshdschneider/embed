@@ -6,10 +6,10 @@ import {
   ErrorCode,
   errorService,
   now,
+  providerService,
 } from '@kit/shared';
 import type { Request, Response } from 'express';
 import integrationService from '../services/integration.service';
-import providerService from '../services/provider.service';
 
 class IntegrationController {
   public async listIntegrations(req: Request, res: Response) {

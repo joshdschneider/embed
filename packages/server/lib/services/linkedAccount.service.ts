@@ -1,6 +1,5 @@
 import type { LinkedAccount } from '@kit/shared';
-import { database, errorService, now } from '@kit/shared';
-import encryptionService from './encryption.service';
+import { database, encryptionService, errorService, now } from '@kit/shared';
 
 class LinkedAccountService {
   public async upsertLinkedAccount(linkedAccount: LinkedAccount): Promise<{

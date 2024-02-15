@@ -3,12 +3,12 @@ import {
   ENVIRONMENT_ID_LOCALS_KEY,
   ErrorCode,
   Resource,
+  apiKeyService,
   errorService,
   generateId,
   now,
 } from '@kit/shared';
 import type { Request, Response } from 'express';
-import apiKeyService from '../services/apiKey.service';
 import environmentService from '../services/environment.service';
 import { generateSecretKey } from '../utils/helpers';
 import { EnvironmentType } from '../utils/types';

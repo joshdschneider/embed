@@ -11,8 +11,17 @@
     "dev": "node dist/worker.js"
   },
   "dependencies": {
+    "@kit/node": "^0.1.0",
     "@kit/providers": "^0.1.0",
     "@kit/shared": "^0.1.0",
-    "@prisma/client": "^5.9.1"
+    "@prisma/client": "^5.9.1",
+    "@temporalio/activity": "^1.9.1",
+    "axios": "^1.6.7",
+    "lodash-es": "^4.17.21",
+    "parse-link-header": "^2.0.0"
+  },
+  "devDependencies": {
+    "@types/lodash-es": "^4.17.12",
+    "@types/parse-link-header": "^2.0.3"
   }
 }

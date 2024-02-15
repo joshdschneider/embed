@@ -1,6 +1,5 @@
-import { ErrorCode, errorService } from '@kit/shared';
+import { ErrorCode, errorService, providerService } from '@kit/shared';
 import type { Request, Response } from 'express';
-import providerService from '../services/provider.service';
 
 class ProviderController {
   public async listProviders(req: Request, res: Response): Promise<void> {
