@@ -18,6 +18,8 @@ export class SyncContext extends BaseContext {
   public jobId: string;
   public activityId: string | null;
   public lastSyncDate: Date | null;
+
+  private batchSize = 1000;
   private addedKeys: string[];
   private updatedKeys: string[];
   private deletedKeys: string[];
@@ -34,7 +36,7 @@ export class SyncContext extends BaseContext {
     this.deletedKeys = [];
 
     const temporal = options.context;
-    const heartbeat = 1000 * 60 * 5; // 5 min
+    const heartbeat = 1000 * 60 * 5;
     this.interval = setInterval(() => {
       temporal.heartbeat();
     }, heartbeat);
@@ -94,9 +96,15 @@ export class SyncContext extends BaseContext {
     }
   }
 
-  public async batchSave() {
+  public async batchSave<T = any>(results: T[], model: string): Promise<boolean | null> {
+    if (!results || results.length === 0) {
+      return true;
+    }
+
+    // format data
     // save data
     // update keys
+    return true;
   }
 
   public async finish() {
