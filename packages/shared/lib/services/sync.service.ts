@@ -29,6 +29,34 @@ class SyncService {
     }
   }
 
+  public async getSyncByModelId(
+    modelId: string,
+    linkedAccountId: string
+  ): Promise<(Sync & { model_name: string }) | null> {
+    try {
+      const sync = await database.sync.findUnique({
+        where: {
+          model_id_linked_account_id: {
+            model_id: modelId,
+            linked_account_id: linkedAccountId,
+          },
+          deleted_at: null,
+        },
+        include: { model: { select: { name: true } } },
+      });
+
+      if (!sync) {
+        return null;
+      } else {
+        const { model, ...rest } = sync;
+        return { ...rest, model_name: model.name };
+      }
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
+    }
+  }
+
   public async createSync(sync: Sync): Promise<Sync | null> {
     try {
       const existingSync = await database.sync.findUnique({
@@ -63,9 +91,32 @@ class SyncService {
 
   public async updateSyncJob(syncJobId: string, data: Partial<SyncJob>): Promise<SyncJob | null> {
     try {
+      const { id, sync_id, created_at, deleted_at, ...rest } = data;
       return await database.syncJob.update({
         where: { id: syncJobId },
-        data,
+        data: { ...rest, updated_at: now() },
+      });
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
+    }
+  }
+
+  public async getSyncJobById(syncJobId: string): Promise<SyncJob | null> {
+    try {
+      return await database.syncJob.findUnique({
+        where: { id: syncJobId, deleted_at: null },
+      });
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
+    }
+  }
+
+  public async listSyncJobs(syncId: string): Promise<SyncJob[] | null> {
+    try {
+      return await database.syncJob.findMany({
+        where: { sync_id: syncId, deleted_at: null },
       });
     } catch (err) {
       await errorService.reportError(err);
@@ -76,6 +127,43 @@ class SyncService {
   public async createSyncSchedule(syncSchedule: SyncSchedule): Promise<SyncSchedule | null> {
     try {
       return await database.syncSchedule.create({ data: syncSchedule });
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
+    }
+  }
+
+  public async updateSyncSchedule(
+    syncScheduleId: string,
+    { status, frequency, offset }: Partial<SyncSchedule>
+  ): Promise<SyncSchedule | null> {
+    try {
+      return await database.syncSchedule.update({
+        where: { id: syncScheduleId },
+        data: { status, frequency, offset, updated_at: now() },
+      });
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
+    }
+  }
+
+  public async getSyncScheduleById(syncScheduleId: string): Promise<SyncSchedule | null> {
+    try {
+      return await database.syncSchedule.findUnique({
+        where: { id: syncScheduleId, deleted_at: null },
+      });
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
+    }
+  }
+
+  public async listSyncSchedules(syncId: string): Promise<SyncSchedule[] | null> {
+    try {
+      return await database.syncSchedule.findMany({
+        where: { sync_id: syncId, deleted_at: null },
+      });
     } catch (err) {
       await errorService.reportError(err);
       return null;
