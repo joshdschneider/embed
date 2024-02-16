@@ -10,6 +10,7 @@ import {
   activityService,
   errorService,
   generateId,
+  getFrequencyInterval,
   getTemporalNamespace,
   getTemporalUrl,
   isProd,
@@ -20,7 +21,8 @@ import { Connection, ScheduleOverlapPolicy, Client as TemporalClient } from '@te
 import fs from 'fs';
 import ms, { StringValue } from 'ms';
 
-const namespace = getTemporalNamespace();
+const TEMPORAL_NAMESPACE = getTemporalNamespace();
+const OVERLAP_POLICY = ScheduleOverlapPolicy.BUFFER_ONE;
 
 class WorkerClient {
   private static instance: Promise<WorkerClient | null>;
@@ -45,8 +47,8 @@ class WorkerClient {
         tls: isProd()
           ? {
               clientCertPair: {
-                crt: fs.readFileSync(`/etc/secrets/${namespace}.crt`),
-                key: fs.readFileSync(`/etc/secrets/${namespace}.key`),
+                crt: fs.readFileSync(`/etc/secrets/${TEMPORAL_NAMESPACE}.crt`),
+                key: fs.readFileSync(`/etc/secrets/${TEMPORAL_NAMESPACE}.key`),
               },
             }
           : false,
@@ -54,7 +56,7 @@ class WorkerClient {
 
       const client = new TemporalClient({
         connection,
-        namespace,
+        namespace: TEMPORAL_NAMESPACE,
       });
 
       return new WorkerClient(client);
@@ -70,9 +72,24 @@ class WorkerClient {
     linkedAccount: LinkedAccount
   ): Promise<void> {
     if (!this.client) {
-      await errorService.reportError(new Error('Failed to initialize Temporal client'));
-      return;
+      return await errorService.reportError(new Error('Temporal client not initialized'));
     }
+
+    const syncJobId = generateId(Resource.SyncJob);
+
+    await syncService.createSyncJob({
+      id: syncJobId,
+      sync_id: sync.id,
+      status: syncModel.auto_start ? SyncStatus.Running : SyncStatus.Paused,
+      type: SyncType.Initial,
+      run_id: null,
+      added: null,
+      updated: null,
+      deleted: null,
+      created_at: now(),
+      updated_at: now(),
+      deleted_at: null,
+    });
 
     let activityId: string | null = null;
 
@@ -86,63 +103,61 @@ class WorkerClient {
         link_token_id: null,
         action_id: null,
         level: LogLevel.Info,
-        action: LogAction.Link,
+        action: LogAction.Sync,
         timestamp: now(),
       });
     }
 
     try {
-      const job = await syncService.createSyncJob({
-        id: generateId(Resource.SyncJob),
-        sync_id: sync.id,
-        status: syncModel.auto_start ? SyncStatus.Running : SyncStatus.Paused,
-        type: SyncType.Initial,
-        run_id: null,
-      });
-
-      if (!job) {
-        throw new Error(`Failed to create sync job for sync ${sync.id}`);
-      }
-
       if (syncModel.auto_start) {
         const handle = await this.client.workflow.start('initialSync', {
           taskQueue: SYNC_TASK_QUEUE,
-          workflowId: job.id,
+          workflowId: syncJobId,
           args: [
             {
               environmentId: linkedAccount.environment_id,
               linkedAccountId: linkedAccount.id,
               integration: linkedAccount.integration_provider,
               syncId: sync.id,
-              jobId: job.id,
+              syncJobId,
               activityId,
             },
           ],
         });
 
-        await syncService.updateSyncJob(job.id, {
+        await syncService.updateSyncJob(syncJobId, {
           run_id: handle.firstExecutionRunId,
         });
 
         await activityService.createActivityLog(activityId, {
           timestamp: now(),
           level: LogLevel.Info,
-          message: 'Initial sync started',
-          payload: { sync_job_id: job.id },
+          message: `Initial sync started for model ${syncModel.name}`,
+          payload: { sync_job_id: syncJobId },
         });
       }
 
-      const { interval, offset } = this.getInterval(syncModel.frequency as StringValue, new Date());
+      const { interval, offset, error } = getFrequencyInterval(
+        syncModel.frequency as StringValue,
+        new Date()
+      );
+
+      if (error !== null) {
+        await activityService.createActivityLog(activityId, {
+          timestamp: now(),
+          level: LogLevel.Error,
+          message: `Failed to start incremental sync schedule due to invalid frequency interval`,
+        });
+
+        return await errorService.reportError(new Error(error));
+      }
+
       const scheduleId = generateId(Resource.Schedule);
 
       const scheduleHandle = await this.client.schedule.create({
         scheduleId,
-        policies: {
-          overlap: ScheduleOverlapPolicy.BUFFER_ONE,
-        },
-        spec: {
-          intervals: [{ every: interval, offset }],
-        },
+        policies: { overlap: OVERLAP_POLICY },
+        spec: { intervals: [{ every: interval, offset }] },
         action: {
           type: 'startWorkflow',
           workflowType: 'continuousSync',
@@ -166,18 +181,20 @@ class WorkerClient {
       await syncService.createSyncSchedule({
         id: scheduleId,
         sync_id: sync.id,
-        sync_job_id: job.id,
         frequency: interval,
         offset,
         status: syncModel.auto_start === false ? ScheduleStatus.Paused : ScheduleStatus.Running,
+        created_at: now(),
+        updated_at: now(),
+        deleted_at: null,
       });
 
       if (syncModel.auto_start) {
         await activityService.createActivityLog(activityId, {
           timestamp: now(),
           level: LogLevel.Info,
-          message: 'Initial sync started',
-          payload: { sync_job_id: job.id },
+          message: `Started incremental background sync with ${interval} frequency`,
+          payload: { schedule_id: scheduleId, frequency: interval },
         });
       }
     } catch (err) {
@@ -191,24 +208,180 @@ class WorkerClient {
     }
   }
 
-  private getInterval(frequency: StringValue, date: Date) {
-    if (ms(frequency) < ms('5m')) {
-      throw new Error('Sync interval is too short');
+  public async startResync(
+    sync: Sync,
+    syncModel: SyncModel,
+    linkedAccount: LinkedAccount
+  ): Promise<void> {
+    if (!this.client) {
+      return await errorService.reportError(new Error('Temporal client not initialized'));
     }
 
-    if (!ms(frequency)) {
-      throw new Error('Invalid sync interval');
+    const syncJobs = (await syncService.listSyncJobs(sync.id)) || [];
+
+    for (const job of syncJobs) {
+      if (job.status === SyncStatus.Running) {
+        await this.terminateInitialSync(job.id);
+        await syncService.updateSyncJob(job.id, { status: SyncStatus.Stopped });
+      } else if (job.status === SyncStatus.Paused) {
+        await syncService.updateSyncJob(job.id, { status: SyncStatus.Stopped });
+      }
     }
 
-    const intervalMs = ms(frequency);
-    const nowMs = date.getMinutes() * 60 * 1000 + date.getSeconds() * 1000 + date.getMilliseconds();
-    const offset = nowMs % intervalMs;
+    const syncSchedules = (await syncService.listSyncSchedules(sync.id)) || [];
 
-    if (isNaN(offset)) {
-      throw new Error('Invalid sync interval');
+    for (const schedule of syncSchedules) {
+      if (schedule.status === ScheduleStatus.Running) {
+        await this.deleteSyncSchedule(schedule.id);
+        await syncService.updateSyncSchedule(schedule.id, { status: ScheduleStatus.Stopped });
+      }
     }
 
-    return { interval: frequency, offset: offset };
+    return await this.startInitialSync(sync, syncModel, linkedAccount);
+  }
+
+  public async terminateInitialSync(syncJobId: string): Promise<boolean> {
+    if (!this.client) {
+      await errorService.reportError(new Error('Temporal client not initialized'));
+      return false;
+    }
+
+    try {
+      const syncJob = await syncService.getSyncJobById(syncJobId);
+      if (!syncJob) {
+        return false;
+      }
+
+      await this.client.workflow.workflowService.terminateWorkflowExecution({
+        firstExecutionRunId: syncJob.run_id,
+      });
+      return true;
+    } catch (err) {
+      await errorService.reportError(err);
+      return false;
+    }
+  }
+
+  public async triggerSync(scheduleId: string): Promise<boolean> {
+    if (!this.client) {
+      await errorService.reportError(new Error('Temporal client not initialized'));
+      return false;
+    }
+
+    try {
+      const scheduleHandle = this.client.schedule.getHandle(scheduleId);
+      await scheduleHandle.trigger(OVERLAP_POLICY);
+      return true;
+    } catch (err) {
+      await errorService.reportError(err);
+      return false;
+    }
+  }
+
+  public async pauseSync(scheduleId: string): Promise<boolean> {
+    if (!this.client) {
+      await errorService.reportError(new Error('Temporal client not initialized'));
+      return false;
+    }
+
+    try {
+      const scheduleHandle = this.client.schedule.getHandle(scheduleId);
+      await scheduleHandle.pause();
+      return true;
+    } catch (err) {
+      await errorService.reportError(err);
+      return false;
+    }
+  }
+
+  public async unpauseSync(scheduleId: string): Promise<boolean> {
+    if (!this.client) {
+      await errorService.reportError(new Error('Temporal client not initialized'));
+      return false;
+    }
+
+    try {
+      const scheduleHandle = this.client.schedule.getHandle(scheduleId);
+      await scheduleHandle.unpause();
+      await scheduleHandle.trigger(OVERLAP_POLICY);
+      const schedule = await syncService.getSyncScheduleById(scheduleId);
+      if (schedule) {
+        const frequency = schedule.frequency as StringValue;
+        const { offset, error } = getFrequencyInterval(frequency, new Date());
+        if (error === null) {
+          await this.updateSyncSchedule(scheduleId, frequency, offset);
+          await syncService.updateSyncSchedule(scheduleId, { offset });
+        }
+      }
+      return true;
+    } catch (err) {
+      await errorService.reportError(err);
+      return false;
+    }
+  }
+
+  public async describeSyncSchedule(scheduleId: string) {
+    if (!this.client) {
+      await errorService.reportError(new Error('Temporal client not initialized'));
+      return null;
+    }
+
+    try {
+      return await this.client.workflowService.describeSchedule({
+        scheduleId,
+        namespace: TEMPORAL_NAMESPACE,
+      });
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
+    }
+  }
+
+  public async updateSyncSchedule(
+    scheduleId: string,
+    interval: StringValue,
+    offset: number
+  ): Promise<boolean> {
+    if (!this.client) {
+      await errorService.reportError(new Error('Temporal client not initialized'));
+      return false;
+    }
+
+    try {
+      const scheduleHandle = this.client.schedule.getHandle(scheduleId);
+      await scheduleHandle.update((prev) => {
+        prev.spec = {
+          intervals: [{ every: ms(interval), offset }],
+        };
+        return prev;
+      });
+      return true;
+    } catch (err) {
+      await errorService.reportError(err);
+      return false;
+    }
+  }
+
+  public async deleteSyncSchedule(scheduleId: string): Promise<boolean> {
+    if (!this.client) {
+      await errorService.reportError(new Error('Temporal client not initialized'));
+      return false;
+    }
+
+    try {
+      await this.client.workflowService.deleteSchedule({
+        scheduleId,
+        namespace: TEMPORAL_NAMESPACE,
+      });
+      return true;
+    } catch (err) {
+      await errorService.reportError(err);
+      return false;
+    }
+  }
+
+  public async triggerAction() {
+    throw new Error('Not implemented');
   }
 }
 

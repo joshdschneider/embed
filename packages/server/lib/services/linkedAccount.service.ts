@@ -1,5 +1,17 @@
 import type { LinkedAccount } from '@kit/shared';
-import { database, encryptionService, errorService, now } from '@kit/shared';
+import {
+  LogLevel,
+  Resource,
+  activityService,
+  database,
+  encryptionService,
+  errorService,
+  generateId,
+  now,
+  syncService,
+} from '@kit/shared';
+import WorkerClient from '../clients/worker.client';
+import integrationService from './integration.service';
 
 class LinkedAccountService {
   public async upsertLinkedAccount(linkedAccount: LinkedAccount): Promise<{
@@ -167,6 +179,100 @@ class LinkedAccountService {
     } catch (err) {
       await errorService.reportError(err);
       return null;
+    }
+  }
+
+  public async initiatePostLinkSyncs({
+    linkedAccount,
+    activityId,
+    action,
+  }: {
+    linkedAccount: LinkedAccount;
+    activityId: string | null;
+    action: 'created' | 'updated';
+  }): Promise<void> {
+    try {
+      const syncModels = await integrationService.getIntegrationSyncModels(
+        linkedAccount.integration_provider,
+        linkedAccount.environment_id
+      );
+
+      if (!syncModels) {
+        await activityService.createActivityLog(activityId, {
+          level: LogLevel.Error,
+          timestamp: now(),
+          message: `Failed to initiate sync for ${linkedAccount.id} due to an internal error`,
+        });
+
+        const err = new Error(`Failed to fetch sync models`);
+        return await errorService.reportError(err);
+      }
+
+      const enabledSyncModels = syncModels.filter((syncModel) => syncModel.is_enabled);
+      if (enabledSyncModels.length === 0) {
+        return;
+      }
+
+      const worker = await WorkerClient.getInstance();
+      if (!worker) {
+        await activityService.createActivityLog(activityId, {
+          level: LogLevel.Error,
+          timestamp: now(),
+          message: `Failed to initiate sync for ${linkedAccount.id} due to an internal error`,
+        });
+
+        const err = new Error('Failed to initialize Temporal client');
+        return await errorService.reportError(err);
+      }
+
+      for (const model of enabledSyncModels) {
+        const sync = await syncService.createSync({
+          id: generateId(Resource.Sync),
+          linked_account_id: linkedAccount.id,
+          model_id: model.id,
+          frequency: model.frequency,
+          last_synced_at: null,
+          created_at: now(),
+          updated_at: now(),
+          deleted_at: null,
+        });
+
+        if (!sync) {
+          await errorService.reportError(new Error(`Failed to create sync for ${model.name}`));
+
+          await activityService.createActivityLog(activityId, {
+            level: LogLevel.Error,
+            timestamp: now(),
+            message: `Failed to initiate sync for model ${model.name} due to an internal error`,
+          });
+
+          continue;
+        }
+
+        if (action === 'created') {
+          await worker.startInitialSync(sync, model, linkedAccount);
+        } else if (action === 'updated') {
+          await worker.startResync(sync, model, linkedAccount);
+        } else {
+          await errorService.reportError(new Error(`Unsupported post-link action ${action}`));
+
+          await activityService.createActivityLog(activityId, {
+            level: LogLevel.Error,
+            timestamp: now(),
+            message: `Failed to initiate sync for ${model.name} due to an internal error`,
+          });
+
+          continue;
+        }
+      }
+    } catch (err) {
+      await errorService.reportError(err);
+
+      await activityService.createActivityLog(activityId, {
+        level: LogLevel.Error,
+        timestamp: now(),
+        message: `Failed to initiate sync for ${linkedAccount.id} due to an internal error`,
+      });
     }
   }
 }

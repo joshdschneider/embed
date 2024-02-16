@@ -1,7 +1,5 @@
 import type { LinkedAccount } from '@kit/shared';
-import { Resource, errorService, generateId, now, syncService } from '@kit/shared';
-import WorkerClient from '../clients/worker.client';
-import integrationService from '../services/integration.service';
+import linkedAccountService from '../services/linkedAccount.service';
 import webhookService from '../services/webhook.service';
 
 class LinkedAccountHook {
@@ -14,56 +12,18 @@ class LinkedAccountHook {
     linkedAccount: LinkedAccount;
     activityId: string | null;
   }): Promise<void> {
-    webhookService.sendLinkedAccountCreatedWebhook({
+    webhookService.sendLinkedAccountWebhook({
       environmentId,
       linkedAccount,
       activityId,
+      action: 'created',
     });
 
-    try {
-      const syncModels = await integrationService.getIntegrationSyncModels(
-        linkedAccount.integration_provider,
-        linkedAccount.environment_id
-      );
-
-      if (!syncModels) {
-        throw new Error(`Failed to get sync models for ${linkedAccount.integration_provider}`);
-      }
-
-      const enabledSyncModels = syncModels.filter((syncModel) => syncModel.is_enabled);
-      if (enabledSyncModels.length === 0) {
-        return;
-      }
-
-      const worker = await WorkerClient.getInstance();
-      if (!worker) {
-        throw new Error('Failed to initialize Temporal client');
-      }
-
-      for (const model of enabledSyncModels) {
-        const sync = await syncService.createSync({
-          id: generateId(Resource.Sync),
-          linked_account_id: linkedAccount.id,
-          model_id: model.id,
-          frequency: model.frequency,
-          last_synced_at: null,
-          created_at: now(),
-          updated_at: now(),
-          deleted_at: null,
-        });
-
-        if (!sync) {
-          await errorService.reportError(
-            new Error(`Failed to create sync for ${model.integration_provider} ${model.name}`)
-          );
-          continue;
-        }
-
-        await worker.startInitialSync(sync, model, linkedAccount);
-      }
-    } catch (err) {
-      await errorService.reportError(err);
-    }
+    linkedAccountService.initiatePostLinkSyncs({
+      linkedAccount,
+      activityId,
+      action: 'created',
+    });
   }
 
   public async linkedAccountUpdated({
@@ -75,7 +35,18 @@ class LinkedAccountHook {
     linkedAccount: LinkedAccount;
     activityId: string | null;
   }): Promise<void> {
-    // todo
+    webhookService.sendLinkedAccountWebhook({
+      environmentId,
+      linkedAccount,
+      activityId,
+      action: 'updated',
+    });
+
+    linkedAccountService.initiatePostLinkSyncs({
+      linkedAccount,
+      activityId,
+      action: 'updated',
+    });
   }
 }
 

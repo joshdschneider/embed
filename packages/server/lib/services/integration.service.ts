@@ -87,9 +87,7 @@ class IntegrationService {
       });
 
       if (!integration) {
-        throw new Error(
-          `Integration ${integrationProvider} not found in environment ${environmentId}`
-        );
+        return null;
       }
 
       return integration.sync_models;
