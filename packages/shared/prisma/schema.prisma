@@ -64,26 +64,6 @@ model ApiKey {
   environment Environment @relation(fields: [environment_id], references: [id])
 }
 
-model Integration {
-  provider               String
-  environment_id         String
-  is_enabled             Boolean
-  use_client_credentials Boolean
-  oauth_client_id        String?
-  oauth_client_secret    String?
-  oauth_scopes           String?
-  rank                   Int?
-  created_at             Int
-  updated_at             Int?
-  deleted_at             Int?
-
-  sync_models SyncModel[]
-
-  environment Environment @relation(fields: [environment_id], references: [id])
-
-  @@unique([provider, environment_id])
-}
-
 model LinkToken {
   id                     String  @id
   environment_id         String
@@ -129,15 +109,38 @@ model LinkedAccount {
 
   activities Activity[]
   syncs      Sync[]
+  actions    Action[]
 
   environment Environment @relation(fields: [environment_id], references: [id])
 }
 
-model SyncModel {
-  id                   String   @id
+model Integration {
+  provider               String
+  environment_id         String
+  is_enabled             Boolean
+  use_client_credentials Boolean
+  oauth_client_id        String?
+  oauth_client_secret    String?
+  oauth_scopes           String?
+  rank                   Int?
+  created_at             Int
+  updated_at             Int?
+  deleted_at             Int?
+
+  sync_configurations   SyncConfiguration[]
+  action_configurations ActionConfiguration[]
+  syncs                 Sync[]
+  actions               Action[]
+
+  environment Environment @relation(fields: [environment_id], references: [id])
+
+  @@unique([provider, environment_id])
+}
+
+model SyncConfiguration {
+  model                String
   integration_provider String
   environment_id       String
-  name                 String
   is_enabled           Boolean
   frequency            String
   auto_start           Boolean
@@ -150,41 +153,58 @@ model SyncModel {
 
   integration Integration @relation(fields: [integration_provider, environment_id], references: [provider, environment_id])
 
+  @@unique([model, integration_provider])
+}
+
+model ActionConfiguration {
+  name                 String
+  integration_provider String
+  environment_id       String
+  is_enabled           Boolean
+  created_at           Int
+  updated_at           Int?
+  deleted_at           Int?
+
+  actions Action[]
+
+  integration Integration @relation(fields: [integration_provider, environment_id], references: [provider, environment_id])
+
   @@unique([name, integration_provider])
 }
 
 model Sync {
-  id                String @id
-  linked_account_id String
-  model_id          String
-  frequency         String
-  last_synced_at    Int?
-  created_at        Int
-  updated_at        Int?
-  deleted_at        Int?
+  id                   String @id
+  environment_id       String
+  linked_account_id    String
+  integration_provider String
+  model                String
+  frequency            String
+  last_synced_at       Int?
+  created_at           Int
+  updated_at           Int?
+  deleted_at           Int?
 
-  jobs       SyncJob[]
+  runs       SyncRun[]
   schedules  SyncSchedule[]
   activities Activity[]
 
-  linked_account LinkedAccount @relation(fields: [linked_account_id], references: [id])
-  model          SyncModel     @relation(fields: [model_id], references: [id])
-
-  @@unique([model_id, linked_account_id])
+  linked_account LinkedAccount     @relation(fields: [linked_account_id], references: [id])
+  integration    Integration       @relation(fields: [integration_provider, environment_id], references: [provider, environment_id])
+  configuration  SyncConfiguration @relation(fields: [model, integration_provider], references: [model, integration_provider])
 }
 
-model SyncJob {
-  id         String  @id
-  sync_id    String
-  type       String
-  status     String
-  run_id     String?
-  added      Int?
-  updated    Int?
-  deleted    Int?
-  created_at Int
-  updated_at Int?
-  deleted_at Int?
+model SyncRun {
+  id              String  @id
+  sync_id         String
+  type            String
+  status          String
+  temporal_run_id String?
+  added           Int?
+  updated         Int?
+  deleted         Int?
+  created_at      Int
+  updated_at      Int?
+  deleted_at      Int?
 
   sync Sync @relation(fields: [sync_id], references: [id])
 }
@@ -200,6 +220,18 @@ model SyncSchedule {
   deleted_at Int?
 
   sync Sync @relation(fields: [sync_id], references: [id])
+}
+
+model Action {
+  id                   String @id
+  environment_id       String
+  linked_account_id    String
+  integration_provider String
+  name                 String
+
+  linked_account LinkedAccount       @relation(fields: [linked_account_id], references: [id])
+  integration    Integration         @relation(fields: [integration_provider, environment_id], references: [provider, environment_id])
+  configuration  ActionConfiguration @relation(fields: [name, integration_provider], references: [name, integration_provider])
 }
 
 model Webhook {

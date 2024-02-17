@@ -6,6 +6,7 @@ import apiKeyService from './services/apiKey.service';
 import encryptionService from './services/encryption.service';
 import errorService from './services/error.service';
 import providerService from './services/provider.service';
+import proxyService from './services/proxy.service';
 import syncService from './services/sync.service';
 
 export type {
@@ -40,5 +41,6 @@ export {
   encryptionService,
   errorService,
   providerService,
+  proxyService,
   syncService,
 };

@@ -5,7 +5,6 @@ import { database } from '../utils/database';
 import { LogLevel, SyncType } from '../utils/enums';
 import { now, unixToDate } from '../utils/helpers';
 import activityService from './activity.service';
-import apiKeyService from './apiKey.service';
 import errorService from './error.service';
 import providerService from './provider.service';
 
@@ -189,21 +188,6 @@ class SyncService {
     activityId: string | null;
     context: Context;
   }) {
-    const apiKeys = await apiKeyService.listApiKeys(environmentId);
-    if (!apiKeys || apiKeys.length === 0 || !apiKeys[0]) {
-      const err = new Error(`Sync failed: No API keys found in environment`);
-      await errorService.reportError(err);
-
-      await activityService.createActivityLog(activityId, {
-        message: err.message,
-        level: LogLevel.Error,
-        timestamp: now(),
-        payload: { environmentId, linkedAccountId, integration, syncId, jobId, context },
-      });
-
-      return false;
-    }
-
     const sync = await this.getSyncById(syncId);
     if (!sync) {
       const err = new Error(`Sync failed: Failed to fetch sync by ID ${syncId}`);
@@ -219,11 +203,9 @@ class SyncService {
       return false;
     }
 
-    const apiKey = apiKeys[0].key;
     const lastSyncDate = sync.last_synced_at ? unixToDate(sync.last_synced_at) : null;
 
     const syncContext = new SyncContext({
-      apiKey,
       integration,
       linkedAccountId,
       lastSyncDate,
