@@ -3,9 +3,9 @@ import {
   ENVIRONMENT_ID_LOCALS_KEY,
   ErrorCode,
   errorService,
+  linkedAccountService,
 } from '@kit/shared';
 import type { Request, Response } from 'express';
-import linkedAccountService from '../services/linkedAccount.service';
 
 class LinkedAccountController {
   public async listLinkedAccounts(req: Request, res: Response) {

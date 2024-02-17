@@ -1,7 +1,5 @@
-import { syncService } from '@kit/shared';
+import { integrationService, linkedAccountService, syncService } from '@kit/shared';
 import { StringValue } from 'ms';
-import integrationService from './integration.service';
-import linkedAccountService from './linkedAccount.service';
 
 class Orchestrator {
   public async startSync(linkedAccountId: string, models: string[]): Promise<void> {

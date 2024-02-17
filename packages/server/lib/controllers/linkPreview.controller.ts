@@ -5,11 +5,11 @@ import {
   ENVIRONMENT_ID_LOCALS_KEY,
   errorService,
   getServerUrl,
+  integrationService,
   providerService,
 } from '@kit/shared';
 import type { Request, Response } from 'express';
 import environmentService from '../services/environment.service';
-import integrationService from '../services/integration.service';
 import { DEFAULT_BRANDING } from '../utils/constants';
 import type { ConsentTemplateData, ErrorTemplateData, ListTemplateData } from '../utils/types';
 
