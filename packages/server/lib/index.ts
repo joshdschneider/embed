@@ -21,6 +21,7 @@ import linkTokenRouter from './routes/linkToken.router';
 import linkedAccountRouter from './routes/linkedAccount.router';
 import oauthRouter from './routes/oauth.router';
 import providerRouter from './routes/provider.router';
+import proxyRouter from './routes/proxy.router';
 import userRouter from './routes/user.router';
 import webhookRouter from './routes/webhook.router';
 import { corsOptions } from './utils/cors';
@@ -55,6 +56,7 @@ function setupExpressApp() {
   app.use('/linked-accounts', linkedAccountRouter);
   app.use('/jobs', jobRouter);
   app.use('/webhooks', webhookRouter);
+  app.use('/proxy', proxyRouter);
 
   return app;
 }
