@@ -1,5 +1,5 @@
 import type { LinkedAccount } from '@kit/shared';
-import linkedAccountService from '../services/linkedAccount.service';
+import { linkedAccountService } from '@kit/shared';
 import webhookService from '../services/webhook.service';
 
 class LinkedAccountHook {

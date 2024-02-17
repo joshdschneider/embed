@@ -5,12 +5,12 @@ import {
   apiKeyService,
   errorService,
   generateId,
+  integrationService,
   now,
 } from '@kit/shared';
 import type { Request, Response } from 'express';
 import accountService from '../services/account.service';
 import environmentService from '../services/environment.service';
-import integrationService from '../services/integration.service';
 import userService from '../services/user.service';
 import { DEFAULT_BRANDING } from '../utils/constants';
 import { generateSecretKey } from '../utils/helpers';
