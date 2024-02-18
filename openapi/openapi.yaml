@@ -1,0 +1,209 @@
+openapi: 3.0.0
+info:
+  title: Kit API
+  description: The Kit REST API. Please see https://docs.kit.zip/api-reference for more details.
+  version: '1.0.0'
+  termsOfService: https://kit.zip/policies/terms-of-use
+  contact:
+    name: Kit Support
+    email: support@kit.zip
+servers:
+  - url: https://api.kit.zip/v1
+tags:
+  - name: Integrations
+    description: An integration represents a connection between your application and a third-party platform.
+  - name: Link Tokens
+    description: Use a link token to connect your end user to an integration.
+  - name: Linked Accounts
+    description: A linked account represents a connection between your end user and an integration.
+  - name: Webhooks
+    description: Use webhooks to listen for events related to your linked accounts.
+paths:
+  /integrations:
+    get:
+      operationId: listIntegrations
+      tags:
+        - Integrations
+      summary: Returns a list of assistants.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListIntegrationsResponse'
+      x-kitMeta:
+        name: List integrations
+        group: integrations
+        returns: A list of [integration](/api/integrations/object) objects.
+        examples:
+          request:
+            curl: |
+              curl "https://api.kit.zip/v1/integrations" \
+                -H "Content-Type: application/json" \
+                -H "Authorization: Bearer $KIT_API_KEY" \
+            python: |
+              from kit import Kit
+              client = Kit()
+
+              my_integrations = client.integrations.list()
+
+              print(my_integrations.data)
+            node.js: |-
+              import Kit from "@kit/node";
+
+              const kit = new Kit();
+
+              async function main() {
+                const myIntegrations = await kit.integrations.list();
+
+                console.log(myIntegrations.data);
+              }
+
+              main();
+          response: &list_integrations_example |
+            {
+              "object": "list",
+              "data": [
+                {
+                  "object": "integration",
+                  "slug": "github",
+                  "name": "Github",
+                  "description": "Search code, issues, and more.",
+                  "logo_url": "https://kit-integrations.s3.amazonaws.com/github.svg",
+                  "logo_url_dark_mode": "https://kit-integrations.s3.amazonaws.com/github-dark.svg",
+                  "is_enabled": true,
+                  "auth_scheme": "oauth2",
+                  "use_oauth_credentials": false,
+                  "oauth_client_id": null,
+                  "oauth_client_secret": null,
+                },
+                {
+                  "object": "integration",
+                  "slug": "github",
+                  "name": "Github",
+                  "description": "Search code, issues, and more.",
+                  "logo_url": "https://kit-integrations.s3.amazonaws.com/github.svg",
+                  "logo_url_dark_mode": "https://kit-integrations.s3.amazonaws.com/github-dark.svg",
+                  "is_enabled": true,
+                  "auth_scheme": "oauth2",
+                  "use_oauth_credentials": false,
+                  "oauth_client_id": null,
+                  "oauth_client_secret": null,
+                },
+                {
+                  "object": "integration",
+                  "slug": "github",
+                  "name": "Github",
+                  "description": "Search code, issues, and more.",
+                  "logo_url": "https://kit-integrations.s3.amazonaws.com/github.svg",
+                  "logo_url_dark_mode": "https://kit-integrations.s3.amazonaws.com/github-dark.svg",
+                  "is_enabled": true,
+                  "auth_scheme": "oauth2",
+                  "use_oauth_credentials": false,
+                  "oauth_client_id": null,
+                  "oauth_client_secret": null,
+                }
+              ]
+            }
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: http
+      scheme: 'bearer'
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+          nullable: true
+        message:
+          type: string
+          nullable: false
+        param:
+          type: string
+          nullable: true
+        type:
+          type: string
+          nullable: false
+      required:
+        - type
+        - message
+        - param
+        - code
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          $ref: '#/components/schemas/Error'
+      required:
+        - error
+
+    ListIntegrationsResponse:
+      type: object
+      properties:
+        object:
+          type: string
+          enum: [list]
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Integration'
+      required:
+        - object
+        - data
+      x-kitMeta:
+        name: List integrations response object
+        group: integrations
+        example: *list_integrations_example
+
+    Integration:
+      title: Integration
+      description: Describes a connection between a third-party integration provider and your application.
+      properties:
+        object:
+          type: string
+          description: The object type, which is always "integration".
+          enum: [integration]
+        slug:
+          type: string
+          description: The unique identifier for the integration.
+        name:
+          type: string
+          description: The display name of the integration provider.
+        description:
+          type: string
+          description: A brief description of the integration provider.
+        logo_url:
+          type: string
+          description: The logo URL of the integration provider.
+        logo_url_dark_mode:
+          type: string
+          description: The logo URL of the integration provider suitable for dark backgrounds.
+          nullable: true
+        is_enabled:
+          type: boolean
+          description: Whether or not the integration is enabled.
+        auth_scheme:
+          type: string
+          enum: ['oauth2', 'oauth1', 'api_key', 'basic', 'none']
+        use_oauth_credentials:
+          type: boolean
+          description: If true, your application's OAuth credentials will be used instead of Kit's.
+        oauth_client_id:
+          type: string
+          description: Your application's OAuth Client ID.
+          nullable: true
+        oauth_client_secret:
+          type: string
+          description: Your application's OAuth Client Secret.
+          nullable: true
+      required:
+        - object
+        - slug
+        - is_enabled
+        - use_client_credentials

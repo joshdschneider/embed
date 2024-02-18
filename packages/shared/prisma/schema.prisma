@@ -117,17 +117,17 @@ model LinkedAccount {
 }
 
 model Integration {
-  slug                   String
-  environment_id         String
-  is_enabled             Boolean
-  use_client_credentials Boolean
-  oauth_client_id        String?
-  oauth_client_secret    String?
-  oauth_scopes           String?
-  rank                   Int?
-  created_at             Int
-  updated_at             Int
-  deleted_at             Int?
+  slug                  String
+  environment_id        String
+  is_enabled            Boolean
+  use_oauth_credentials Boolean
+  oauth_client_id       String?
+  oauth_client_secret   String?
+  oauth_scopes          String?
+  rank                  Int?
+  created_at            Int
+  updated_at            Int
+  deleted_at            Int?
 
   linked_accounts LinkedAccount[]
   syncs           IntegrationSync[]
