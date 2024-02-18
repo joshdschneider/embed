@@ -24,7 +24,7 @@ paths:
       operationId: listIntegrations
       tags:
         - Integrations
-      summary: Returns a list of assistants.
+      summary: Returns a list of integrations.
       responses:
         '200':
           description: OK
@@ -106,6 +106,145 @@ paths:
                 }
               ]
             }
+  /integrations/{integration_slug}:
+    get:
+      operationId: getIntegration
+      tags:
+        - Integrations
+      summary: Retrieves an integration.
+      parameters:
+        - in: path
+          name: integration_slug
+          required: true
+          schema:
+            type: string
+          description: The slug of the integration to retrieve.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntegrationObject'
+      x-kitMeta:
+        name: Retrieve integration
+        group: integrations
+        returns: The [integration](/api/integrations/object) object matching the specified slug.
+        examples:
+          request:
+            curl: |
+              curl https://api.kit.zip/v1/integrations/github \
+                -H "Content-Type: application/json" \
+                -H "Authorization: Bearer $KIT_API_KEY" \
+            python: |
+              from kit import Kit
+              client = Kit()
+
+              my_integration = client.integrations.retrieve("github")
+
+              print(my_integration)
+            node.js: |-
+              import Kit from "@kit/node";
+
+              const kit = new Kit();
+
+              async function main() {
+                const myIntegration = await kit.integrations.retrieve("github");
+
+                console.log(myIntegration);
+              }
+
+              main();
+          response: &retrieve_integration_example |
+            {
+              "object": "integration",
+              "slug": "github",
+              "name": "Github",
+              "description": "Search code, issues, and more.",
+              "logo_url": "https://kit-integrations.s3.amazonaws.com/github.svg",
+              "logo_url_dark_mode": "https://kit-integrations.s3.amazonaws.com/github-dark.svg",
+              "is_enabled": true,
+              "auth_scheme": "oauth2",
+              "use_oauth_credentials": false,
+              "oauth_client_id": null,
+              "oauth_client_secret": null,
+            }
+    post:
+      operationId: modifyIntegration
+      tags:
+        - Integration
+      summary: Modifies an integration.
+      parameters:
+        - in: path
+          name: integration_slug
+          required: true
+          schema:
+            type: string
+          description: The slug of the integration to modify.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModifyIntegrationRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntegrationObject'
+      x-kitMeta:
+        name: Modify integration
+        group: integrations
+        beta: true
+        returns: The modified [integration](/api/integrations/object) object.
+        examples:
+          request:
+            curl: |
+              curl https://api.kit.zip/v1/integrations/github \
+                -H "Content-Type: application/json" \
+                -H "Authorization: Bearer $KIT_API_KEY" \
+                -d '{ "is_enabled": false }'
+            python: |
+              from kit import Kit
+              client = Kit()
+
+              my_updated_integration = client.integrations.update(
+                "github",
+                { is_enabled: false }
+              )
+
+              print(my_updated_integration)
+            node.js: |-
+              import Kit from "@kit/node";
+
+              const kit = new Kit();
+
+              async function main() {
+                const myUpdatedIntegration = await kit.integrations.update(
+                  "github",
+                  { is_enabled: false }
+                );
+
+                console.log(myUpdatedIntegration);
+              }
+
+              main();
+          response: |
+            {
+              "object": "integration",
+              "slug": "github",
+              "name": "Github",
+              "description": "Search code, issues, and more.",
+              "logo_url": "https://kit-integrations.s3.amazonaws.com/github.svg",
+              "logo_url_dark_mode": "https://kit-integrations.s3.amazonaws.com/github-dark.svg",
+              "is_enabled": false,
+              "auth_scheme": "oauth2",
+              "use_oauth_credentials": false,
+              "oauth_client_id": null,
+              "oauth_client_secret": null,
+            }
 
 components:
   securitySchemes:
@@ -143,25 +282,7 @@ components:
       required:
         - error
 
-    ListIntegrationsResponse:
-      type: object
-      properties:
-        object:
-          type: string
-          enum: [list]
-        data:
-          type: array
-          items:
-            $ref: '#/components/schemas/Integration'
-      required:
-        - object
-        - data
-      x-kitMeta:
-        name: List integrations response object
-        group: integrations
-        example: *list_integrations_example
-
-    Integration:
+    IntegrationObject:
       title: Integration
       description: Describes a connection between a third-party integration provider and your application.
       properties:
@@ -187,23 +308,71 @@ components:
           nullable: true
         is_enabled:
           type: boolean
-          description: Whether or not the integration is enabled.
+          description: &integration_is_enabled_description |
+            Whether or not the integration is enabled.
         auth_scheme:
           type: string
           enum: ['oauth2', 'oauth1', 'api_key', 'basic', 'none']
         use_oauth_credentials:
           type: boolean
-          description: If true, your application's OAuth credentials will be used instead of Kit's.
+          description: &integration_use_oauth_credentials_description |
+            If true, your application's OAuth credentials will be used instead of Kit's.
         oauth_client_id:
           type: string
-          description: Your application's OAuth Client ID.
+          description: &integration_oauth_client_id_description |
+            Your application's OAuth Client ID.
           nullable: true
         oauth_client_secret:
           type: string
-          description: Your application's OAuth Client Secret.
+          description: &integration_oauth_client_secret_description |
+            Your application's OAuth Client Secret.
           nullable: true
       required:
         - object
         - slug
         - is_enabled
         - use_client_credentials
+      x-kitMeta:
+        name: The integration object
+        example: *retrieve_integration_example
+
+    ModifyIntegrationRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        is_enabled:
+          type: boolean
+          description: *integration_is_enabled_description
+          nullable: true
+        use_oauth_credentials:
+          type: boolean
+          description: *integration_use_oauth_credentials_description
+          nullable: true
+        oauth_client_id:
+          type: string
+          description: *integration_oauth_client_id_description
+          nullable: true
+          maxLength: 256
+        oauth_client_secret:
+          type: string
+          description: *integration_oauth_client_secret_description
+          nullable: true
+          maxLength: 512
+
+    ListIntegrationsResponse:
+      type: object
+      properties:
+        object:
+          type: string
+          enum: [list]
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/IntegrationObject'
+      required:
+        - object
+        - data
+      x-kitMeta:
+        name: List integrations response object
+        group: integrations
+        example: *list_integrations_example
