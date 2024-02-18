@@ -101,8 +101,10 @@ export interface BasicTemplateData extends DefaultTemplateData {
   };
 }
 
-export interface LinkedAccountCreatedWebhookBody {
-  event: 'linked_account.created';
+export type WebhookEvent = 'linked_account.created' | 'linked_account.updated';
+
+export interface LinkedAccountWebhookBody {
+  event: WebhookEvent;
   environment: string;
   integration: string;
   linked_account_id: string;
@@ -111,14 +113,4 @@ export interface LinkedAccountCreatedWebhookBody {
   updated_at: number | null;
 }
 
-export interface LinkedAccountUpdatedWebhookBody {
-  event: 'linked_account.updated';
-  environment: string;
-  integration: string;
-  linked_account_id: string;
-  metadata: any;
-  created_at: number;
-  updated_at: number | null;
-}
-
-export type WebhookBody = LinkedAccountCreatedWebhookBody | LinkedAccountUpdatedWebhookBody;
+export type WebhookBody = LinkedAccountWebhookBody;

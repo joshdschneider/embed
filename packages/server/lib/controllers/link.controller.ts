@@ -8,6 +8,8 @@ import {
   errorService,
   generateId,
   getServerUrl,
+  integrationService,
+  linkedAccountService,
   now,
   providerService,
 } from '@kit/shared';
@@ -15,9 +17,7 @@ import type { Request, Response } from 'express';
 import publisher from '../clients/publisher.client';
 import linkedAccountHook from '../hooks/linkedAccount.hook';
 import environmentService from '../services/environment.service';
-import integrationService from '../services/integration.service';
 import linkTokenService from '../services/linkToken.service';
-import linkedAccountService from '../services/linkedAccount.service';
 import {
   appendParamsToUrl,
   extractConfigurationKeys,

@@ -5,11 +5,11 @@ import {
   ENVIRONMENT_ID_LOCALS_KEY,
   ErrorCode,
   errorService,
+  integrationService,
   now,
   providerService,
 } from '@kit/shared';
 import type { Request, Response } from 'express';
-import integrationService from '../services/integration.service';
 
 class IntegrationController {
   public async listIntegrations(req: Request, res: Response) {

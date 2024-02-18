@@ -1,8 +1,11 @@
-import type { Integration, SyncModel } from '@kit/shared';
-import { database, errorService, now, providerService } from '@kit/shared';
+import { Integration, SyncModel } from '@prisma/client';
 import fs from 'fs';
 import yaml from 'js-yaml';
 import path from 'path';
+import { database } from '../utils/database';
+import { now } from '../utils/helpers';
+import errorService from './error.service';
+import providerService from './provider.service';
 
 class IntegrationService {
   public async createIntegration(integration: Integration): Promise<Integration | null> {
@@ -87,9 +90,7 @@ class IntegrationService {
       });
 
       if (!integration) {
-        throw new Error(
-          `Integration ${integrationProvider} not found in environment ${environmentId}`
-        );
+        return null;
       }
 
       return integration.sync_models;
