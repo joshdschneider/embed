@@ -2,7 +2,7 @@ import axios, { AxiosRequestConfig, AxiosResponse } from 'axios';
 
 const DEFAULT_HOST = 'https://api.kit.zip';
 
-type HttpMethod =
+export type HttpMethod =
   | 'GET'
   | 'POST'
   | 'PATCH'
@@ -86,6 +86,10 @@ export default class Kit {
     const config: AxiosRequestConfig = {
       headers: this.attachAuthorization(headers),
     };
+
+    if (options.params) {
+      config.params = options.params;
+    }
 
     if (!options.method || options.method.toUpperCase() === 'GET') {
       return axios.get(url, config);

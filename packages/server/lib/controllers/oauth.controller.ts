@@ -7,6 +7,8 @@ import {
   activityService,
   errorService,
   generateId,
+  integrationService,
+  linkedAccountService,
   now,
   providerService,
 } from '@kit/shared';
@@ -18,9 +20,7 @@ import { getSimpleOAuth2ClientConfig } from '../clients/oauth2.client';
 import publisher from '../clients/publisher.client';
 import linkedAccountHook from '../hooks/linkedAccount.hook';
 import environmentService from '../services/environment.service';
-import integrationService from '../services/integration.service';
 import linkTokenService from '../services/linkToken.service';
-import linkedAccountService from '../services/linkedAccount.service';
 import {
   extractConfigurationKeys,
   getOauthCallbackUrl,

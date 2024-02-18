@@ -11,7 +11,7 @@ import {
 } from '@kit/shared';
 import { backOff } from 'exponential-backoff';
 import { getWebhookSignatureHeader } from '../utils/helpers';
-import { WebhookBody } from '../utils/types';
+import { WebhookBody, WebhookEvent } from '../utils/types';
 import environmentService from './environment.service';
 
 class WebhookService {
@@ -144,33 +144,71 @@ class WebhookService {
     return delivered;
   }
 
-  public async sendLinkedAccountCreatedWebhook({
+  public async sendLinkedAccountWebhook({
     environmentId,
     linkedAccount,
     activityId,
+    action,
   }: {
     environmentId: string;
     linkedAccount: LinkedAccount;
     activityId: string | null;
+    action: 'created' | 'updated';
   }): Promise<void> {
     const webhooks = await this.listWebhooks(environmentId);
+
     if (!webhooks) {
-      return;
+      await activityService.createActivityLog(activityId, {
+        timestamp: now(),
+        level: LogLevel.Error,
+        message: `Failed to deliver webhook due to an internal error`,
+      });
+
+      return await errorService.reportError(new Error('Failed to list webhooks'));
     }
 
     const enabledWebhooks = webhooks.filter((webhook) => webhook.is_enabled);
-    const environment = await environmentService.getEnvironmentById(environmentId);
-    if (!environment) {
+    if (enabledWebhooks.length === 0) {
       return;
+    }
+
+    const environment = await environmentService.getEnvironmentById(environmentId);
+
+    if (!environment) {
+      await activityService.createActivityLog(activityId, {
+        timestamp: now(),
+        level: LogLevel.Error,
+        message: `Failed to deliver webhook due to an internal error`,
+      });
+
+      const err = new Error('Failed to retrieve environment');
+      return await errorService.reportError(err);
+    }
+
+    let event: WebhookEvent;
+
+    if (action === 'created') {
+      event = 'linked_account.created';
+    } else if (action === 'updated') {
+      event = 'linked_account.updated';
+    } else {
+      await activityService.createActivityLog(activityId, {
+        timestamp: now(),
+        level: LogLevel.Error,
+        message: `Failed to deliver webhook due to an unsupported action`,
+      });
+
+      const err = new Error(`Unsupported action: ${action}`);
+      return await errorService.reportError(err);
     }
 
     const results = [];
 
     try {
       for (const webhook of enabledWebhooks) {
-        if (webhook.events.includes('linked_account.created')) {
+        if (webhook.events.includes(event)) {
           const delivered = await this.sendWebhook(webhook, {
-            event: 'linked_account.created',
+            event: event,
             environment: environment.type,
             integration: linkedAccount.integration_provider,
             linked_account_id: linkedAccount.id,
@@ -178,11 +216,13 @@ class WebhookService {
             created_at: linkedAccount.created_at,
             updated_at: linkedAccount.updated_at,
           });
+
           results.push({ delivered, url: webhook.url });
         }
       }
 
       const deliveredCount = results.filter((result) => result.delivered).length;
+
       if (deliveredCount === 0) {
         throw new Error('Failed to deliver webhook(s)');
       }
@@ -196,7 +236,7 @@ class WebhookService {
         timestamp: now(),
         level: LogLevel.Info,
         message,
-        payload: { event: 'linked_account.created', results },
+        payload: { event, results },
       });
     } catch (err) {
       await errorService.reportError(err);
@@ -204,74 +244,8 @@ class WebhookService {
       await activityService.createActivityLog(activityId, {
         timestamp: now(),
         level: LogLevel.Error,
-        message: `Failed to deliver webhook`,
-        payload: { event: 'linked_account.created', results },
-      });
-    }
-  }
-
-  public async sendLinkedAccountUpdatedWebhook({
-    environmentId,
-    linkedAccount,
-    activityId,
-  }: {
-    environmentId: string;
-    linkedAccount: LinkedAccount;
-    activityId: string | null;
-  }): Promise<void> {
-    const webhooks = await this.listWebhooks(environmentId);
-    if (!webhooks) {
-      return;
-    }
-
-    const enabledWebhooks = webhooks.filter((webhook) => webhook.is_enabled);
-    const environment = await environmentService.getEnvironmentById(environmentId);
-    if (!environment) {
-      return;
-    }
-
-    const results = [];
-
-    try {
-      for (const webhook of enabledWebhooks) {
-        if (webhook.events.includes('linked_account.updated')) {
-          const delivered = await this.sendWebhook(webhook, {
-            event: 'linked_account.updated',
-            environment: environment.type,
-            integration: linkedAccount.integration_provider,
-            linked_account_id: linkedAccount.id,
-            metadata: linkedAccount.metadata || {},
-            created_at: linkedAccount.created_at,
-            updated_at: linkedAccount.updated_at,
-          });
-          results.push({ delivered, url: webhook.url });
-        }
-      }
-
-      const deliveredCount = results.filter((result) => result.delivered).length;
-      if (deliveredCount === 0) {
-        throw new Error('Failed to deliver webhook(s)');
-      }
-
-      const message =
-        deliveredCount === enabledWebhooks.length
-          ? `Webhook delivered to ${deliveredCount} endpoints`
-          : `Webhook delivered to ${deliveredCount} out of ${enabledWebhooks.length} endpoints`;
-
-      await activityService.createActivityLog(activityId, {
-        timestamp: now(),
-        level: LogLevel.Info,
-        message,
-        payload: { event: 'linked_account.updated', results },
-      });
-    } catch (err) {
-      await errorService.reportError(err);
-
-      await activityService.createActivityLog(activityId, {
-        timestamp: now(),
-        level: LogLevel.Error,
-        message: `Failed to deliver webhook`,
-        payload: { event: 'linked_account.updated', results },
+        message: `Failed to deliver webhook due to an internal error`,
+        payload: { event, results },
       });
     }
   }

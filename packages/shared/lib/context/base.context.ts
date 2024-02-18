@@ -1,48 +1,42 @@
-import Kit, { ProxyOptions } from '@kit/node';
+import { ProxyOptions } from '@kit/node';
 import { AxiosResponse } from 'axios';
+import proxyService from '../services/proxy.service';
 
 export interface BaseContextOptions {
   integration: string;
   linkedAccountId: string;
-  apiKey: string;
-  host?: string;
 }
 
 export class BaseContext {
   protected integration: string;
   protected linkedAccountId: string;
-  protected kit: Kit;
 
   constructor(options: BaseContextOptions) {
     this.integration = options.integration;
     this.linkedAccountId = options.linkedAccountId;
-    this.kit = new Kit({
-      apiKey: options.apiKey,
-      host: options.host,
-    });
   }
 
   public async proxy<T = any>(options: ProxyOptions): Promise<AxiosResponse<T>> {
-    return await this.kit.proxy(options);
+    return await proxyService.proxy<T>(options);
   }
 
   public async get<T = any>(options: Omit<ProxyOptions, 'method'>): Promise<AxiosResponse<T>> {
-    return this.kit.get(options);
+    return await this.proxy<T>({ ...options, method: 'GET' });
   }
 
   public async post<T = any>(options: Omit<ProxyOptions, 'method'>): Promise<AxiosResponse<T>> {
-    return this.kit.post(options);
+    return await this.proxy<T>({ ...options, method: 'POST' });
   }
 
   public async patch<T = any>(options: Omit<ProxyOptions, 'method'>): Promise<AxiosResponse<T>> {
-    return this.kit.patch(options);
+    return await this.proxy<T>({ ...options, method: 'PATCH' });
   }
 
   public async put<T = any>(options: Omit<ProxyOptions, 'method'>): Promise<AxiosResponse<T>> {
-    return this.kit.put(options);
+    return await this.proxy<T>({ ...options, method: 'PUT' });
   }
 
   public async delete<T = any>(options: Omit<ProxyOptions, 'method'>): Promise<AxiosResponse<T>> {
-    return this.kit.delete(options);
+    return await this.proxy<T>({ ...options, method: 'DELETE' });
   }
 }

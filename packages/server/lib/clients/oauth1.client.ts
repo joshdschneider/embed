@@ -1,7 +1,7 @@
 import type { OAuth1 as OAuth1Spec } from '@kit/providers';
 import type { Integration } from '@kit/shared';
+import { integrationService } from '@kit/shared';
 import OAuth1 from 'oauth';
-import integrationService from '../services/integration.service';
 
 export type OAuth1RequestTokenResult = {
   request_token: string;

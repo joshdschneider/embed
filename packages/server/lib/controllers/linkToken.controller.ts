@@ -9,11 +9,11 @@ import {
   errorService,
   generateId,
   getServerUrl,
+  linkedAccountService,
   now,
 } from '@kit/shared';
 import type { Request, Response } from 'express';
 import linkTokenService from '../services/linkToken.service';
-import linkedAccountService from '../services/linkedAccount.service';
 import { SUPPORTED_LANGUAGES } from '../utils/constants';
 
 class LinkTokenController {
