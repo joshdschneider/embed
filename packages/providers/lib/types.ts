@@ -3,27 +3,27 @@ import { AxiosResponse } from 'axios';
 import { z } from 'zod';
 
 export enum AuthScheme {
-  OAUTH2 = 'OAUTH2',
-  OAUTH1 = 'OAUTH1',
-  BASIC = 'BASIC',
-  API_KEY = 'API_KEY',
-  NONE = 'NONE',
+  OAuth2 = 'oauth2',
+  OAuth1 = 'oauth1',
+  Basic = 'basic',
+  ApiKey = 'api_key',
+  None = 'none',
 }
 
 export const NoAuthSchema = z.object({
-  scheme: z.literal(AuthScheme.NONE),
+  scheme: z.literal(AuthScheme.None),
 });
 
 export type NoAuth = z.infer<typeof NoAuthSchema>;
 
 export const ApiAuthSchema = z.object({
-  scheme: z.union([z.literal(AuthScheme.BASIC), z.literal(AuthScheme.API_KEY)]),
+  scheme: z.union([z.literal(AuthScheme.Basic), z.literal(AuthScheme.ApiKey)]),
 });
 
 export type ApiAuth = z.infer<typeof ApiAuthSchema>;
 
 export const OAuthSchema = z.object({
-  scheme: z.union([z.literal(AuthScheme.OAUTH1), z.literal(AuthScheme.OAUTH2)]),
+  scheme: z.union([z.literal(AuthScheme.OAuth1), z.literal(AuthScheme.OAuth2)]),
   authorization_url: z.string(),
   authorization_params: z.record(z.string()).optional(),
   scope_separator: z.string().optional(),
@@ -48,7 +48,7 @@ export enum OAuthBodyFormat {
 }
 
 export const OAuth2Schema = OAuthSchema.extend({
-  scheme: z.literal(AuthScheme.OAUTH2),
+  scheme: z.literal(AuthScheme.OAuth2),
   disable_pkce: z.boolean().optional(),
   token_params: z
     .object({ grant_type: z.enum(['authorization_code', 'client_credentials']).optional() })
@@ -63,7 +63,7 @@ export const OAuth2Schema = OAuthSchema.extend({
 export type OAuth2 = z.infer<typeof OAuth2Schema>;
 
 export const OAuth1Schema = OAuthSchema.extend({
-  scheme: z.literal(AuthScheme.OAUTH1),
+  scheme: z.literal(AuthScheme.OAuth1),
   request_url: z.string(),
   request_params: z.record(z.string()).optional(),
   request_http_method: z.enum(['GET', 'PUT', 'POST']).optional(),
@@ -136,14 +136,15 @@ export type Syncs = z.infer<typeof SyncsSchema>;
 
 export const ProviderSpecificationSchema = z.object({
   slug: z.string(),
-  display_name: z.string(),
+  name: z.string(),
+  description: z.string(),
   base_url: z.string(),
   auth: AuthSchema,
   headers: z.record(z.string()).optional(),
   retry: RetrySchema.optional(),
   pagination: PaginationSchema.optional(),
   logo_url: z.string().optional(),
-  logo_dark_url: z.string().optional(),
+  logo_url_dark_mode: z.string().optional(),
   docs_url: z.string().optional(),
   syncs: SyncsSchema.optional(),
 });
