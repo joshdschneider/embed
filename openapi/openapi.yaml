@@ -69,7 +69,6 @@ paths:
                   "object": "integration",
                   "slug": "github",
                   "name": "Github",
-                  "description": "Search code, issues, and more.",
                   "logo_url": "https://kit-integrations.s3.amazonaws.com/github.svg",
                   "logo_url_dark_mode": "https://kit-integrations.s3.amazonaws.com/github-dark.svg",
                   "is_enabled": true,
@@ -80,11 +79,10 @@ paths:
                 },
                 {
                   "object": "integration",
-                  "slug": "github",
-                  "name": "Github",
-                  "description": "Search code, issues, and more.",
-                  "logo_url": "https://kit-integrations.s3.amazonaws.com/github.svg",
-                  "logo_url_dark_mode": "https://kit-integrations.s3.amazonaws.com/github-dark.svg",
+                  "slug": "notion",
+                  "name": "Notion",
+                  "logo_url": "https://kit-integrations.s3.amazonaws.com/notion.svg",
+                  "logo_url_dark_mode": "https://kit-integrations.s3.amazonaws.com/notion-dark.svg",
                   "is_enabled": true,
                   "auth_scheme": "oauth2",
                   "use_oauth_credentials": false,
@@ -93,11 +91,9 @@ paths:
                 },
                 {
                   "object": "integration",
-                  "slug": "github",
-                  "name": "Github",
-                  "description": "Search code, issues, and more.",
-                  "logo_url": "https://kit-integrations.s3.amazonaws.com/github.svg",
-                  "logo_url_dark_mode": "https://kit-integrations.s3.amazonaws.com/github-dark.svg",
+                  "slug": "slack",
+                  "name": "Slack",
+                  "logo_url": "https://kit-integrations.s3.amazonaws.com/slack.svg",
                   "is_enabled": true,
                   "auth_scheme": "oauth2",
                   "use_oauth_credentials": false,
@@ -140,18 +136,18 @@ paths:
               from kit import Kit
               client = Kit()
 
-              my_integration = client.integrations.retrieve("github")
+              integration = client.integrations.retrieve("github")
 
-              print(my_integration)
+              print(integration)
             node.js: |-
               import Kit from "@kit/node";
 
               const kit = new Kit();
 
               async function main() {
-                const myIntegration = await kit.integrations.retrieve("github");
+                const integration = await kit.integrations.retrieve("github");
 
-                console.log(myIntegration);
+                console.log(integration);
               }
 
               main();
@@ -160,7 +156,6 @@ paths:
               "object": "integration",
               "slug": "github",
               "name": "Github",
-              "description": "Search code, issues, and more.",
               "logo_url": "https://kit-integrations.s3.amazonaws.com/github.svg",
               "logo_url_dark_mode": "https://kit-integrations.s3.amazonaws.com/github-dark.svg",
               "is_enabled": true,
@@ -170,23 +165,23 @@ paths:
               "oauth_client_secret": null,
             }
     post:
-      operationId: modifyIntegration
+      operationId: updateIntegration
       tags:
         - Integration
-      summary: Modifies an integration.
+      summary: Updates an integration.
       parameters:
         - in: path
           name: integration_slug
           required: true
           schema:
             type: string
-          description: The slug of the integration to modify.
+          description: The slug of the integration to update.
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ModifyIntegrationRequest'
+              $ref: '#/components/schemas/UpdateIntegrationRequest'
       responses:
         '200':
           description: OK
@@ -195,7 +190,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/IntegrationObject'
       x-kitMeta:
-        name: Modify integration
+        name: Update integration
         group: integrations
         beta: true
         returns: The modified [integration](/api/integrations/object) object.
@@ -210,24 +205,24 @@ paths:
               from kit import Kit
               client = Kit()
 
-              my_updated_integration = client.integrations.update(
+              updated_integration = client.integrations.update(
                 "github",
                 { is_enabled: false }
               )
 
-              print(my_updated_integration)
+              print(updated_integration)
             node.js: |-
               import Kit from "@kit/node";
 
               const kit = new Kit();
 
               async function main() {
-                const myUpdatedIntegration = await kit.integrations.update(
+                const updatedIntegration = await kit.integrations.update(
                   "github",
                   { is_enabled: false }
                 );
 
-                console.log(myUpdatedIntegration);
+                console.log(updatedIntegration);
               }
 
               main();
@@ -236,7 +231,6 @@ paths:
               "object": "integration",
               "slug": "github",
               "name": "Github",
-              "description": "Search code, issues, and more.",
               "logo_url": "https://kit-integrations.s3.amazonaws.com/github.svg",
               "logo_url_dark_mode": "https://kit-integrations.s3.amazonaws.com/github-dark.svg",
               "is_enabled": false,
@@ -268,7 +262,7 @@ paths:
       x-kitMeta:
         name: List integration syncs
         group: integrations
-        returns: A list of [integration sync](/api/integration-syncs/object) objects.
+        returns: A list of [integration sync](/api/integrations/syncs/object) objects.
         examples:
           request:
             curl: |
@@ -280,7 +274,7 @@ paths:
               client = Kit()
 
               integration_syncs = client.integrations.syncs.list(
-                integration_slug="github"
+                "github"
               )
 
               print(integration_syncs.data)
@@ -332,6 +326,8 @@ paths:
                   "object": "integration_sync",
                   "slug": "repositories",
                   "integration_slug": "github",
+                  "name": "Repositories",
+                  "description": "Sync the Github repositories in a user's account.",
                   "is_enabled": false,
                   "default_frequency": "every day",
                   "auto_start": false,
@@ -383,7 +379,7 @@ paths:
       x-kitMeta:
         name: Retrieve integration sync
         group: integrations
-        returns: The [integration sync](/api/integration-syncs/object) object matching the specified slug.
+        returns: The [integration sync](/api/integrations/syncs/object) object matching the specified slug.
         examples:
           request:
             curl: |
@@ -442,6 +438,394 @@ paths:
               },
               "excluded_properties": [],
             }
+    post:
+      operationId: updateIntegrationSync
+      tags:
+        - Integrations
+      summary: Updates an integration sync.
+      parameters:
+        - in: path
+          name: integration_slug
+          required: true
+          schema:
+            type: string
+          description: The slug of the integration to which the sync belongs.
+        - in: path
+          name: sync_slug
+          required: true
+          schema:
+            type: string
+          description: The slug of the sync.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateIntegrationSyncRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntegrationSyncObject'
+      x-kitMeta:
+        name: Update integration sync
+        group: integrations
+        returns: The [integration sync](/api/integrations/syncs/object) object matching the specified slug.
+        examples:
+          request:
+            curl: |
+              curl https://api.kit.zip/v1/integrations/github/syncs/repositories \
+                -H "Content-Type: application/json" \
+                -H "Authorization: Bearer $KIT_API_KEY" \
+                -d '{
+                    "is_enabled": true,
+                    "default_frequency": "every 2 weeks",
+                  }'
+            python: |
+              from kit import Kit
+              client = Kit()
+
+              integration_sync = client.integrations.syncs.update(
+                "github",
+                "repositories",
+                {
+                  "is_enabled": true,
+                  "default_frequency": "every 2 weeks",
+                }
+              )
+
+              print(integration_sync)
+            node.js: |-
+              import Kit from "@kit/node";
+
+              const kit = new Kit();
+
+              async function main() {
+                const integrationSync = await kit.integrations.syncs.update(
+                  "github"
+                  "repositories",
+                  {
+                    "is_enabled": true,
+                    "default_frequency": "every 2 weeks",
+                  }
+                );
+
+                console.log(integrationSync);
+              }
+
+              main();
+          response: |
+            {
+              "object": "integration_sync",
+              "slug": "repositories",
+              "integration_slug": "github",
+              "is_enabled": true,
+              "default_frequency": "every 2 weeks",
+              "auto_start": false,
+              "schema": {
+                "title": "Repository",
+                "description": "A repository contains code, files, and each file's revision history.",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "The unique identifier of the repository.",
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "The name of the repository.",
+                  },
+                  // other properties...
+                }
+              },
+              "excluded_properties": [],
+            }
+  /integrations/{integration_slug}/actions:
+    get:
+      operationId: listIntegrationActions
+      tags:
+        - Integrations
+      summary: Returns a list of integration actions.
+      parameters:
+        - in: path
+          name: integration_slug
+          required: true
+          schema:
+            type: string
+          description: The slug of the integration to which the actions belong.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListIntegrationActionsResponse'
+      x-kitMeta:
+        name: List integration actions
+        group: integrations
+        returns: A list of [integration action](/api/integrations/actions/object) objects.
+        examples:
+          request:
+            curl: |
+              curl "https://api.kit.zip/v1/integrations/actions" \
+                -H "Content-Type: application/json" \
+                -H "Authorization: Bearer $KIT_API_KEY" \
+            python: |
+              from kit import Kit
+              client = Kit()
+
+              integration_actions = client.integrations.actions.list(
+                "github"
+              )
+
+              print(integration_actions.data)
+            node.js: |-
+              import Kit from "@kit/node";
+
+              const kit = new Kit();
+
+              async function main() {
+                const integrationActions = await kit.integrations.actions.list(
+                  "github"
+                );
+
+                console.log(integrationActions.data);
+              }
+
+              main();
+          response: &list_integration_actions_example |
+            {
+              "object": "list",
+              "data": [
+                {
+                  "object": "integration_action",
+                  "slug": "create-repository",
+                  "integration_slug": "github",
+                  "name": "Create repository",
+                  "description": "Create a new Github repository.",
+                  "is_enabled": true,
+                  "schema": {
+                    "title": "Create repository",
+                    "description": "Create a new Github repository.",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "description": "The name of the repository.",
+                        "required": true,
+                      },
+                      "description": {
+                        "type": "string",
+                        "description": "A short description of the repository.",
+                      },
+                      // other properties...
+                    }
+                  },
+                },
+                {
+                  "object": "integration_action",
+                  "slug": "write-file",
+                  "integration_slug": "github",
+                  "is_enabled": false,
+                  "schema": {
+                    "title": "Write file",
+                    "description": "Create or update a file in a Github repository.",
+                    "properties": {
+                      "repo": {
+                        "type": "string",
+                        "description": "The name of the repository without the .git extension.",
+                        "required": true,
+                      },
+                      "path": {
+                        "type": "string",
+                        "description": "The file path.",
+                        "required": true,
+                      },
+                      // other properties...
+                    }
+                  },
+                },
+              ]
+            }
+  /integrations/{integration_slug}/actions/{action_slug}:
+    get:
+      operationId: retrieveIntegrationAction
+      tags:
+        - Integrations
+      summary: Retrieves an integration action.
+      parameters:
+        - in: path
+          name: integration_slug
+          required: true
+          schema:
+            type: string
+          description: The slug of the integration to which the action belongs.
+        - in: path
+          name: action_slug
+          required: true
+          schema:
+            type: string
+          description: The slug of the action.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntegrationActionObject'
+      x-kitMeta:
+        name: Retrieve integration action
+        group: integrations
+        returns: The [integration action](/api/integrations/actions/object) object matching the specified slug.
+        examples:
+          request:
+            curl: |
+              curl https://api.kit.zip/v1/integrations/github/action/create-repository \
+                -H "Content-Type: application/json" \
+                -H "Authorization: Bearer $KIT_API_KEY" \
+            python: |
+              from kit import Kit
+              client = Kit()
+
+              integration_action = client.integrations.actions.retrieve(
+                "github",
+                "create-repository"
+              )
+
+              print(integration_action)
+            node.js: |-
+              import Kit from "@kit/node";
+
+              const kit = new Kit();
+
+              async function main() {
+                const integrationAction = await kit.integrations.actions.retrieve(
+                  "github"
+                  "create-repository"
+                );
+
+                console.log(integrationAction);
+              }
+
+              main();
+          response: &retrieve_integration_action_example |
+            {
+              "object": "integration_action",
+              "slug": "create-repository",
+              "integration_slug": "github",
+              "name": "Create repository",
+              "description": "Create a new Github repository.",
+              "is_enabled": true,
+              "schema": {
+                "title": "Create repository",
+                "description": "Create a new Github repository.",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "The name of the repository.",
+                    "required": true,
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "A short description of the repository.",
+                  },
+                  // other properties...
+                }
+              },
+            }
+    post:
+      operationId: updateIntegrationAction
+      tags:
+        - Integrations
+      summary: Updates an integration action.
+      parameters:
+        - in: path
+          name: integration_slug
+          required: true
+          schema:
+            type: string
+          description: The slug of the integration to which the action belongs.
+        - in: path
+          name: action_slug
+          required: true
+          schema:
+            type: string
+          description: The slug of the action.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateIntegrationActionRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntegrationActionObject'
+      x-kitMeta:
+        name: Update integration action
+        group: integrations
+        returns: The [integration action](/api/integrations/actions/object) object matching the specified slug.
+        examples:
+          request:
+            curl: |
+              curl https://api.kit.zip/v1/integrations/github/actions/write-file \
+                -H "Content-Type: application/json" \
+                -H "Authorization: Bearer $KIT_API_KEY" \
+                -d '{ "is_enabled": true }'
+            python: |
+              from kit import Kit
+              client = Kit()
+
+              integration_action = client.integrations.actions.update(
+                "github",
+                "write-file",
+                { "is_enabled": true }
+              )
+
+              print(integration_action)
+            node.js: |-
+              import Kit from "@kit/node";
+
+              const kit = new Kit();
+
+              async function main() {
+                const integrationAction = await kit.integrations.actions.update(
+                  "github"
+                  "write-file",
+                  { "is_enabled": true }
+                );
+
+                console.log(integrationAction);
+              }
+
+              main();
+          response: |
+            {
+              "object": "integration_action",
+              "slug": "write-file",
+              "integration_slug": "github",
+              "is_enabled": true,
+              "schema": {
+                "title": "Write file",
+                "description": "Create or update a file in a Github repository.",
+                "properties": {
+                  "repo": {
+                    "type": "string",
+                    "description": "The name of the repository without the .git extension.",
+                    "required": true,
+                  },
+                  "path": {
+                    "type": "string",
+                    "description": "The file path.",
+                    "required": true,
+                  },
+                  // other properties...
+                }
+              },
+            }
 
 components:
   securitySchemes:
@@ -493,9 +877,6 @@ components:
         name:
           type: string
           description: The display name of the integration provider.
-        description:
-          type: string
-          description: A brief description of the integration provider.
         logo_url:
           type: string
           description: The logo URL of the integration provider.
@@ -533,7 +914,7 @@ components:
         name: The integration object
         example: *retrieve_integration_example
 
-    ModifyIntegrationRequest:
+    UpdateIntegrationRequest:
       type: object
       additionalProperties: false
       properties:
@@ -596,24 +977,53 @@ components:
           description: The description of the integration sync.
         is_enabled:
           type: boolean
-          description: Whether this sync is enabled on the integration.
+          description: &integration_sync_is_enabled_description |
+            Whether this sync is enabled on the integration.
         auto_start:
           type: boolean
-          description: Whether to automatically start syncing when the account is linked.
+          description: &integration_sync_auto_start_description |
+            Whether to automatically start syncing when the account is linked.
         default_frequency:
           type: string
-          description: The default frequency interval this sync should run at.
+          description: &integration_sync_default_frequency_description |
+            The default frequency interval this sync should run at.
         schema:
           type: object
-          description: The schema of the model being synced.
+          description: The schema of the sync model.
         excluded_properties:
           type: array
           items:
             type: string
-          description: Properties of the schema to exclude from being synced.
+          description: &integration_sync_excluded_properties_description |
+            Properties of the schema to exclude from being synced.
       x-kitMeta:
         name: The integration sync object
         example: *retrieve_integration_sync_example
+
+    UpdateIntegrationSyncRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        is_enabled:
+          type: boolean
+          description: *integration_sync_is_enabled_description
+          nullable: true
+        auto_start:
+          type: boolean
+          description: *integration_sync_auto_start_description
+          nullable: true
+        default_frequency:
+          type: string
+          description: *integration_sync_default_frequency_description
+          nullable: true
+          maxLength: 64
+        excluded_properties:
+          type: array
+          items:
+            type: string
+            maxLength: 256
+          nullable: true
+          description: *integration_sync_excluded_properties_description
 
     ListIntegrationSyncsResponse:
       properties:
@@ -631,3 +1041,60 @@ components:
         name: List integration syncs response object
         group: integrations
         example: *list_integration_syncs_example
+
+    IntegrationActionObject:
+      title: Integration action
+      description: Describes the configuration of an action for an integration.
+      properties:
+        object:
+          type: string
+          description: The object type, which is always "integration_action".
+          enum: [integration_action]
+        slug:
+          type: string
+          description: The unique identifier for the integration action.
+        integration_slug:
+          type: string
+          description: The slug of the integration to which this action belongs.
+        name:
+          type: string
+          description: The name of the integration action.
+        description:
+          type: string
+          description: The description of the integration action.
+        is_enabled:
+          type: boolean
+          description: &integration_action_is_enabled_description |
+            Whether this action is enabled on the integration.
+        schema:
+          type: object
+          description: The schema of the action.
+      x-kitMeta:
+        name: The integration action object
+        example: *retrieve_integration_action_example
+
+    UpdateIntegrationActionRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        is_enabled:
+          type: boolean
+          description: *integration_action_is_enabled_description
+          nullable: false
+
+    ListIntegrationActionsResponse:
+      properties:
+        object:
+          type: string
+          enum: [list]
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/IntegrationActionObject'
+      required:
+        - object
+        - data
+      x-kitMeta:
+        name: List integration actions response object
+        group: integrations
+        example: *list_integration_actions_example
