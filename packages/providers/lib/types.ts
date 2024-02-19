@@ -123,16 +123,27 @@ export type Retry = z.infer<typeof RetrySchema>;
 
 export const SyncsSchema = z.record(
   z.object({
-    display_name: z.string(),
+    name: z.string(),
     description: z.string(),
     default_enabled: z.boolean().optional(),
     default_frequency: z.string().optional(),
     default_auto_start: z.boolean().optional(),
-    model: z.string(),
+    schema: z.any(),
   })
 );
 
 export type Syncs = z.infer<typeof SyncsSchema>;
+
+export const ActionSchema = z.record(
+  z.object({
+    name: z.string(),
+    description: z.string(),
+    default_enabled: z.boolean().optional(),
+    schema: z.any(),
+  })
+);
+
+export type Actions = z.infer<typeof ActionSchema>;
 
 export const ProviderSpecificationSchema = z.object({
   slug: z.string(),
@@ -147,6 +158,7 @@ export const ProviderSpecificationSchema = z.object({
   logo_url_dark_mode: z.string().optional(),
   docs_url: z.string().optional(),
   syncs: SyncsSchema.optional(),
+  actions: ActionSchema.optional(),
 });
 
 export type ProviderSpecification = z.infer<typeof ProviderSpecificationSchema>;

@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: Kit API
-  description: The Kit REST API. Please see https://docs.kit.zip/api-reference for more details.
+  description: The Kit REST API. Please see https://docs.kit.zip/api for more details.
   version: '1.0.0'
   termsOfService: https://kit.zip/policies/terms-of-use
   contact:
@@ -245,6 +245,115 @@ paths:
               "oauth_client_id": null,
               "oauth_client_secret": null,
             }
+  /integrations/{integration_slug}/syncs:
+    get:
+      operationId: listIntegrationSyncs
+      tags:
+        - Integrations
+      summary: Returns a list of integration syncs.
+      parameters:
+        - in: path
+          name: integration_slug
+          required: true
+          schema:
+            type: string
+          description: The slug of the integration to which the syncs belong.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListIntegrationSyncsResponse'
+      x-kitMeta:
+        name: List integration syncs
+        group: integrations
+        returns: A list of [integration sync](/api/integration-syncs/object) objects.
+        examples:
+          request:
+            curl: |
+              curl "https://api.kit.zip/v1/integrations/github/syncs" \
+                -H "Content-Type: application/json" \
+                -H "Authorization: Bearer $KIT_API_KEY" \
+            python: |
+              from kit import Kit
+              client = Kit()
+
+              integration_syncs = client.integrations.syncs.list(
+                integration_slug="github"
+              )
+
+              print(integration_syncs.data)
+            node.js: |-
+              import Kit from "@kit/node";
+
+              const kit = new Kit();
+
+              async function main() {
+                const integrationSyncs = await kit.integrations.syncs.list(
+                  "github"
+                );
+
+                console.log(integrationSyncs.data);
+              }
+
+              main();
+          response: &list_integration_syncs_example |
+            {
+              "object": "list",
+              "data": [
+                {
+                  "object": "integration_sync",
+                  "slug": "issues",
+                  "integration_slug": "github",
+                  "name": "Issues",
+                  "description": "Sync the Github issues from all repositories in a user's account.",
+                  "is_enabled": true,
+                  "default_frequency": "every day",
+                  "auto_start": true,
+                  "schema": {
+                    "title": "Issue",
+                    "description": "Use issues to plan, discuss and track work in a repository.",
+                    "properties": {
+                      "id": {
+                        "type": "integer",
+                        "description": "The unique identifier of the issue.",
+                      },
+                      "author": {
+                        "type": "string",
+                        "description": "The author of the issue.",
+                      },
+                      // other properties...
+                    }
+                  },
+                  "excluded_properties": [],
+                },
+                {
+                  "object": "integration_sync",
+                  "slug": "repositories",
+                  "integration_slug": "github",
+                  "is_enabled": false,
+                  "default_frequency": "every day",
+                  "auto_start": false,
+                  "schema": {
+                    "title": "Repository",
+                    "description": "A repository contains code, files, and each file's revision history.",
+                    "properties": {
+                      "id": {
+                        "type": "integer",
+                        "description": "The unique identifier of the repository.",
+                      },
+                      "name": {
+                        "type": "string",
+                        "description": "The name of the repository.",
+                      },
+                      // other properties...
+                    }
+                  },
+                  "excluded_properties": [],
+                },
+              ]
+            }
 
 components:
   securitySchemes:
@@ -376,3 +485,58 @@ components:
         name: List integrations response object
         group: integrations
         example: *list_integrations_example
+
+    IntegrationSyncObject:
+      title: Integration sync
+      description: Describes the configuration of a sync model for an integration.
+      properties:
+        object:
+          type: string
+          description: The object type, which is always "integration_sync".
+          enum: [integration_sync]
+        slug:
+          type: string
+          description: The unique identifier for the integration sync.
+        integration_slug:
+          type: string
+          description: The slug of the integration to which this sync belongs.
+        name:
+          type: string
+          description: The name of the integration sync.
+        description:
+          type: string
+          description: The description of the integration sync.
+        is_enabled:
+          type: boolean
+          description: Whether this sync is enabled on the integration.
+        auto_start:
+          type: boolean
+          description: Whether to automatically start syncing when the account is linked.
+        default_frequency:
+          type: string
+          description: The default frequency interval this sync should run at.
+        schema:
+          type: object
+          description: The schema of the model being synced.
+        excluded_properties:
+          type: array
+          items:
+            type: string
+          description: Properties of the schema to exclude from being synced.
+
+    ListIntegrationSyncsResponse:
+      properties:
+        object:
+          type: string
+          enum: [list]
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/IntegrationSyncObject'
+      required:
+        - object
+        - data
+      x-kitMeta:
+        name: List integration syncs response object
+        group: integrations
+        example: *list_integration_syncs_example
