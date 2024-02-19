@@ -108,7 +108,7 @@ paths:
             }
   /integrations/{integration_slug}:
     get:
-      operationId: getIntegration
+      operationId: retrieveIntegration
       tags:
         - Integrations
       summary: Retrieves an integration.
@@ -354,6 +354,94 @@ paths:
                 },
               ]
             }
+  /integrations/{integration_slug}/syncs/{sync_slug}:
+    get:
+      operationId: retrieveIntegrationSync
+      tags:
+        - Integrations
+      summary: Retrieves an integration sync.
+      parameters:
+        - in: path
+          name: integration_slug
+          required: true
+          schema:
+            type: string
+          description: The slug of the integration to which the sync belongs.
+        - in: path
+          name: sync_slug
+          required: true
+          schema:
+            type: string
+          description: The slug of the sync.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntegrationSyncObject'
+      x-kitMeta:
+        name: Retrieve integration sync
+        group: integrations
+        returns: The [integration sync](/api/integration-syncs/object) object matching the specified slug.
+        examples:
+          request:
+            curl: |
+              curl https://api.kit.zip/v1/integrations/github/syncs/issues \
+                -H "Content-Type: application/json" \
+                -H "Authorization: Bearer $KIT_API_KEY" \
+            python: |
+              from kit import Kit
+              client = Kit()
+
+              integration_sync = client.integrations.syncs.retrieve(
+                "github",
+                "issues"
+              )
+
+              print(integration_sync)
+            node.js: |-
+              import Kit from "@kit/node";
+
+              const kit = new Kit();
+
+              async function main() {
+                const integrationSync = await kit.integrations.syncs.retrieve(
+                  "github"
+                  "issues"
+                );
+
+                console.log(integrationSync);
+              }
+
+              main();
+          response: &retrieve_integration_sync_example |
+            {
+              "object": "integration_sync",
+              "slug": "issues",
+              "integration_slug": "github",
+              "name": "Issues",
+              "description": "Sync the Github issues from all repositories in a user's account.",
+              "is_enabled": true,
+              "default_frequency": "every day",
+              "auto_start": true,
+              "schema": {
+                "title": "Issue",
+                "description": "Use issues to plan, discuss and track work in a repository.",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "The unique identifier of the issue.",
+                  },
+                  "author": {
+                    "type": "string",
+                    "description": "The author of the issue.",
+                  },
+                  // other properties...
+                }
+              },
+              "excluded_properties": [],
+            }
 
 components:
   securitySchemes:
@@ -523,6 +611,9 @@ components:
           items:
             type: string
           description: Properties of the schema to exclude from being synced.
+      x-kitMeta:
+        name: The integration sync object
+        example: *retrieve_integration_sync_example
 
     ListIntegrationSyncsResponse:
       properties:
