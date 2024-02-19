@@ -139,16 +139,16 @@ model Integration {
 }
 
 model IntegrationSync {
-  slug              String
-  integration_slug  String
-  environment_id    String
-  is_enabled        Boolean
-  default_frequency String
-  auto_start        Boolean
-  excluded_fields   String[]
-  created_at        Int
-  updated_at        Int
-  deleted_at        Int?
+  slug                String
+  integration_slug    String
+  environment_id      String
+  is_enabled          Boolean
+  default_frequency   String
+  auto_start          Boolean
+  excluded_properties String[]
+  created_at          Int
+  updated_at          Int
+  deleted_at          Int?
 
   integration Integration @relation(fields: [integration_slug, environment_id], references: [slug, environment_id])
 
