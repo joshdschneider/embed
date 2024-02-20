@@ -11,11 +11,17 @@ servers:
   - url: https://api.kit.zip/v1
 tags:
   - name: Integrations
-    description: An integration represents a connection between your application and a third-party platform.
+    description: Connect your end-users to third-party applications.
   - name: Link tokens
-    description: Use a link token to connect your end user to an integration.
+    description: Use link tokens to initiate the link flow for an integration.
   - name: Linked accounts
-    description: A linked account represents a connection between your end user and an integration.
+    description: Linked accounts are connections to third-party applications authorized by end-users.
+  - name: Syncs
+    description: Keep data in sync with third-party APIs.
+  - name: Queries
+    description: Find information across third-party applications.
+  - name: Actions
+    description: Use actions to interact with third-party APIs.
   - name: Webhooks
     description: Use webhooks to listen for events related to your linked accounts.
 paths:
@@ -238,65 +244,65 @@ paths:
               "oauth_client_id": null,
               "oauth_client_secret": null,
             }
-  /integrations/{integration_slug}/syncs:
+  /integrations/{integration_slug}/sync-configurations:
     get:
-      operationId: listIntegrationSyncs
+      operationId: listSyncConfigurations
       tags:
         - Integrations
-      summary: Returns a list of integration syncs.
+      summary: Returns a list of sync configurations for a given integration.
       parameters:
         - in: path
           name: integration_slug
           required: true
           schema:
             type: string
-          description: The slug of the integration to which the syncs belong.
+          description: The slug of the integration to which the sync configurations belong.
       responses:
         '200':
           description: OK
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ListIntegrationSyncsResponse'
+                $ref: '#/components/schemas/ListSyncConfigurationsResponse'
       x-kitMeta:
-        name: List integration syncs
+        name: List sync configurations
         group: integrations
-        returns: A list of [integration sync](/api/integrations/syncs/object) objects.
+        returns: A list of [sync configuration](/api/integrations/sync-configurations/object) objects.
         examples:
           request:
             curl: |
-              curl "https://api.kit.zip/v1/integrations/github/syncs" \
+              curl "https://api.kit.zip/v1/integrations/github/sync-configurations" \
                 -H "Content-Type: application/json" \
                 -H "Authorization: Bearer $KIT_API_KEY" \
             python: |
               from kit import Kit
               client = Kit()
 
-              integration_syncs = client.integrations.syncs.list(
+              sync_configurations = client.integrations.sync_configurations.list(
                 "github"
               )
 
-              print(integration_syncs.data)
+              print(sync_configurations.data)
             node.js: |-
               import Kit from "@kit/node";
 
               const kit = new Kit();
 
               async function main() {
-                const integrationSyncs = await kit.integrations.syncs.list(
+                const syncConfigurations = await kit.integrations.syncConfigurations.list(
                   "github"
                 );
 
-                console.log(integrationSyncs.data);
+                console.log(syncConfigurations.data);
               }
 
               main();
-          response: &list_integration_syncs_example |
+          response: &list_sync_configurations_example |
             {
               "object": "list",
               "data": [
                 {
-                  "object": "integration_sync",
+                  "object": "sync_configuration",
                   "slug": "issues",
                   "integration_slug": "github",
                   "name": "Issues",
@@ -322,7 +328,7 @@ paths:
                   "excluded_properties": [],
                 },
                 {
-                  "object": "integration_sync",
+                  "object": "sync_configuration",
                   "slug": "repositories",
                   "integration_slug": "github",
                   "name": "Repositories",
@@ -349,19 +355,19 @@ paths:
                 },
               ]
             }
-  /integrations/{integration_slug}/syncs/{sync_slug}:
+  /integrations/{integration_slug}/sync-configurations/{sync_slug}:
     get:
-      operationId: retrieveIntegrationSync
+      operationId: retrieveSyncConfiguration
       tags:
         - Integrations
-      summary: Retrieves an integration sync.
+      summary: Retrieves a sync configuration.
       parameters:
         - in: path
           name: integration_slug
           required: true
           schema:
             type: string
-          description: The slug of the integration to which the sync belongs.
+          description: The slug of the integration to which the sync configuration belongs.
         - in: path
           name: sync_slug
           required: true
@@ -374,45 +380,45 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/IntegrationSyncObject'
+                $ref: '#/components/schemas/SyncConfigurationObject'
       x-kitMeta:
-        name: Retrieve integration sync
+        name: Retrieve sync configuration
         group: integrations
-        returns: The [integration sync](/api/integrations/syncs/object) object matching the specified slug.
+        returns: The [sync configuration](/api/integrations/sync-configurations/object) object matching the specified slug.
         examples:
           request:
             curl: |
-              curl https://api.kit.zip/v1/integrations/github/syncs/issues \
+              curl https://api.kit.zip/v1/integrations/github/sync-configurations/issues \
                 -H "Content-Type: application/json" \
                 -H "Authorization: Bearer $KIT_API_KEY" \
             python: |
               from kit import Kit
               client = Kit()
 
-              integration_sync = client.integrations.syncs.retrieve(
+              sync_configuration = client.integrations.sync_configurations.retrieve(
                 "github",
                 "issues"
               )
 
-              print(integration_sync)
+              print(sync_configuration)
             node.js: |-
               import Kit from "@kit/node";
 
               const kit = new Kit();
 
               async function main() {
-                const integrationSync = await kit.integrations.syncs.retrieve(
+                const syncConfiguration = await kit.integrations.syncConfigurations.retrieve(
                   "github"
                   "issues"
                 );
 
-                console.log(integrationSync);
+                console.log(syncConfiguration);
               }
 
               main();
-          response: &retrieve_integration_sync_example |
+          response: &retrieve_sync_configuration_example |
             {
-              "object": "integration_sync",
+              "object": "sync_configuration",
               "slug": "issues",
               "integration_slug": "github",
               "name": "Issues",
@@ -438,17 +444,17 @@ paths:
               "excluded_properties": [],
             }
     post:
-      operationId: updateIntegrationSync
+      operationId: updateSyncConfiguration
       tags:
         - Integrations
-      summary: Updates an integration sync.
+      summary: Updates a sync configuration.
       parameters:
         - in: path
           name: integration_slug
           required: true
           schema:
             type: string
-          description: The slug of the integration to which the sync belongs.
+          description: The slug of the integration to which the sync configuration belongs.
         - in: path
           name: sync_slug
           required: true
@@ -460,22 +466,22 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateIntegrationSyncRequest'
+              $ref: '#/components/schemas/UpdateSyncConfigurationRequest'
       responses:
         '200':
           description: OK
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/IntegrationSyncObject'
+                $ref: '#/components/schemas/SyncConfigurationObject'
       x-kitMeta:
-        name: Update integration sync
+        name: Update sync configuration
         group: integrations
-        returns: The [integration sync](/api/integrations/syncs/object) object matching the specified slug.
+        returns: The [sync configuration](/api/integrations/sync-configurations/object) object matching the specified slug.
         examples:
           request:
             curl: |
-              curl https://api.kit.zip/v1/integrations/github/syncs/repositories \
+              curl https://api.kit.zip/v1/integrations/github/sync-configurations/repositories \
                 -H "Content-Type: application/json" \
                 -H "Authorization: Bearer $KIT_API_KEY" \
                 -d '{
@@ -486,7 +492,7 @@ paths:
               from kit import Kit
               client = Kit()
 
-              integration_sync = client.integrations.syncs.update(
+              sync_configuration = client.integrations.sync_configurations.update(
                 "github",
                 "repositories",
                 {
@@ -495,14 +501,14 @@ paths:
                 }
               )
 
-              print(integration_sync)
+              print(sync_configuration)
             node.js: |-
               import Kit from "@kit/node";
 
               const kit = new Kit();
 
               async function main() {
-                const integrationSync = await kit.integrations.syncs.update(
+                const syncConfiguration = await kit.integrations.syncConfigurations.update(
                   "github"
                   "repositories",
                   {
@@ -511,13 +517,13 @@ paths:
                   }
                 );
 
-                console.log(integrationSync);
+                console.log(syncConfiguration);
               }
 
               main();
           response: |
             {
-              "object": "integration_sync",
+              "object": "sync_configuration",
               "slug": "repositories",
               "integration_slug": "github",
               "is_enabled": true,
@@ -540,65 +546,65 @@ paths:
               },
               "excluded_properties": [],
             }
-  /integrations/{integration_slug}/actions:
+  /integrations/{integration_slug}/action-configurations:
     get:
-      operationId: listIntegrationActions
+      operationId: listActionConfigurations
       tags:
         - Integrations
-      summary: Returns a list of integration actions.
+      summary: Returns a list of action configurations for a given integration.
       parameters:
         - in: path
           name: integration_slug
           required: true
           schema:
             type: string
-          description: The slug of the integration to which the actions belong.
+          description: The slug of the integration to which the action configurations belong.
       responses:
         '200':
           description: OK
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ListIntegrationActionsResponse'
+                $ref: '#/components/schemas/ListActionConfigurationsResponse'
       x-kitMeta:
-        name: List integration actions
+        name: List action configurations
         group: integrations
-        returns: A list of [integration action](/api/integrations/actions/object) objects.
+        returns: A list of [action configuration](/api/integrations/action-configurations/object) objects.
         examples:
           request:
             curl: |
-              curl "https://api.kit.zip/v1/integrations/actions" \
+              curl "https://api.kit.zip/v1/integrations/github/action-configurations" \
                 -H "Content-Type: application/json" \
                 -H "Authorization: Bearer $KIT_API_KEY" \
             python: |
               from kit import Kit
               client = Kit()
 
-              integration_actions = client.integrations.actions.list(
+              action_configurations = client.integrations.action_configurations.list(
                 "github"
               )
 
-              print(integration_actions.data)
+              print(action_configurations.data)
             node.js: |-
               import Kit from "@kit/node";
 
               const kit = new Kit();
 
               async function main() {
-                const integrationActions = await kit.integrations.actions.list(
+                const actionConfigurations = await kit.integrations.actionConfigurations.list(
                   "github"
                 );
 
-                console.log(integrationActions.data);
+                console.log(actionConfigurations.data);
               }
 
               main();
-          response: &list_integration_actions_example |
+          response: &list_action_configurations_example |
             {
               "object": "list",
               "data": [
                 {
-                  "object": "integration_action",
+                  "object": "action_configuration",
                   "slug": "create-repository",
                   "integration_slug": "github",
                   "name": "Create repository",
@@ -622,7 +628,7 @@ paths:
                   },
                 },
                 {
-                  "object": "integration_action",
+                  "object": "action_configuration",
                   "slug": "write-file",
                   "integration_slug": "github",
                   "is_enabled": false,
@@ -646,12 +652,12 @@ paths:
                 },
               ]
             }
-  /integrations/{integration_slug}/actions/{action_slug}:
+  /integrations/{integration_slug}/action-configurations/{action_slug}:
     get:
-      operationId: retrieveIntegrationAction
+      operationId: retrieveActionConfiguration
       tags:
         - Integrations
-      summary: Retrieves an integration action.
+      summary: Retrieves an action configuration.
       parameters:
         - in: path
           name: integration_slug
@@ -671,45 +677,45 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/IntegrationActionObject'
+                $ref: '#/components/schemas/ActionConfigurationObject'
       x-kitMeta:
-        name: Retrieve integration action
+        name: Retrieve action configuration
         group: integrations
-        returns: The [integration action](/api/integrations/actions/object) object matching the specified slug.
+        returns: The [action configuration](/api/integrations/action-configurations/object) object matching the specified slug.
         examples:
           request:
             curl: |
-              curl https://api.kit.zip/v1/integrations/github/action/create-repository \
+              curl https://api.kit.zip/v1/integrations/github/action-configurations/create-repository \
                 -H "Content-Type: application/json" \
                 -H "Authorization: Bearer $KIT_API_KEY" \
             python: |
               from kit import Kit
               client = Kit()
 
-              integration_action = client.integrations.actions.retrieve(
+              action_configuration = client.integrations.action_configurations.retrieve(
                 "github",
                 "create-repository"
               )
 
-              print(integration_action)
+              print(action_configuration)
             node.js: |-
               import Kit from "@kit/node";
 
               const kit = new Kit();
 
               async function main() {
-                const integrationAction = await kit.integrations.actions.retrieve(
+                const actionConfiguration = await kit.integrations.actionConfigurations.retrieve(
                   "github"
                   "create-repository"
                 );
 
-                console.log(integrationAction);
+                console.log(actionConfiguration);
               }
 
               main();
-          response: &retrieve_integration_action_example |
+          response: &retrieve_action_configuration_example |
             {
-              "object": "integration_action",
+              "object": "action_configuration",
               "slug": "create-repository",
               "integration_slug": "github",
               "name": "Create repository",
@@ -733,17 +739,17 @@ paths:
               },
             }
     post:
-      operationId: updateIntegrationAction
+      operationId: updateActionConfiguration
       tags:
         - Integrations
-      summary: Updates an integration action.
+      summary: Updates an action configuration.
       parameters:
         - in: path
           name: integration_slug
           required: true
           schema:
             type: string
-          description: The slug of the integration to which the action belongs.
+          description: The slug of the integration to which the action configuration belongs.
         - in: path
           name: action_slug
           required: true
@@ -755,22 +761,22 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateIntegrationActionRequest'
+              $ref: '#/components/schemas/UpdateActionConfigurationRequest'
       responses:
         '200':
           description: OK
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/IntegrationActionObject'
+                $ref: '#/components/schemas/ActionConfigurationObject'
       x-kitMeta:
-        name: Update integration action
+        name: Update action configuration
         group: integrations
-        returns: The [integration action](/api/integrations/actions/object) object matching the specified slug.
+        returns: The [action configuration](/api/integrations/action-configurations/object) object matching the specified slug.
         examples:
           request:
             curl: |
-              curl https://api.kit.zip/v1/integrations/github/actions/write-file \
+              curl https://api.kit.zip/v1/integrations/github/action-configurations/write-file \
                 -H "Content-Type: application/json" \
                 -H "Authorization: Bearer $KIT_API_KEY" \
                 -d '{ "is_enabled": true }'
@@ -778,32 +784,32 @@ paths:
               from kit import Kit
               client = Kit()
 
-              integration_action = client.integrations.actions.update(
+              action_configuration = client.integrations.action_configurations.update(
                 "github",
                 "write-file",
                 { "is_enabled": true }
               )
 
-              print(integration_action)
+              print(action_configuration)
             node.js: |-
               import Kit from "@kit/node";
 
               const kit = new Kit();
 
               async function main() {
-                const integrationAction = await kit.integrations.actions.update(
+                const actionConfiguration = await kit.integrations.actionConfigurations.update(
                   "github"
                   "write-file",
                   { "is_enabled": true }
                 );
 
-                console.log(integrationAction);
+                console.log(actionConfiguration);
               }
 
               main();
           response: |
             {
-              "object": "integration_action",
+              "object": "action_configuration",
               "slug": "write-file",
               "integration_slug": "github",
               "is_enabled": true,
@@ -831,6 +837,35 @@ paths:
       tags:
         - Link tokens
       summary: Returns a list of link tokens.
+      parameters:
+        - name: limit
+          in: query
+          description: &pagination_limit_param_description |
+            A limit on the number of objects to be returned. Limit can range between 1 and 100, and the default is 20.
+          required: false
+          schema:
+            type: integer
+            default: 20
+        - name: order
+          in: query
+          description: &pagination_order_param_description |
+            Sort order by the `created_at` timestamp of the objects. `asc` for ascending order and `desc` for descending order.
+          schema:
+            type: string
+            default: desc
+            enum: ['asc', 'desc']
+        - name: after
+          in: query
+          description: &pagination_after_param_description |
+            A cursor for use in pagination. `after` is an object ID that defines your place in the list. For instance, if you make a list request and receive 100 objects, ending with obj_foo, your subsequent call can include after=obj_foo in order to fetch the next page of the list.
+          schema:
+            type: string
+        - name: before
+          in: query
+          description: &pagination_before_param_description |
+            A cursor for use in pagination. `before` is an object ID that defines your place in the list. For instance, if you make a list request and receive 100 objects, ending with obj_foo, your subsequent call can include before=obj_foo in order to fetch the previous page of the list.
+          schema:
+            type: string
       responses:
         '200':
           description: OK
@@ -845,14 +880,17 @@ paths:
         examples:
           request:
             curl: |
-              curl "https://api.kit.zip/v1/link-tokens" \
+              curl "https://api.kit.zip/v1/link-tokens?order=desc&limit=20" \
                 -H "Content-Type: application/json" \
                 -H "Authorization: Bearer $KIT_API_KEY" \
             python: |
               from kit import Kit
               client = Kit()
 
-              my_link_tokens = client.link_tokens.list()
+              my_link_tokens = client.link_tokens.list(
+                order="desc",
+                limit="20",
+              )
 
               print(my_link_tokens.data)
             node.js: |-
@@ -861,7 +899,10 @@ paths:
               const kit = new Kit();
 
               async function main() {
-                const myLinkTokens = await kit.linkTokens.list();
+                const myLinkTokens = await kit.linkTokens.list({
+                  order: "desc",
+                  limit: "20",
+                });
 
                 console.log(myLinkTokens.data);
               }
@@ -909,7 +950,10 @@ paths:
                   "metadata": {},
                   "created_at": 1708388447,
                 }
-              ]
+              ],
+              "first_id": "tok_1NG8Du2eZvKYlo2CUI79vXWy",
+              "last_id": "tok_1Mm8s8LkdIwHu7ix0OXBfTRG",
+              "has_more": false
             }
     post:
       operationId: createLinkToken
@@ -1109,30 +1153,26 @@ paths:
       parameters:
         - name: limit
           in: query
-          description: &pagination_limit_param_description |
-            A limit on the number of objects to be returned. Limit can range between 1 and 100, and the default is 20.
+          description: *pagination_limit_param_description
           required: false
           schema:
             type: integer
             default: 20
         - name: order
           in: query
-          description: &pagination_order_param_description |
-            Sort order by the `created_at` timestamp of the objects. `asc` for ascending order and `desc` for descending order.
+          description: *pagination_order_param_description
           schema:
             type: string
             default: desc
             enum: ['asc', 'desc']
         - name: after
           in: query
-          description: &pagination_after_param_description |
-            A cursor for use in pagination. `after` is an object ID that defines your place in the list. For instance, if you make a list request and receive 100 objects, ending with obj_foo, your subsequent call can include after=obj_foo in order to fetch the next page of the list.
+          description: *pagination_after_param_description
           schema:
             type: string
         - name: before
           in: query
-          description: &pagination_before_param_description |
-            A cursor for use in pagination. `before` is an object ID that defines your place in the list. For instance, if you make a list request and receive 100 objects, ending with obj_foo, your subsequent call can include before=obj_foo in order to fetch the previous page of the list.
+          description: *pagination_before_param_description
           schema:
             type: string
       responses:
@@ -1157,8 +1197,8 @@ paths:
               client = Kit()
 
               my_linked_accounts = client.linked_accounts.list(
-                  order="desc",
-                  limit="20",
+                order="desc",
+                limit="20",
               )
 
               print(my_linked_accounts.data)
@@ -1427,6 +1467,154 @@ paths:
               "object": "linked_account.deleted",
               "deleted": true
             }
+  /linked-accounts/{linked_account_id}/syncs:
+    get:
+      operationId: listSyncs
+      tags:
+        - Syncs
+      summary: Returns a list of syncs for a given linked account.
+      parameters:
+        - name: linked_account_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The ID of the linked account to which syncs belong.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListSyncsResponse'
+      x-kitMeta:
+        name: List syncs
+        group: syncs
+        returns: A list of [sync](/api/syncs/object) objects.
+        examples:
+          request:
+            curl: |
+              curl "https://api.kit.zip/v1/linked-accounts/link_1MvojA2eZvKYlo2CvqTABjZs/syncs" \
+                -H "Content-Type: application/json" \
+                -H "Authorization: Bearer $KIT_API_KEY" \
+            python: |
+              from kit import Kit
+              client = Kit()
+
+              syncs = client.linked_accounts.syncs.list(
+                "link_3KvojA2eZvKYlo2CvqTABjZs"
+              )
+
+              print(syncs.data)
+            node.js: |-
+              import Kit from "@kit/node";
+
+              const kit = new Kit();
+
+              async function main() {
+                const syncs = await kit.linkedAccounts.syncs.list(
+                  "link_3KvojA2eZvKYlo2CvqTABjZs"
+                );
+
+                console.log(syncs.data);
+              }
+
+              main();
+          response: &list_syncs_example |
+            {
+              "object": "list",
+              "data": [
+                {
+                  "slug": "issues",
+                  "integration_slug": "github",
+                  "linked_account_id": "link_3KvojA2eZvKYlo2CvqTABjZs",
+                  "frequency": "every day",
+                  "status": "running",
+                  "last_synced_at": 1708446145,
+                  "next_sync_at": 1708532545,
+                },
+                {
+                  "slug": "repositories",
+                  "integration_slug": "github",
+                  "linked_account_id": "link_3KvojA2eZvKYlo2CvqTABjZs",
+                  "frequency": "every 3 days",
+                  "status": "paused",
+                  "last_synced_at": 1708446144,
+                  "next_sync_at": null,
+                }
+              ]
+            }
+  /linked-accounts/{linked_account_id}/syncs/{sync_slug}:
+    get:
+      operationId: retrieveSync
+      tags:
+        - Syncs
+      summary: Retrieves a sync.
+      parameters:
+        - in: path
+          name: linked_account_id
+          required: true
+          schema:
+            type: string
+          description: The ID of the linked account to which the sync belongs.
+        - in: path
+          name: sync_slug
+          required: true
+          schema:
+            type: string
+          description: The slug of the sync to retrieve.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncObject'
+      x-kitMeta:
+        name: Retrieve sync
+        group: syncs
+        returns: The [sync](/api/sync/object) object matching the specified slug.
+        examples:
+          request:
+            curl: |
+              curl https://api.kit.zip/v1/linked-accounts/link_3KvojA2eZvKYlo2CvqTABjZs/syncs/issues \
+                -H "Content-Type: application/json" \
+                -H "Authorization: Bearer $KIT_API_KEY" \
+            python: |
+              from kit import Kit
+              client = Kit()
+
+              sync = client.linked_accounts.syncs.retrieve(
+                "link_3KvojA2eZvKYlo2CvqTABjZs",
+                "issues"
+              )
+
+              print(sync)
+            node.js: |-
+              import Kit from "@kit/node";
+
+              const kit = new Kit();
+
+              async function main() {
+                const sync = await kit.linkedAccounts.syncs.retrieve(
+                  "link_1MvojA2eZvKYlo2CvqTABjZs",
+                  "issues"
+                );
+
+                console.log(sync);
+              }
+
+              main();
+          response: &retrieve_sync_example |
+            {
+              "slug": "issues",
+              "integration_slug": "github",
+              "linked_account_id": "link_3KvojA2eZvKYlo2CvqTABjZs",
+              "frequency": "every day",
+              "status": "running",
+              "last_synced_at": 1708446145,
+              "next_sync_at": 1708532545,
+            }
 
 components:
   securitySchemes:
@@ -1560,46 +1748,46 @@ components:
         group: integrations
         example: *list_integrations_example
 
-    IntegrationSyncObject:
-      title: Integration sync
-      description: Describes the configuration of a sync model for an integration.
+    SyncConfigurationObject:
+      title: Sync configuration
+      description: Describes the configuration of a sync on an [integration](/api/integrations).
       properties:
         object:
           type: string
-          description: The object type, which is always "integration_sync".
-          enum: [integration_sync]
+          description: The object type, which is always "sync_configuration".
+          enum: [sync_configuration]
         slug:
           type: string
-          description: The unique identifier for the integration sync.
+          description: The unique identifier for the sync.
         integration_slug:
           type: string
-          description: The slug of the integration to which this sync belongs.
+          description: The slug of the integration to which this sync configuration belongs.
         name:
           type: string
-          description: The name of the integration sync.
+          description: The name of the sync.
         description:
           type: string
-          description: The description of the integration sync.
+          description: The description of the sync.
         is_enabled:
           type: boolean
-          description: &integration_sync_is_enabled_description |
+          description: &sync_configuration_is_enabled_description |
             Whether this sync is enabled on the integration.
         auto_start:
           type: boolean
-          description: &integration_sync_auto_start_description |
+          description: &sync_configuration_auto_start_description |
             Whether to automatically start syncing when the account is linked.
         default_frequency:
           type: string
-          description: &integration_sync_default_frequency_description |
+          description: &sync_configuration_default_frequency_description |
             The default frequency interval this sync should run at.
         schema:
           type: object
-          description: The schema of the sync model.
+          description: The schema of the resource to sync.
         excluded_properties:
           type: array
           items:
             type: string
-          description: &integration_sync_excluded_properties_description |
+          description: &sync_configuration_excluded_properties_description |
             Properties of the schema to exclude from being synced.
       required:
         - object
@@ -1613,33 +1801,33 @@ components:
         - schema
         - excluded_properties
       x-kitMeta:
-        name: The integration sync object
-        example: *retrieve_integration_sync_example
+        name: The sync configuration object
+        example: *retrieve_sync_configuration_example
 
-    UpdateIntegrationSyncRequest:
+    UpdateSyncConfigurationRequest:
       type: object
       additionalProperties: false
       properties:
         is_enabled:
           type: boolean
-          description: *integration_sync_is_enabled_description
+          description: *sync_configuration_is_enabled_description
           nullable: true
         auto_start:
           type: boolean
-          description: *integration_sync_auto_start_description
+          description: *sync_configuration_auto_start_description
           nullable: true
         default_frequency:
           type: string
-          description: *integration_sync_default_frequency_description
+          description: *sync_configuration_default_frequency_description
           nullable: true
         excluded_properties:
           type: array
           items:
             type: string
           nullable: true
-          description: *integration_sync_excluded_properties_description
+          description: *sync_configuration_excluded_properties_description
 
-    ListIntegrationSyncsResponse:
+    ListSyncConfigurationsResponse:
       properties:
         object:
           type: string
@@ -1647,38 +1835,38 @@ components:
         data:
           type: array
           items:
-            $ref: '#/components/schemas/IntegrationSyncObject'
+            $ref: '#/components/schemas/SyncConfigurationObject'
       required:
         - object
         - data
       x-kitMeta:
-        name: List integration syncs response object
+        name: List sync configurations response object
         group: integrations
-        example: *list_integration_syncs_example
+        example: *list_sync_configurations_example
 
-    IntegrationActionObject:
-      title: Integration action
-      description: Describes the configuration of an action for an integration.
+    ActionConfigurationObject:
+      title: Action configuration
+      description: Describes the configuration of an action on an [integration](/api/integrations).
       properties:
         object:
           type: string
-          description: The object type, which is always "integration_action".
-          enum: [integration_action]
+          description: The object type, which is always "action_configuration".
+          enum: [action_configuration]
         slug:
           type: string
-          description: The unique identifier for the integration action.
+          description: The unique identifier for the action.
         integration_slug:
           type: string
-          description: The slug of the integration to which this action belongs.
+          description: The slug of the integration to which this action configuration belongs.
         name:
           type: string
-          description: The name of the integration action.
+          description: The name of the action.
         description:
           type: string
-          description: The description of the integration action.
+          description: The description of the action.
         is_enabled:
           type: boolean
-          description: &integration_action_is_enabled_description |
+          description: &action_configuration_is_enabled_description |
             Whether this action is enabled on the integration.
         schema:
           type: object
@@ -1692,19 +1880,19 @@ components:
         - is_enabled
         - schema
       x-kitMeta:
-        name: The integration action object
-        example: *retrieve_integration_action_example
+        name: The action configuration object
+        example: *retrieve_action_configuration_example
 
-    UpdateIntegrationActionRequest:
+    UpdateActionConfigurationRequest:
       type: object
       additionalProperties: false
       properties:
         is_enabled:
           type: boolean
-          description: *integration_action_is_enabled_description
+          description: *action_configuration_is_enabled_description
           nullable: false
 
-    ListIntegrationActionsResponse:
+    ListActionConfigurationsResponse:
       properties:
         object:
           type: string
@@ -1712,14 +1900,14 @@ components:
         data:
           type: array
           items:
-            $ref: '#/components/schemas/IntegrationActionObject'
+            $ref: '#/components/schemas/ActionConfigurationObject'
       required:
         - object
         - data
       x-kitMeta:
-        name: List integration actions response object
+        name: List action configurations response object
         group: integrations
-        example: *list_integration_actions_example
+        example: *list_action_configurations_example
 
     LinkTokenObject:
       title: Link token
@@ -1793,9 +1981,21 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/LinkTokenObject'
+        first_id:
+          type: string
+          example: 'tok_1JvojA2eZvKYlo2CvqTABjZs'
+        last_id:
+          type: string
+          example: 'tok_2LrTsH2eZvKYlo2CI7ukcoF7'
+        has_more:
+          type: boolean
+          example: false
       required:
         - object
         - data
+        - first_id
+        - last_id
+        - has_more
       x-kitMeta:
         name: List link tokens response object
         group: link-tokens
@@ -1939,3 +2139,66 @@ components:
         - id
         - object
         - deleted
+
+    SyncObject:
+      title: Sync
+      description: Represents the syncing of a resource on a linked account.
+      properties:
+        object:
+          type: string
+          description: The object type, which is always "sync".
+          enum: [sync]
+        slug:
+          type: string
+          description: The unique identifier for the sync.
+        integration_slug:
+          type: string
+          description: The slug of the integration to which this sync belongs.
+        linked_account_id:
+          type: string
+          description: The ID of the linked account to which this sync belongs.
+        frequency:
+          type: string
+          description: The frequency interval this sync runs at.
+        status:
+          type: string
+          description: The status of the sync.
+          enum: [running, paused, stopped, success, error]
+        last_synced_at:
+          type: number
+          description: The Unix timestamp (in seconds) of the last sync.
+          nullable: true
+        next_sync_at:
+          type: number
+          description: The Unix timestamp (in seconds) of the last sync.
+          nullable: true
+      required:
+        - object
+        - slug
+        - integration_slug
+        - linked_account_id
+        - frequency
+        - status
+        - last_synced_at
+        - next_sync_at
+      x-kitMeta:
+        name: The sync object
+        example: *retrieve_sync_example
+
+    ListSyncsResponse:
+      type: object
+      properties:
+        object:
+          type: string
+          example: 'list'
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/SyncObject'
+      required:
+        - object
+        - data
+      x-kitMeta:
+        name: List syncs response object
+        group: syncs
+        example: *list_syncs_example
