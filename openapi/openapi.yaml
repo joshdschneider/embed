@@ -192,8 +192,7 @@ paths:
       x-kitMeta:
         name: Update integration
         group: integrations
-        beta: true
-        returns: The modified [integration](/api/integrations/object) object.
+        returns: The updated [integration](/api/integrations/object) object.
         examples:
           request:
             curl: |
@@ -1068,7 +1067,6 @@ paths:
       x-kitMeta:
         name: Delete link token
         group: link-tokens
-        beta: true
         returns: Deletion status
         examples:
           request:
@@ -1100,6 +1098,333 @@ paths:
             {
               "id": "tok_29Y8Du2eZvKYlo2CUI79vXWy",
               "object": "link_token.deleted",
+              "deleted": true
+            }
+  /linked-accounts:
+    get:
+      operationId: listLinkedAccounts
+      tags:
+        - Linked accounts
+      summary: Returns a list of linked accounts.
+      parameters:
+        - name: limit
+          in: query
+          description: &pagination_limit_param_description |
+            A limit on the number of objects to be returned. Limit can range between 1 and 100, and the default is 20.
+          required: false
+          schema:
+            type: integer
+            default: 20
+        - name: order
+          in: query
+          description: &pagination_order_param_description |
+            Sort order by the `created_at` timestamp of the objects. `asc` for ascending order and `desc` for descending order.
+          schema:
+            type: string
+            default: desc
+            enum: ['asc', 'desc']
+        - name: after
+          in: query
+          description: &pagination_after_param_description |
+            A cursor for use in pagination. `after` is an object ID that defines your place in the list. For instance, if you make a list request and receive 100 objects, ending with obj_foo, your subsequent call can include after=obj_foo in order to fetch the next page of the list.
+          schema:
+            type: string
+        - name: before
+          in: query
+          description: &pagination_before_param_description |
+            A cursor for use in pagination. `before` is an object ID that defines your place in the list. For instance, if you make a list request and receive 100 objects, ending with obj_foo, your subsequent call can include before=obj_foo in order to fetch the previous page of the list.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListLinkedAccountsResponse'
+      x-kitMeta:
+        name: List linked accounts
+        group: linked-accounts
+        returns: A list of [linked account](/api/linked-accounts/object) objects.
+        examples:
+          request:
+            curl: |
+              curl "https://api.kit.zip/v1/linked-accounts?order=desc&limit=20" \
+                -H "Content-Type: application/json" \
+                -H "Authorization: Bearer $KIT_API_KEY" \
+            python: |
+              from kit import Kit
+              client = Kit()
+
+              my_linked_accounts = client.linked_accounts.list(
+                  order="desc",
+                  limit="20",
+              )
+
+              print(my_linked_accounts.data)
+            node.js: |-
+              import Kit from "@kit/node";
+
+              const kit = new Kit();
+
+              async function main() {
+                const myLinkedAccounts = await kit.linkedAccounts.list({
+                  order: "desc",
+                  limit: "20",
+                });
+
+                console.log(myLinkedAccounts.data);
+              }
+
+              main();
+          response: &list_linked_accounts_example |
+            {
+              "object": "list",
+              "data": [
+                {
+                  "id": "link_1MvojA2eZvKYlo2CvqTABjZs",
+                  "object": "linked_account",
+                  "integration_slug": "shopify",
+                  "configuration": {
+                    "subdomain": "allbirds"
+                  },
+                  "metadata": {},
+                  "created_at": 1708446144,
+                  "updated_at": 1708446144,
+                },
+                {
+                  "id": "link_3MtwBwLkdIwHu7ix28a3tqPa",
+                  "object": "linked_account",
+                  "integration_slug": "slack",
+                  "configuration": {},
+                  "metadata": {
+                    "piperchat_id": 1209357298,
+                    "piperchat_org": "Acme"
+                  },
+                  "created_at": 1708446144,
+                  "updated_at": 1708446144,
+                },
+                {
+                  "id": "link_1ErTsH2eZvKYlo2CI7ukcoF7",
+                  "object": "linked_account",
+                  "integration_slug": "google-drive",
+                  "configuration": {},
+                  "metadata": {
+                    "internal_id": 1209357298,
+                  },
+                  "created_at": 1708446144,
+                  "updated_at": 1708446144,
+                }
+              ],
+              "first_id": "link_1MvojA2eZvKYlo2CvqTABjZs",
+              "last_id": "link_1ErTsH2eZvKYlo2CI7ukcoF7",
+              "has_more": false
+            }
+  /linked-accounts/{linked_account_id}:
+    get:
+      operationId: retrieveLinkedAccount
+      tags:
+        - Linked accounts
+      summary: Retrieves a linked account.
+      parameters:
+        - in: path
+          name: linked_account_id
+          required: true
+          schema:
+            type: string
+          description: The ID of the linked account to retrieve.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LinkedAccountObject'
+      x-kitMeta:
+        name: Retrieve linked account
+        group: linked-accounts
+        returns: The [linked account](/api/linked-accounts/object) object matching the specified ID.
+        examples:
+          request:
+            curl: |
+              curl https://api.kit.zip/v1/linked-accounts/link_1MvojA2eZvKYlo2CvqTABjZs \
+                -H "Content-Type: application/json" \
+                -H "Authorization: Bearer $KIT_API_KEY" \
+            python: |
+              from kit import Kit
+              client = Kit()
+
+              linked_account = client.linked_accounts.retrieve("link_1MvojA2eZvKYlo2CvqTABjZs")
+
+              print(linked_account)
+            node.js: |-
+              import Kit from "@kit/node";
+
+              const kit = new Kit();
+
+              async function main() {
+                const linkedAccount = await kit.linkedAccounts.retrieve("link_1MvojA2eZvKYlo2CvqTABjZs");
+
+                console.log(linkedAccount);
+              }
+
+              main();
+          response: &retrieve_linked_account_example |
+            {
+              "id": "link_1MvojA2eZvKYlo2CvqTABjZs",
+              "object": "linked_account",
+              "integration_slug": "shopify",
+              "configuration": {
+                "subdomain": "allbirds"
+              },
+              "metadata": {},
+              "created_at": 1708446144,
+              "updated_at": 1708446144,
+            }
+    post:
+      operationId: updateLinkedAccount
+      tags:
+        - Linked account
+      summary: Updates a linked account.
+      parameters:
+        - in: path
+          name: linked_account_id
+          required: true
+          schema:
+            type: string
+          description: The ID of the linked account to retrieve.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateLinkedAccountRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LinkedAccountObject'
+      x-kitMeta:
+        name: Update linked account
+        group: linked-accounts
+        returns: The updated [linked account](/api/linked-accounts/object) object.
+        examples:
+          request:
+            curl: |
+              curl https://api.kit.zip/v1/linked-accounts/link_1MvojA2eZvKYlo2CvqTABjZs \
+                -H "Content-Type: application/json" \
+                -H "Authorization: Bearer $KIT_API_KEY" \
+                -d '{
+                    "metadata": {
+                      "internal_id": 309485029539,
+                      "internal_organization": "Allbirds, Inc."
+                    }
+                  }'
+            python: |
+              from kit import Kit
+              client = Kit()
+
+              updated_linked_account = client.linked_accounts.update(
+                "link_1MvojA2eZvKYlo2CvqTABjZs",
+                { 
+                  "metadata": {
+                    "internal_id": 309485029539,
+                    "internal_organization": "Allbirds, Inc."
+                  }
+                }
+              )
+
+              print(updated_linked_account)
+            node.js: |-
+              import Kit from "@kit/node";
+
+              const kit = new Kit();
+
+              async function main() {
+                const updatedLinkedAccount = await kit.linkedAccount.update(
+                  "link_1MvojA2eZvKYlo2CvqTABjZs",
+                  { 
+                    "metadata": {
+                      "internal_id": 309485029539,
+                      "internal_organization": "Allbirds, Inc."
+                    }
+                  }
+                );
+
+                console.log(updatedLinkedAccount);
+              }
+
+              main();
+          response: |
+            {
+              "id": "link_1MvojA2eZvKYlo2CvqTABjZs",
+              "object": "linked_account",
+              "integration_slug": "shopify",
+              "configuration": {
+                "subdomain": "allbirds"
+              },
+              "metadata": {
+                "internal_id": 309485029539,
+                "internal_organization": "Allbirds, Inc."
+              },
+              "created_at": 1708446144,
+              "updated_at": 1708446144,
+            }
+    delete:
+      operationId: deleteLinkedAccount
+      tags:
+        - Linked account
+      summary: Deletes a linked account.
+      parameters:
+        - in: path
+          name: linked_account_id
+          required: true
+          schema:
+            type: string
+          description: The ID of the linked account to delete.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteLinkedAccountResponse'
+      x-kitMeta:
+        name: Delete linked account
+        group: linked-accounts
+        returns: Deletion status
+        examples:
+          request:
+            curl: |
+              curl https://api.kit.zip/v1/linked-accounts/link_1MvojA2eZvKYlo2CvqTABjZs \
+                -H "Content-Type: application/json" \
+                -H "Authorization: Bearer $KIT_API_KEY" \
+                -X DELETE
+            python: |
+              from kit import Kit
+              client = Kit()
+
+              response = client.linked_accounts.delete("link_1MvojA2eZvKYlo2CvqTABjZs")
+
+              print(response)
+            node.js: |-
+              import Kit from "@kit/node";
+
+              const kit = new Kit();
+
+              async function main() {
+                const response = await kit.linkedAccounts.delete("link_1MvojA2eZvKYlo2CvqTABjZs");
+
+                console.log(response);
+              }
+
+              main();
+          response: |
+            {
+              "id": "link_1MvojA2eZvKYlo2CvqTABjZs",
+              "object": "linked_account.deleted",
               "deleted": true
             }
 
@@ -1516,6 +1841,100 @@ components:
         object:
           type: string
           enum: [link_token.deleted]
+      required:
+        - id
+        - object
+        - deleted
+
+    LinkedAccountObject:
+      title: Linked account
+      description: The end-user account that's linked to an integration.
+      properties:
+        object:
+          type: string
+          description: The object type, which is always "linked_account".
+          enum: [linked_account]
+        id:
+          type: string
+          description: The unique identifier for the linked account.
+        integration_slug:
+          type: string
+          description: The slug of the integration to which this account is linked.
+        configuration:
+          type: object
+          description: Account-specific configuration for the authorization flow.
+          nullable: true
+        metadata:
+          type: object
+          description: *link_token_metadata_description
+          nullable: true
+        created_at:
+          type: number
+          description: The Unix timestamp (in seconds) of when the link token was created.
+        updated_at:
+          type: number
+          description: The Unix timestamp (in seconds) of when the link token was updated.
+      required:
+        - object
+        - id
+        - integration_slug
+        - configuration
+        - metadata
+        - created_at
+        - updated_at
+      x-kitMeta:
+        name: The linked account object
+        example: *retrieve_linked_account_example
+
+    ListLinkedAccountsResponse:
+      type: object
+      properties:
+        object:
+          type: string
+          example: 'list'
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/LinkedAccountObject'
+        first_id:
+          type: string
+          example: 'link_1MvojA2eZvKYlo2CvqTABjZs'
+        last_id:
+          type: string
+          example: 'link_1ErTsH2eZvKYlo2CI7ukcoF7'
+        has_more:
+          type: boolean
+          example: false
+      required:
+        - object
+        - data
+        - first_id
+        - last_id
+        - has_more
+      x-kitMeta:
+        name: List linked accounts response object
+        group: linked-accounts
+        example: *list_linked_accounts_example
+
+    UpdateLinkedAccountRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        metadata:
+          type: object
+          description: *link_token_metadata_description
+          nullable: true
+
+    DeleteLinkedAccountResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        deleted:
+          type: boolean
+        object:
+          type: string
+          enum: [linked_account.deleted]
       required:
         - id
         - object
