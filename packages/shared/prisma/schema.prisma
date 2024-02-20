@@ -129,16 +129,18 @@ model Integration {
   updated_at            Int
   deleted_at            Int?
 
-  linked_accounts LinkedAccount[]
-  syncs           IntegrationSync[]
-  actions         IntegrationAction[]
+  linked_accounts       LinkedAccount[]
+  sync_configurations   SyncConfiguration[]
+  action_configurations ActionConfiguration[]
+  syncs                 Sync[]
+  actions               Action[]
 
   environment Environment @relation(fields: [environment_id], references: [id])
 
   @@unique([slug, environment_id])
 }
 
-model IntegrationSync {
+model SyncConfiguration {
   slug                String
   integration_slug    String
   environment_id      String
@@ -155,7 +157,7 @@ model IntegrationSync {
   @@unique([slug, integration_slug])
 }
 
-model IntegrationAction {
+model ActionConfiguration {
   slug                   String
   integration_slug       String
   environment_id         String
@@ -172,6 +174,7 @@ model IntegrationAction {
 
 model Sync {
   slug              String
+  integration_slug  String
   environment_id    String
   linked_account_id String
   frequency         String
@@ -184,6 +187,7 @@ model Sync {
   schedules SyncSchedule[]
 
   linked_account LinkedAccount @relation(fields: [linked_account_id], references: [id])
+  integration    Integration   @relation(fields: [integration_slug, environment_id], references: [slug, environment_id])
 
   @@unique([slug, linked_account_id])
 }
@@ -220,14 +224,18 @@ model SyncSchedule {
 }
 
 model Action {
-  id                String @id
   slug              String
+  integration_slug  String
+  environment_id    String
   linked_account_id String
   created_at        Int
   updated_at        Int
   deleted_at        Int?
 
   linked_account LinkedAccount @relation(fields: [linked_account_id], references: [id])
+  integration    Integration   @relation(fields: [integration_slug, environment_id], references: [slug, environment_id])
+
+  @@unique([slug, linked_account_id])
 }
 
 model Webhook {
