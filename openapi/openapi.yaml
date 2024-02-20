@@ -12,9 +12,9 @@ servers:
 tags:
   - name: Integrations
     description: An integration represents a connection between your application and a third-party platform.
-  - name: Link Tokens
+  - name: Link tokens
     description: Use a link token to connect your end user to an integration.
-  - name: Linked Accounts
+  - name: Linked accounts
     description: A linked account represents a connection between your end user and an integration.
   - name: Webhooks
     description: Use webhooks to listen for events related to your linked accounts.
@@ -826,6 +826,282 @@ paths:
                 }
               },
             }
+  /link-tokens:
+    get:
+      operationId: listLinkTokens
+      tags:
+        - Link tokens
+      summary: Returns a list of link tokens.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListLinkTokensResponse'
+      x-kitMeta:
+        name: List link tokens
+        group: link-tokens
+        returns: A list of [link token](/api/link-tokens/object) objects.
+        examples:
+          request:
+            curl: |
+              curl "https://api.kit.zip/v1/link-tokens" \
+                -H "Content-Type: application/json" \
+                -H "Authorization: Bearer $KIT_API_KEY" \
+            python: |
+              from kit import Kit
+              client = Kit()
+
+              my_link_tokens = client.link_tokens.list()
+
+              print(my_link_tokens.data)
+            node.js: |-
+              import Kit from "@kit/node";
+
+              const kit = new Kit();
+
+              async function main() {
+                const myLinkTokens = await kit.linkTokens.list();
+
+                console.log(myLinkTokens.data);
+              }
+
+              main();
+          response: &list_link_tokens_example |
+            {
+              "object": "list",
+              "data": [
+                {
+                  "object": "link_token",
+                  "id": "tok_1NG8Du2eZvKYlo2CUI79vXWy",
+                  "url": "https://api.kit.zip/link/tok_1NG8Du2eZvKYlo2CUI79vXWy"
+                  "integration_slug": "github",
+                  "linked_account_id": null,
+                  "expires_in_mins": 60,
+                  "language": "en",
+                  "redirect_url": "https://piperchat.com/integrations/callback",
+                  "metadata": { 
+                    "piperchat_id": "26106b1f16fed8639d878"
+                  },
+                  "created_at": 1708387617,
+                },
+                {
+                  "object": "link_token",
+                  "id": "tok_3MtwBwLkdIwHu7ix28a3tqPa",
+                  "url": "https://api.kit.zip/link/tok_3MtwBwLkdIwHu7ix28a3tqPa",
+                  "integration_slug": null,
+                  "linked_account_id": null,
+                  "expires_in_mins": 180,
+                  "language": "en",
+                  "redirect_url": null,
+                  "metadata": {},
+                  "created_at": 1708388119,
+                },
+                {
+                  "object": "link_token",
+                  "id": "tok_1Mm8s8LkdIwHu7ix0OXBfTRG",
+                  "url": "https://api.kit.zip/link/tok_1Mm8s8LkdIwHu7ix0OXBfTRG",
+                  "integration_slug": "zendesk",
+                  "linked_account_id": null,
+                  "expires_in_mins": 30,
+                  "language": "en",
+                  "redirect_url": null,
+                  "metadata": {},
+                  "created_at": 1708388447,
+                }
+              ]
+            }
+    post:
+      operationId: createLinkToken
+      tags:
+        - Link token
+      summary: Create a link token.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLinkTokenRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LinkTokenObject'
+      x-kitMeta:
+        name: Create link token
+        group: link-tokens
+        returns: A [link token](/docs/api/link-token/object) object.
+        examples:
+          request:
+            curl: |
+              curl "https://api.kit.zip/v1/link-tokens" \
+                -H "Content-Type: application/json" \
+                -H "Authorization: Bearer $KIT_API_KEY" \
+                -d '{
+                  "integration_slug": "slack",
+                  "expires_in_mins": 30,
+                  "redirect_url": "https://piperchat.com/integrations/callback",
+                  "metadata": { 
+                    "piperchat_id": "26106b1f16fed8639d878"
+                  },
+                }'
+            python: |
+              from kit import Kit
+              client = Kit()
+
+              link_token = client.link_tokens.create(
+                  integration_slug="slack",
+                  expires_in_mins=30,
+                  redirect_url="https://piperchat.com/integrations/callback",
+                  metadata={ 
+                    "piperchat_id": "26106b1f16fed8639d878"
+                  },
+              )
+
+              print(link_token)
+            node.js: |-
+              import Kit from "@kit/node";
+
+              const kit = new Kit();
+
+              async function main() {
+                const linkToken = await kit.linkTokens.create({
+                  "integration_slug": "slack",
+                  "expires_in_mins": 30,
+                  "redirect_url": "https://piperchat.com/integrations/callback",
+                  "metadata": { 
+                    "piperchat_id": "26106b1f16fed8639d878"
+                  },
+                });
+
+                console.log(linkToken);
+              }
+
+              main();
+          response: &create_link_token_example |
+            {
+              "object": "link_token",
+              "id": "tok_29Y8Du2eZvKYlo2CUI79vXWy",
+              "url": "https://api.kit.zip/link/tok_29Y8Du2eZvKYlo2CUI79vXWy"
+              "integration_slug": "slack",
+              "linked_account_id": null,
+              "expires_in_mins": 30,
+              "language": "en",
+              "redirect_url": "https://piperchat.com/integrations/callback",
+              "metadata": { 
+                "piperchat_id": "26106b1f16fed8639d878"
+              },
+              "created_at": 1708387618,
+            }
+  /link-tokens/{link_token_id}:
+    get:
+      operationId: retrieveLinkToken
+      tags:
+        - Link tokens
+      summary: Retrieves a link token.
+      parameters:
+        - in: path
+          name: link_token_id
+          required: true
+          schema:
+            type: string
+          description: The ID of the link token to retrieve.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LinkTokenObject'
+      x-kitMeta:
+        name: Retrieve link token
+        group: link-tokens
+        returns: The [link token](/api/link-tokens/object) object matching the specified ID.
+        examples:
+          request:
+            curl: |
+              curl https://api.kit.zip/v1/link-tokens/tok_29Y8Du2eZvKYlo2CUI79vXWy \
+                -H "Content-Type: application/json" \
+                -H "Authorization: Bearer $KIT_API_KEY" \
+            python: |
+              from kit import Kit
+              client = Kit()
+
+              link_token = client.link_tokens.retrieve("tok_29Y8Du2eZvKYlo2CUI79vXWy")
+
+              print(link_token)
+            node.js: |-
+              import Kit from "@kit/node";
+
+              const kit = new Kit();
+
+              async function main() {
+                const linkToken = await kit.linkTokens.retrieve("tok_29Y8Du2eZvKYlo2CUI79vXWy");
+
+                console.log(linkToken);
+              }
+
+              main();
+          response: *create_link_token_example
+    delete:
+      operationId: deleteLinkToken
+      tags:
+        - Link tokens
+      summary: Deletes a link token.
+      parameters:
+        - in: path
+          name: link_token_id
+          required: true
+          schema:
+            type: string
+          description: The ID of the link token to delete.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteLinkTokenResponse'
+      x-kitMeta:
+        name: Delete link token
+        group: link-tokens
+        beta: true
+        returns: Deletion status
+        examples:
+          request:
+            curl: |
+              curl https://api.kit.zip/v1/link-tokens/tok_29Y8Du2eZvKYlo2CUI79vXWy \
+                -H "Content-Type: application/json" \
+                -H "Authorization: Bearer $KIT_API_KEY" \
+                -X DELETE
+            python: |
+              from kit import Kit
+              client = Kit()
+
+              response = client.link_tokens.delete("tok_29Y8Du2eZvKYlo2CUI79vXWy")
+
+              print(response)
+            node.js: |-
+              import Kit from "@kit/node";
+
+              const kit = new Kit();
+
+              async function main() {
+                const response = await kit.linkTokens.delete("tok_29Y8Du2eZvKYlo2CUI79vXWy");
+
+                console.log(response);
+              }
+
+              main();
+          response: |
+            {
+              "id": "tok_29Y8Du2eZvKYlo2CUI79vXWy",
+              "object": "link_token.deleted",
+              "deleted": true
+            }
 
 components:
   securitySchemes:
@@ -890,6 +1166,7 @@ components:
             Whether or not the integration is enabled.
         auth_scheme:
           type: string
+          description: The authentication scheme this integration uses.
           enum: ['oauth2', 'oauth1', 'api_key', 'basic', 'none']
         use_oauth_credentials:
           type: boolean
@@ -908,8 +1185,13 @@ components:
       required:
         - object
         - slug
+        - name
+        - logo_url
         - is_enabled
-        - use_client_credentials
+        - auth_scheme
+        - use_oauth_credentials
+        - oauth_client_id
+        - oauth_client_secret
       x-kitMeta:
         name: The integration object
         example: *retrieve_integration_example
@@ -930,12 +1212,10 @@ components:
           type: string
           description: *integration_oauth_client_id_description
           nullable: true
-          maxLength: 256
         oauth_client_secret:
           type: string
           description: *integration_oauth_client_secret_description
           nullable: true
-          maxLength: 512
 
     ListIntegrationsResponse:
       type: object
@@ -996,6 +1276,17 @@ components:
             type: string
           description: &integration_sync_excluded_properties_description |
             Properties of the schema to exclude from being synced.
+      required:
+        - object
+        - slug
+        - integration_slug
+        - name
+        - description
+        - is_enabled
+        - auto_start
+        - default_frequency
+        - schema
+        - excluded_properties
       x-kitMeta:
         name: The integration sync object
         example: *retrieve_integration_sync_example
@@ -1016,12 +1307,10 @@ components:
           type: string
           description: *integration_sync_default_frequency_description
           nullable: true
-          maxLength: 64
         excluded_properties:
           type: array
           items:
             type: string
-            maxLength: 256
           nullable: true
           description: *integration_sync_excluded_properties_description
 
@@ -1069,6 +1358,14 @@ components:
         schema:
           type: object
           description: The schema of the action.
+      required:
+        - object
+        - slug
+        - integration_slug
+        - name
+        - description
+        - is_enabled
+        - schema
       x-kitMeta:
         name: The integration action object
         example: *retrieve_integration_action_example
@@ -1098,3 +1395,128 @@ components:
         name: List integration actions response object
         group: integrations
         example: *list_integration_actions_example
+
+    LinkTokenObject:
+      title: Link token
+      description: Short-lived token used to link an end-user account to an integration.
+      properties:
+        object:
+          type: string
+          description: The object type, which is always "link_token".
+          enum: [link_token]
+        id:
+          type: string
+          description: The unique identifier for the link token.
+        url:
+          type: string
+          description: The URL that an end-user can use to link their account.
+        integration_slug:
+          type: string
+          description: &link_token_integration_slug_description |
+            The slug of the integration to link the end-user's account to.
+          nullable: true
+        linked_account_id:
+          type: string
+          description: &link_token_linked_account_id_description |
+            If you'd like to re-link an existing linked account, specify the `linked_account_id`.
+          nullable: true
+        expires_in_mins:
+          type: number
+          description: &link_token_expires_in_mins_description |
+            Number of minutes before the link token expires. Min is `30`, max is `10080`.
+          nullable: true
+        language:
+          type: string
+          description: &link_token_language_description |
+            The language to render the link flow in. Currently, only `en` is supported.
+          enum: [en]
+          nullable: true
+        redirect_url:
+          type: string
+          description: &link_token_redirect_url_description |
+            The URL to redirect the user back to once the link flow is finished.
+          nullable: true
+        metadata:
+          type: object
+          description: &link_token_metadata_description |
+            Set of 16 key-value pairs that can be attached to a linked account. This can be useful for storing information such as user IDs, organization details, etc.
+          nullable: true
+        created_at:
+          type: number
+          description: The Unix timestamp (in seconds) of when the link token was created.
+      required:
+        - object
+        - id
+        - url
+        - integration_slug
+        - linked_account_id
+        - expires_in_mins
+        - language
+        - redirect_url
+        - metadata
+        - created_at
+      x-kitMeta:
+        name: The link token object
+        example: *create_link_token_example
+
+    ListLinkTokensResponse:
+      properties:
+        object:
+          type: string
+          enum: [list]
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/LinkTokenObject'
+      required:
+        - object
+        - data
+      x-kitMeta:
+        name: List link tokens response object
+        group: link-tokens
+        example: *list_link_tokens_example
+
+    CreateLinkTokenRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        integration_slug:
+          type: string
+          description: *link_token_integration_slug_description
+          nullable: true
+        linked_account_id:
+          type: string
+          description: *link_token_linked_account_id_description
+          nullable: true
+        expires_in_mins:
+          type: number
+          description: *link_token_expires_in_mins_description
+          nullable: true
+        language:
+          type: string
+          description: *link_token_language_description
+          enum: [en]
+          nullable: true
+        redirect_url:
+          type: string
+          description: *link_token_redirect_url_description
+          nullable: true
+        metadata:
+          type: object
+          description: *link_token_metadata_description
+          nullable: true
+
+    DeleteLinkTokenResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        deleted:
+          type: boolean
+        object:
+          type: string
+          enum: [link_token.deleted]
+      required:
+        - id
+        - object
+        - deleted

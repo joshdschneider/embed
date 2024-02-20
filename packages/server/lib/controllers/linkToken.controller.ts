@@ -30,8 +30,6 @@ class LinkTokenController {
         });
       }
 
-      let isRelink = false;
-
       if (linked_account_id) {
         if (typeof linked_account_id !== 'string') {
           return errorService.errorResponse(res, {
@@ -55,8 +53,6 @@ class LinkTokenController {
             message: `Linked account ${linked_account_id} must re-link to ${linkedAccount.integration_provider}`,
           });
         }
-
-        isRelink = true;
       }
 
       const minMinutes = 30;
