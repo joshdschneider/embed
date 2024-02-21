@@ -1544,6 +1544,92 @@ paths:
                 }
               ]
             }
+  /linked-accounts/{linked_account_id}/syncs/trigger:
+    post:
+      operationId: triggerSyncs
+      tags:
+        - Syncs
+      summary: Triggers one or more syncs.
+      parameters:
+        - in: path
+          name: linked_account_id
+          required: true
+          schema:
+            type: string
+          description: The ID of the linked account to which the syncs belong.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TriggerSyncsRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TriggerSyncsResponse'
+      x-kitMeta:
+        name: Trigger syncs
+        group: syncs
+        returns: A list of the [sync](/api/syncs/object) objects that have been triggered.
+        examples:
+          request:
+            curl: |
+              curl https://api.kit.zip/v1/linked-accounts/link_3KvojA2eZvKYlo2CvqTABjZs/syncs/trigger \
+                -H "Content-Type: application/json" \
+                -H "Authorization: Bearer $KIT_API_KEY" \
+                -d '{ "syncs": ["issues", "repositories"] }'
+            python: |
+              from kit import Kit
+              client = Kit()
+
+              triggered_syncs = client.linked_accounts.syncs.trigger(
+                "link_3KvojA2eZvKYlo2CvqTABjZs",
+                { "syncs": ["issues", "repositories"] }
+              )
+
+              print(triggered_syncs.data)
+            node.js: |-
+              import Kit from "@kit/node";
+
+              const kit = new Kit();
+
+              async function main() {
+                const triggeredSyncs = await kit.linkedAccounts.syncs.trigger(
+                  "link_3KvojA2eZvKYlo2CvqTABjZs",
+                  { "syncs": ["issues", "repositories"] }
+                );
+
+                console.log(triggeredSyncs.data);
+              }
+
+              main();
+          response: &trigger_syncs_example |
+            {
+              "object": "list",
+              "data": [
+                {
+                  "slug": "issues",
+                  "integration_slug": "github",
+                  "linked_account_id": "link_3KvojA2eZvKYlo2CvqTABjZs",
+                  "frequency": "every day",
+                  "status": "running",
+                  "last_synced_at": 1708446145,
+                  "next_sync_at": 1708532545,
+                },
+                {
+                  "slug": "repositories",
+                  "integration_slug": "github",
+                  "linked_account_id": "link_3KvojA2eZvKYlo2CvqTABjZs",
+                  "frequency": "every 3 days",
+                  "status": "paused",
+                  "last_synced_at": 1708446144,
+                  "next_sync_at": null,
+                }
+              ]
+            }
   /linked-accounts/{linked_account_id}/syncs/{sync_slug}:
     get:
       operationId: retrieveSync
@@ -1611,6 +1697,77 @@ paths:
               "integration_slug": "github",
               "linked_account_id": "link_3KvojA2eZvKYlo2CvqTABjZs",
               "frequency": "every day",
+              "status": "running",
+              "last_synced_at": 1708446145,
+              "next_sync_at": 1708532545,
+            }
+    post:
+      operationId: updateSync
+      tags:
+        - Syncs
+      summary: Updates a sync.
+      parameters:
+        - in: path
+          name: linked_account_id
+          required: true
+          schema:
+            type: string
+          description: The ID of the linked account to which the sync belongs.
+        - in: path
+          name: sync_slug
+          required: true
+          schema:
+            type: string
+          description: The slug of the sync to update.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncObject'
+      x-kitMeta:
+        name: Update sync
+        group: syncs
+        returns: The updated [sync](/api/linked-accounts/object) object.
+        examples:
+          request:
+            curl: |
+              curl https://api.kit.zip/v1/linked-accounts/link_1MvojA2eZvKYlo2CvqTABjZs/syncs/issues \
+                -H "Content-Type: application/json" \
+                -H "Authorization: Bearer $KIT_API_KEY" \
+                -d '{ "frequency": "every 2 weeks" }'
+            python: |
+              from kit import Kit
+              client = Kit()
+
+              updated_linked_account = client.linked_accounts.syncs.update(
+                "link_1MvojA2eZvKYlo2CvqTABjZs",
+                { "frequency": "every 2 weeks" }
+              )
+
+              print(updated_linked_account)
+            node.js: |-
+              import Kit from "@kit/node";
+
+              const kit = new Kit();
+
+              async function main() {
+                const updatedLinkedAccount = await kit.linkedAccount.syncs.update(
+                  "link_1MvojA2eZvKYlo2CvqTABjZs",
+                  { "frequency": "every 2 weeks" }
+                );
+
+                console.log(updatedLinkedAccount);
+              }
+
+              main();
+          response: |
+            {
+              "slug": "issues",
+              "integration_slug": "github",
+              "linked_account_id": "link_3KvojA2eZvKYlo2CvqTABjZs",
+              "frequency": "every 2 weeks",
               "status": "running",
               "last_synced_at": 1708446145,
               "next_sync_at": 1708532545,
@@ -2184,6 +2341,34 @@ components:
       x-kitMeta:
         name: The sync object
         example: *retrieve_sync_example
+
+    TriggerSyncsRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        syncs:
+          type: array
+          items:
+            type: string
+          description: The slugs of the syncs to trigger.
+
+    TriggerSyncsResponse:
+      type: object
+      properties:
+        object:
+          type: string
+          example: 'list'
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/SyncObject'
+      required:
+        - object
+        - data
+      x-kitMeta:
+        name: Trigger syncs response object
+        group: syncs
+        example: *trigger_syncs_example
 
     ListSyncsResponse:
       type: object
