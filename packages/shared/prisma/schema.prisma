@@ -70,7 +70,7 @@ model ApiKey {
 model LinkToken {
   id                     String  @id
   environment_id         String
-  integration_slug       String?
+  integration_name       String?
   linked_account_id      String?
   expires_at             Int
   language               String?
@@ -96,7 +96,7 @@ model LinkToken {
 model LinkedAccount {
   id               String  @id
   environment_id   String
-  integration_slug String
+  integration_name String
   credentials      String
   credentials_iv   String?
   credentials_tag  String?
@@ -113,12 +113,13 @@ model LinkedAccount {
   actions Action[]
 
   environment Environment @relation(fields: [environment_id], references: [id])
-  integration Integration @relation(fields: [integration_slug, environment_id], references: [slug, environment_id])
+  integration Integration @relation(fields: [integration_name, environment_id], references: [name, environment_id])
 }
 
 model Integration {
-  slug                  String
+  name                  String
   environment_id        String
+  display_name          String
   is_enabled            Boolean
   use_oauth_credentials Boolean
   oauth_client_id       String?
@@ -137,12 +138,12 @@ model Integration {
 
   environment Environment @relation(fields: [environment_id], references: [id])
 
-  @@unique([slug, environment_id])
+  @@unique([name, environment_id])
 }
 
 model SyncConfiguration {
-  slug                String
-  integration_slug    String
+  collection_name     String
+  integration_name    String
   environment_id      String
   is_enabled          Boolean
   default_frequency   String
@@ -152,14 +153,14 @@ model SyncConfiguration {
   updated_at          Int
   deleted_at          Int?
 
-  integration Integration @relation(fields: [integration_slug, environment_id], references: [slug, environment_id])
+  integration Integration @relation(fields: [integration_name, environment_id], references: [name, environment_id])
 
-  @@unique([slug, integration_slug])
+  @@unique([collection_name, integration_name])
 }
 
 model ActionConfiguration {
-  slug                   String
-  integration_slug       String
+  action_name            String
+  integration_name       String
   environment_id         String
   is_enabled             Boolean
   require_human_approval Boolean @default(false)
@@ -167,14 +168,14 @@ model ActionConfiguration {
   updated_at             Int
   deleted_at             Int?
 
-  integration Integration @relation(fields: [integration_slug, environment_id], references: [slug, environment_id])
+  integration Integration @relation(fields: [integration_name, environment_id], references: [name, environment_id])
 
-  @@unique([slug, integration_slug])
+  @@unique([action_name, integration_name])
 }
 
 model Sync {
-  slug              String
-  integration_slug  String
+  collection_name   String
+  integration_name  String
   environment_id    String
   linked_account_id String
   frequency         String
@@ -187,14 +188,14 @@ model Sync {
   schedules SyncSchedule[]
 
   linked_account LinkedAccount @relation(fields: [linked_account_id], references: [id])
-  integration    Integration   @relation(fields: [integration_slug, environment_id], references: [slug, environment_id])
+  integration    Integration   @relation(fields: [integration_name, environment_id], references: [name, environment_id])
 
-  @@unique([slug, linked_account_id])
+  @@unique([collection_name, linked_account_id])
 }
 
 model SyncJob {
   id                String  @id
-  sync_slug         String
+  collection_name   String
   linked_account_id String
   type              String
   status            String
@@ -206,12 +207,12 @@ model SyncJob {
   updated_at        Int
   deleted_at        Int?
 
-  sync Sync @relation(fields: [sync_slug, linked_account_id], references: [slug, linked_account_id])
+  sync Sync @relation(fields: [collection_name, linked_account_id], references: [collection_name, linked_account_id])
 }
 
 model SyncSchedule {
   id                String @id
-  sync_slug         String
+  collection_name   String
   linked_account_id String
   status            String
   frequency         String
@@ -220,12 +221,12 @@ model SyncSchedule {
   updated_at        Int
   deleted_at        Int?
 
-  sync Sync @relation(fields: [sync_slug, linked_account_id], references: [slug, linked_account_id])
+  sync Sync @relation(fields: [collection_name, linked_account_id], references: [collection_name, linked_account_id])
 }
 
 model Action {
-  slug              String
-  integration_slug  String
+  name              String
+  integration_name  String
   environment_id    String
   linked_account_id String
   created_at        Int
@@ -233,9 +234,9 @@ model Action {
   deleted_at        Int?
 
   linked_account LinkedAccount @relation(fields: [linked_account_id], references: [id])
-  integration    Integration   @relation(fields: [integration_slug, environment_id], references: [slug, environment_id])
+  integration    Integration   @relation(fields: [integration_name, environment_id], references: [name, environment_id])
 
-  @@unique([slug, linked_account_id])
+  @@unique([name, linked_account_id])
 }
 
 model Webhook {
