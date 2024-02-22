@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-import { getServerPort, getWebsocketsPath, isCloud, isProd } from '@kit/shared';
+import { getServerPort, getWebsocketsPath, isCloud } from '@kit/shared';
 import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
@@ -33,11 +33,7 @@ function setupExpressApp() {
   app.use(cors(corsOptions));
   app.use(express.json({ limit: '75mb' }));
   app.use(express.urlencoded({ extended: true }));
-
-  if (isProd()) {
-    app.use(helmet());
-    app.set('trust proxy', true);
-  }
+  app.use(helmet());
 
   app.set('view engine', 'ejs');
   app.set('views', path.join(__dirname, 'views'));

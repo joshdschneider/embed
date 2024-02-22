@@ -8,13 +8,13 @@ datasource db {
 }
 
 model Account {
-  id                    String  @id
-  type                  String
-  name                  String?
-  cloud_organization_id String?
-  created_at            Int
-  updated_at            Int
-  deleted_at            Int?
+  id              String  @id
+  type            String
+  name            String?
+  organization_id String?
+  created_at      Int
+  updated_at      Int
+  deleted_at      Int?
 
   users        User[]
   environments Environment[]
@@ -45,8 +45,8 @@ model Environment {
 
   api_keys        ApiKey[]
   integrations    Integration[]
-  linked_accounts LinkedAccount[]
   link_tokens     LinkToken[]
+  linked_accounts LinkedAccount[]
   webhooks        Webhook[]
   activities      Activity[]
 
@@ -70,7 +70,7 @@ model ApiKey {
 model LinkToken {
   id                     String  @id
   environment_id         String
-  integration_name       String?
+  integration_key        String?
   linked_account_id      String?
   expires_at             Int
   language               String?
@@ -78,8 +78,7 @@ model LinkToken {
   metadata               Json?
   can_choose_integration Boolean
   consent_given          Boolean @default(false)
-  consent_ip             String?
-  consent_date           Int?
+  consent_timestamp      Int?
   configuration          Json?
   websocket_client_id    String?
   link_method            String?
@@ -94,30 +93,30 @@ model LinkToken {
 }
 
 model LinkedAccount {
-  id               String  @id
-  environment_id   String
-  integration_name String
-  credentials      String
-  credentials_iv   String?
-  credentials_tag  String?
-  configuration    Json
-  metadata         Json?
-  consent_given    Boolean @default(false)
-  consent_ip       String?
-  consent_date     Int?
-  created_at       Int
-  updated_at       Int
-  deleted_at       Int?
+  id              String  @id
+  environment_id  String
+  integration_key String
+  credentials     String
+  credentials_iv  String?
+  credentials_tag String?
+  configuration   Json
+  metadata        Json?
+  consent_given   Boolean @default(false)
+  consent_ip      String?
+  consent_date    Int?
+  created_at      Int
+  updated_at      Int
+  deleted_at      Int?
 
-  syncs   Sync[]
-  actions Action[]
+  syncs       Sync[]
+  action_runs ActionRun[]
 
   environment Environment @relation(fields: [environment_id], references: [id])
-  integration Integration @relation(fields: [integration_name, environment_id], references: [name, environment_id])
+  integration Integration @relation(fields: [integration_key, environment_id], references: [unique_key, environment_id])
 }
 
 model Integration {
-  name                  String
+  unique_key            String
   environment_id        String
   display_name          String
   is_enabled            Boolean
@@ -130,20 +129,20 @@ model Integration {
   updated_at            Int
   deleted_at            Int?
 
-  linked_accounts       LinkedAccount[]
-  sync_configurations   SyncConfiguration[]
-  action_configurations ActionConfiguration[]
-  syncs                 Sync[]
-  actions               Action[]
+  linked_accounts LinkedAccount[]
+  collections     Collection[]
+  syncs           Sync[]
+  actions         Action[]
+  action_runs     ActionRun[]
 
   environment Environment @relation(fields: [environment_id], references: [id])
 
-  @@unique([name, environment_id])
+  @@unique([unique_key, environment_id])
 }
 
-model SyncConfiguration {
-  collection_name     String
-  integration_name    String
+model Collection {
+  unique_key          String
+  integration_key     String
   environment_id      String
   is_enabled          Boolean
   default_frequency   String
@@ -153,29 +152,30 @@ model SyncConfiguration {
   updated_at          Int
   deleted_at          Int?
 
-  integration Integration @relation(fields: [integration_name, environment_id], references: [name, environment_id])
+  integration Integration @relation(fields: [integration_key, environment_id], references: [unique_key, environment_id])
 
-  @@unique([collection_name, integration_name])
+  @@unique([unique_key, integration_key])
 }
 
-model ActionConfiguration {
-  action_name            String
-  integration_name       String
-  environment_id         String
-  is_enabled             Boolean
-  require_human_approval Boolean @default(false)
-  created_at             Int
-  updated_at             Int
-  deleted_at             Int?
+model Action {
+  unique_key      String
+  integration_key String
+  environment_id  String
+  is_enabled      Boolean
+  created_at      Int
+  updated_at      Int
+  deleted_at      Int?
 
-  integration Integration @relation(fields: [integration_name, environment_id], references: [name, environment_id])
+  runs ActionRun[]
 
-  @@unique([action_name, integration_name])
+  integration Integration @relation(fields: [integration_key, environment_id], references: [unique_key, environment_id])
+
+  @@unique([unique_key, integration_key])
 }
 
 model Sync {
-  collection_name   String
-  integration_name  String
+  collection_key    String
+  integration_key   String
   environment_id    String
   linked_account_id String
   frequency         String
@@ -184,18 +184,18 @@ model Sync {
   updated_at        Int
   deleted_at        Int?
 
-  jobs      SyncJob[]
+  runs      SyncRun[]
   schedules SyncSchedule[]
 
   linked_account LinkedAccount @relation(fields: [linked_account_id], references: [id])
-  integration    Integration   @relation(fields: [integration_name, environment_id], references: [name, environment_id])
+  integration    Integration   @relation(fields: [integration_key, environment_id], references: [unique_key, environment_id])
 
-  @@unique([collection_name, linked_account_id])
+  @@unique([collection_key, linked_account_id])
 }
 
-model SyncJob {
+model SyncRun {
   id                String  @id
-  collection_name   String
+  collection_key    String
   linked_account_id String
   type              String
   status            String
@@ -207,12 +207,12 @@ model SyncJob {
   updated_at        Int
   deleted_at        Int?
 
-  sync Sync @relation(fields: [collection_name, linked_account_id], references: [collection_name, linked_account_id])
+  sync Sync @relation(fields: [collection_key, linked_account_id], references: [collection_key, linked_account_id])
 }
 
 model SyncSchedule {
   id                String @id
-  collection_name   String
+  collection_key    String
   linked_account_id String
   status            String
   frequency         String
@@ -221,22 +221,23 @@ model SyncSchedule {
   updated_at        Int
   deleted_at        Int?
 
-  sync Sync @relation(fields: [collection_name, linked_account_id], references: [collection_name, linked_account_id])
+  sync Sync @relation(fields: [collection_key, linked_account_id], references: [collection_key, linked_account_id])
 }
 
-model Action {
-  name              String
-  integration_name  String
+model ActionRun {
+  action_key        String
+  integration_key   String
   environment_id    String
   linked_account_id String
   created_at        Int
   updated_at        Int
   deleted_at        Int?
 
+  action         Action        @relation(fields: [action_key, integration_key], references: [unique_key, integration_key])
   linked_account LinkedAccount @relation(fields: [linked_account_id], references: [id])
-  integration    Integration   @relation(fields: [integration_name, environment_id], references: [name, environment_id])
+  integration    Integration   @relation(fields: [integration_key, environment_id], references: [unique_key, environment_id])
 
-  @@unique([name, linked_account_id])
+  @@unique([action_key, linked_account_id])
 }
 
 model Webhook {
@@ -269,16 +270,16 @@ model WebhookLog {
 }
 
 model Activity {
-  id                   String  @id
-  environment_id       String
-  integration_provider String?
-  linked_account_id    String?
-  link_token_id        String?
-  sync_slug            String?
-  action_id            String?
-  level                String
-  action               String
-  timestamp            Int
+  id                String  @id
+  environment_id    String
+  integration_key   String?
+  linked_account_id String?
+  link_token_id     String?
+  collection_key    String?
+  action_key        String?
+  level             String
+  action            String
+  timestamp         Int
 
   logs ActivityLog[]
 
