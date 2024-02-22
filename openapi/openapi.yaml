@@ -171,7 +171,7 @@ paths:
     post:
       operationId: updateIntegration
       tags:
-        - Integration
+        - Integrations
       summary: Updates an integration.
       parameters:
         - in: path
@@ -1093,7 +1093,7 @@ paths:
       x-kitMeta:
         name: Delete link token
         group: link-tokens
-        returns: Deletion status
+        returns: The deletion status.
         examples:
           request:
             curl: |
@@ -1413,7 +1413,7 @@ paths:
       x-kitMeta:
         name: Delete linked account
         group: linked-accounts
-        returns: Deletion status
+        returns: The deletion status.
         examples:
           request:
             curl: |
@@ -1966,6 +1966,7 @@ components:
         - oauth_client_secret
       x-kitMeta:
         name: The integration object
+        group: integrations
         example: *retrieve_integration_example
 
     UpdateIntegrationRequest:
@@ -2051,6 +2052,7 @@ components:
         - excluded_properties
       x-kitMeta:
         name: The sync configuration object
+        group: integrations
         example: *retrieve_sync_configuration_example
 
     UpdateSyncConfigurationRequest:
@@ -2118,6 +2120,7 @@ components:
         - schema
       x-kitMeta:
         name: The action configuration object
+        group: integrations
         example: *retrieve_action_configuration_example
 
     UpdateActionConfigurationRequest:
@@ -2204,6 +2207,7 @@ components:
         - created_at
       x-kitMeta:
         name: The link token object
+        group: link-tokens
         example: *create_link_token_example
 
     ListLinkTokensResponse:
@@ -2312,6 +2316,7 @@ components:
         - updated_at
       x-kitMeta:
         name: The linked account object
+        group: linked-accounts
         example: *retrieve_linked_account_example
 
     ListLinkedAccountsResponse:
@@ -2412,6 +2417,7 @@ components:
         - next_sync_at
       x-kitMeta:
         name: The sync object
+        group: syncs
         example: *retrieve_sync_example
 
     ListSyncsResponse:
