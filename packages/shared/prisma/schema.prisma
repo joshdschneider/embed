@@ -73,7 +73,7 @@ model LinkToken {
   integration_key        String?
   linked_account_id      String?
   expires_at             Int
-  language               String?
+  language               String
   redirect_url           String?
   metadata               Json?
   can_choose_integration Boolean
@@ -102,7 +102,6 @@ model LinkedAccount {
   configuration   Json
   metadata        Json?
   consent_given   Boolean @default(false)
-  consent_ip      String?
   consent_date    Int?
   created_at      Int
   updated_at      Int
@@ -116,18 +115,20 @@ model LinkedAccount {
 }
 
 model Integration {
-  unique_key            String
-  environment_id        String
-  display_name          String
-  is_enabled            Boolean
-  use_oauth_credentials Boolean
-  oauth_client_id       String?
-  oauth_client_secret   String?
-  oauth_scopes          String?
-  rank                  Int?
-  created_at            Int
-  updated_at            Int
-  deleted_at            Int?
+  unique_key              String
+  environment_id          String
+  name                    String
+  is_enabled              Boolean
+  use_oauth_credentials   Boolean
+  oauth_client_id         String?
+  oauth_client_secret     String?
+  oauth_client_secret_iv  String?
+  oauth_client_secret_tag String?
+  oauth_scopes            String?
+  rank                    Int?
+  created_at              Int
+  updated_at              Int
+  deleted_at              Int?
 
   linked_accounts LinkedAccount[]
   collections     Collection[]
@@ -141,20 +142,22 @@ model Integration {
 }
 
 model Collection {
-  unique_key          String
-  integration_key     String
-  environment_id      String
-  is_enabled          Boolean
-  default_frequency   String
-  auto_start          Boolean
-  excluded_properties String[]
-  created_at          Int
-  updated_at          Int
-  deleted_at          Int?
+  unique_key                   String
+  integration_key              String
+  environment_id               String
+  is_enabled                   Boolean
+  default_sync_frequency       String
+  auto_start_sync              Boolean
+  exclude_properties_from_sync String[]
+  created_at                   Int
+  updated_at                   Int
+  deleted_at                   Int?
+
+  syncs Sync[]
 
   integration Integration @relation(fields: [integration_key, environment_id], references: [unique_key, environment_id])
 
-  @@unique([unique_key, integration_key])
+  @@unique([unique_key, integration_key, environment_id])
 }
 
 model Action {
@@ -170,7 +173,7 @@ model Action {
 
   integration Integration @relation(fields: [integration_key, environment_id], references: [unique_key, environment_id])
 
-  @@unique([unique_key, integration_key])
+  @@unique([unique_key, integration_key, environment_id])
 }
 
 model Sync {
@@ -187,6 +190,7 @@ model Sync {
   runs      SyncRun[]
   schedules SyncSchedule[]
 
+  collection     Collection    @relation(fields: [collection_key, integration_key, environment_id], references: [unique_key, integration_key, environment_id])
   linked_account LinkedAccount @relation(fields: [linked_account_id], references: [id])
   integration    Integration   @relation(fields: [integration_key, environment_id], references: [unique_key, environment_id])
 
@@ -233,7 +237,7 @@ model ActionRun {
   updated_at        Int
   deleted_at        Int?
 
-  action         Action        @relation(fields: [action_key, integration_key], references: [unique_key, integration_key])
+  action         Action        @relation(fields: [action_key, integration_key, environment_id], references: [unique_key, integration_key, environment_id])
   linked_account LinkedAccount @relation(fields: [linked_account_id], references: [id])
   integration    Integration   @relation(fields: [integration_key, environment_id], references: [unique_key, environment_id])
 
@@ -241,27 +245,27 @@ model ActionRun {
 }
 
 model Webhook {
-  id             String   @id
-  environment_id String
-  url            String
-  events         String[]
-  is_enabled     Boolean
-  secret         String
-  secret_iv      String?
-  secret_tag     String?
-  created_at     Int
-  updated_at     Int
-  deleted_at     Int?
+  id                  String   @id
+  environment_id      String
+  url                 String
+  event_subscriptions String[]
+  is_enabled          Boolean
+  secret              String
+  secret_iv           String?
+  secret_tag          String?
+  created_at          Int
+  updated_at          Int
+  deleted_at          Int?
 
-  logs WebhookLog[]
+  events WebhookEvent[]
 
   environment Environment @relation(fields: [environment_id], references: [id])
 }
 
-model WebhookLog {
+model WebhookEvent {
   id         String  @id
   webhook_id String
-  event      String
+  name       String
   payload    Json
   delivered  Boolean
   timestamp  Int

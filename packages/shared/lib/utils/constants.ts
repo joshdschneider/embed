@@ -32,6 +32,10 @@ export function getEncryptonKey() {
   return process.env['ENCRYPTION_KEY'];
 }
 
+export function getInternalApiKey() {
+  return process.env['INTERNAL_API_KEY'];
+}
+
 export function getLogLevel() {
   return process.env['LOG_LEVEL'] || 'info';
 }
@@ -44,12 +48,12 @@ export function isCloud() {
   return process.env['KIT_CLOUD']?.toLowerCase() === 'true';
 }
 
-export function getAuthTokenSecret() {
-  return process.env['KIT_CLOUD_AUTH_TOKEN_SECRET'];
+export function isEnterprise() {
+  return process.env['KIT_ENTERPRISE']?.toLowerCase() === 'true';
 }
 
-export function getInternalApiKey() {
-  return process.env['KIT_CLOUD_INTERNAL_API_KEY'];
+export function getAuthTokenSecret() {
+  return process.env['KIT_AUTH_TOKEN_SECRET'];
 }
 
 export const ACCOUNT_ID_LOCALS_KEY = 'kit_account_id';
@@ -58,10 +62,14 @@ export const ENVIRONMENT_ID_LOCALS_KEY = 'kit_environment_id';
 export const ENCRYPTION_KEY_BYTE_LENGTH = 32;
 export const ENCRYPTION_KEY_SALT = 'X89FHEGqR3yNK0+v7rPWxQ==';
 
-export const KIT_CLOUD_AUTH_TOKEN_KEY = 'kit_cloud_token';
-export const KIT_CLOUD_ENVIRONMENT_KEY = 'kit_cloud_enviroment';
+export const KIT_AUTH_TOKEN_KEY = 'kit_token';
+export const KIT_ENVIRONMENT_KEY = 'kit_enviroment';
 
 export const SYNC_TASK_QUEUE = 'syncs';
 export const ACTIONS_TASK_QUEUE = 'actions';
+
+export const MIN_LIMIT = 1;
+export const MAX_LIMIT = 100;
+export const DEFAULT_LIMIT = 20;
 
 export const DEFAULT_ERROR_MESSAGE = 'Something went wrong';
