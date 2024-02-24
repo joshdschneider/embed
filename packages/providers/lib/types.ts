@@ -121,10 +121,9 @@ export const RetrySchema = z.object({
 
 export type Retry = z.infer<typeof RetrySchema>;
 
-export const SyncsSchema = z.record(
+export const CollectionsSchema = z.array(
   z.object({
-    name: z.string(),
-    description: z.string(),
+    unique_key: z.string(),
     default_enabled: z.boolean().optional(),
     default_frequency: z.string().optional(),
     default_auto_start: z.boolean().optional(),
@@ -132,21 +131,20 @@ export const SyncsSchema = z.record(
   })
 );
 
-export type Syncs = z.infer<typeof SyncsSchema>;
+export type Collections = z.infer<typeof CollectionsSchema>;
 
-export const ActionSchema = z.record(
+export const ActionsSchema = z.array(
   z.object({
-    name: z.string(),
-    description: z.string(),
+    unique_key: z.string(),
     default_enabled: z.boolean().optional(),
     schema: z.any(),
   })
 );
 
-export type Actions = z.infer<typeof ActionSchema>;
+export type Actions = z.infer<typeof ActionsSchema>;
 
 export const ProviderSpecificationSchema = z.object({
-  slug: z.string(),
+  unique_key: z.string(),
   name: z.string(),
   description: z.string(),
   base_url: z.string(),
@@ -154,11 +152,11 @@ export const ProviderSpecificationSchema = z.object({
   headers: z.record(z.string()).optional(),
   retry: RetrySchema.optional(),
   pagination: PaginationSchema.optional(),
-  logo_url: z.string().optional(),
+  logo_url: z.string(),
   logo_url_dark_mode: z.string().optional(),
   docs_url: z.string().optional(),
-  syncs: SyncsSchema.optional(),
-  actions: ActionSchema.optional(),
+  collections: CollectionsSchema.optional(),
+  actions: ActionsSchema.optional(),
 });
 
 export type ProviderSpecification = z.infer<typeof ProviderSpecificationSchema>;

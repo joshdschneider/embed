@@ -16,6 +16,10 @@ linkedAccountRouter
 
 linkedAccountRouter
   .route('/:linked_account_id')
+  .post(linkedAccountController.updateLinkedAccount.bind(linkedAccountController));
+
+linkedAccountRouter
+  .route('/:linked_account_id')
   .delete(linkedAccountController.deleteLinkedAccount.bind(linkedAccountController));
 
 export default linkedAccountRouter;

@@ -8,25 +8,25 @@ export class Registry {
     [key: string]: Provider;
   } = {};
 
-  private async load(slug: string): Promise<void> {
-    this.providers[slug] = new Provider(slug);
+  private async load(uniqueKey: string): Promise<void> {
+    this.providers[uniqueKey] = new Provider(uniqueKey);
   }
 
   private async loadAll(): Promise<void> {
     const dir = path.join(__dirname);
-    const slugs = await fs.readdir(dir);
-    for (const slug of slugs) {
-      const providerPath = path.join(dir, slug);
+    const keys = await fs.readdir(dir);
+    for (const uniqueKey of keys) {
+      const providerPath = path.join(dir, uniqueKey);
       const stats = await fs.lstat(providerPath);
       if (stats.isDirectory()) {
-        this.providers[slug] = new Provider(slug);
+        this.providers[uniqueKey] = new Provider(uniqueKey);
       }
     }
   }
 
-  public async getProviderSpecification(slug: string): Promise<ProviderSpecification | null> {
-    await this.load(slug);
-    const provider = this.providers[slug];
+  public async getProviderSpecification(uniqueKey: string): Promise<ProviderSpecification | null> {
+    await this.load(uniqueKey);
+    const provider = this.providers[uniqueKey];
     return provider ? provider.getSpecification() : null;
   }
 
@@ -35,13 +35,17 @@ export class Registry {
     return Object.values(this.providers).map((provider) => provider.getSpecification());
   }
 
-  public async syncProviderModel(slug: string, model: string, context: SyncContext): Promise<void> {
-    await this.load(slug);
-    const provider = this.providers[slug];
+  public async syncProviderModel(
+    uniqueKey: string,
+    model: string,
+    context: SyncContext
+  ): Promise<void> {
+    await this.load(uniqueKey);
+    const provider = this.providers[uniqueKey];
     if (!provider) {
-      throw new Error(`Failed to load provider ${slug}`);
+      throw new Error(`Failed to load provider ${uniqueKey}`);
     }
 
-    return provider.syncModel(model, context);
+    return provider.syncCollection(model, context);
   }
 }

@@ -1,3 +1,6 @@
+import { AuthScheme } from '@kit/providers';
+import { z } from 'zod';
+
 export enum EnvironmentType {
   Staging = 'staging',
   Production = 'production',
@@ -114,3 +117,67 @@ export interface LinkedAccountWebhookBody {
 }
 
 export type WebhookBody = LinkedAccountWebhookBody;
+
+export interface IntegrationObject {
+  object: 'integration';
+  unique_key: string;
+  name: string;
+  logo_url: string;
+  logo_url_dark_mode?: string;
+  is_enabled: boolean;
+  auth_scheme: AuthScheme;
+  use_oauth_credentials: boolean;
+  oauth_client_id: string | null;
+  oauth_client_secret: string | null;
+}
+
+export const UpdateIntegrationRequestSchema = z.object({
+  use_oauth_credentials: z.boolean().optional(),
+  oauth_client_id: z.string().optional(),
+  oauth_client_secret: z.string().optional(),
+});
+
+export type UpdateIntegrationRequest = z.infer<typeof UpdateIntegrationRequestSchema>;
+
+export interface CollectionObject {
+  object: 'collection';
+  unique_key: string;
+  integration: string;
+  is_enabled: boolean;
+  default_sync_frequency: string;
+  auto_start_sync: boolean;
+  exclude_properties_from_sync: string[];
+  created_at: number;
+  updated_at: number;
+}
+
+export const UpdateCollectionRequestSchema = z.object({
+  default_sync_frequency: z.string().optional(),
+  auto_start_sync: z.boolean().optional(),
+  exclude_properties_from_sync: z.array(z.string()).optional(),
+});
+
+export type UpdateCollectionRequest = z.infer<typeof UpdateCollectionRequestSchema>;
+
+export interface LinkTokenObject {
+  object: 'link_token';
+  id: string;
+  url: string;
+  integration_key: string;
+  linked_account_id: string | null;
+  expires_in_mins: number;
+  language: 'en';
+  redirect_url: string | null;
+  metadata: Record<string, any> | null;
+  created_at: number;
+}
+
+export interface LinkedAccountObject {
+  object: 'linked_account';
+  id: string;
+  integration_key: string;
+  configuration: Record<string, any>;
+  metadata: Record<string, any> | null;
+  created_at: number;
+  updated_at: number;
+}

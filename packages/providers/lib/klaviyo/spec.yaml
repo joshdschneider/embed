@@ -1,5 +1,5 @@
-slug: klaviyo
-display_name: Klaviyo
+unique_key: klaviyo
+name: Klaviyo
 base_url: https://a.klaviyo.com
 docs_url: https://developers.klaviyo.com/en/reference/api_overview
 logo_url: https://kit-integrations.s3.amazonaws.com/klaviyo.svg

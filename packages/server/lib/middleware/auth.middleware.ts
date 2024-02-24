@@ -1,9 +1,10 @@
 import {
   ErrorCode,
-  KIT_CLOUD_AUTH_TOKEN_KEY,
+  KIT_AUTH_TOKEN_KEY,
   errorService,
   getInternalApiKey,
   isCloud,
+  isEnterprise,
 } from '@kit/shared';
 import Cookies from 'cookies';
 import type { NextFunction, Request, Response } from 'express';
@@ -19,9 +20,9 @@ class AuthMiddleware {
       }
     }
 
-    if (isCloud()) {
+    if (isCloud() || isEnterprise()) {
       const cookies = Cookies(req, res);
-      const token = cookies.get(KIT_CLOUD_AUTH_TOKEN_KEY);
+      const token = cookies.get(KIT_AUTH_TOKEN_KEY);
       if (token) {
         return authService.verifyTokenEnvironment(token, req, res, next);
       }
@@ -29,14 +30,14 @@ class AuthMiddleware {
 
     return errorService.errorResponse(res, {
       code: ErrorCode.Unauthorized,
-      message: 'Secret key is required',
+      message: 'Missing authorization credentials',
     });
   }
 
-  public async cloudUserAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
-    if (isCloud()) {
+  public async webUserAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
+    if (isCloud() || isEnterprise()) {
       const cookies = Cookies(req, res);
-      const token = cookies.get(KIT_CLOUD_AUTH_TOKEN_KEY);
+      const token = cookies.get(KIT_AUTH_TOKEN_KEY);
       if (token) {
         return authService.verifyTokenUser(token, req, res, next);
       }
@@ -44,18 +45,14 @@ class AuthMiddleware {
 
     return errorService.errorResponse(res, {
       code: ErrorCode.Unauthorized,
-      message: 'Cloud credentials are required',
+      message: 'Missing authorization credentials',
     });
   }
 
-  public async cloudEnvironmentAuth(
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ): Promise<void> {
-    if (isCloud()) {
+  public async webEnvironmentAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
+    if (isCloud() || isEnterprise()) {
       const cookies = Cookies(req, res);
-      const token = cookies.get(KIT_CLOUD_AUTH_TOKEN_KEY);
+      const token = cookies.get(KIT_AUTH_TOKEN_KEY);
       if (token) {
         return authService.verifyTokenEnvironment(token, req, res, next);
       }
@@ -63,7 +60,7 @@ class AuthMiddleware {
 
     return errorService.errorResponse(res, {
       code: ErrorCode.Unauthorized,
-      message: 'Cloud credentials are required',
+      message: 'Missing authorization credentials',
     });
   }
 
