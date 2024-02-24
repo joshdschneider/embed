@@ -1,5 +1,5 @@
-slug: github
-display_name: GitHub
+unique_key: github
+name: GitHub
 base_url: https://api.github.com
 auth:
   scheme: OAUTH2
@@ -13,12 +13,4 @@ paginate:
   link_rel_in_response_header: next
 docs_url: https://docs.github.com/en/rest
 logo_url: https://kit-integrations.s3.amazonaws.com/github.svg
-logo_dark_url: https://kit-integrations.s3.amazonaws.com/github-dark.svg
-syncs:
-  issues:
-    name: Issues
-    description: Sync all issues for a Github repository
-    default_enabled: true
-    default_frequency: 1d
-    default_auto_start: true
-    schema: Issue
+logo_url_dark_mode: https://kit-integrations.s3.amazonaws.com/github-dark.svg

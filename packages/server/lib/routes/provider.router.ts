@@ -6,7 +6,7 @@ const providerRouter = express.Router();
 providerRouter.route('/').get(providerController.listProviders.bind(providerController));
 
 providerRouter
-  .route('/:provider_slug')
+  .route('/:provider_key')
   .get(providerController.retrieveProvider.bind(providerController));
 
 export default providerRouter;

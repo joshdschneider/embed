@@ -6,13 +6,13 @@ import { ProviderSpecification, ProviderSpecificationSchema, SyncContext } from 
 export class Provider {
   public specification: ProviderSpecification;
 
-  constructor(slug: string) {
-    const file = yaml.load(fs.readFileSync(path.join(__dirname, `${slug}/kit.yaml`), 'utf8'));
+  constructor(provider: string) {
+    const file = yaml.load(fs.readFileSync(path.join(__dirname, `${provider}/kit.yaml`), 'utf8'));
     const spec = ProviderSpecificationSchema.safeParse(file);
     if (spec.success) {
       this.specification = spec.data;
     } else {
-      throw new Error(`Failed to parse ${slug} provider specification`);
+      throw new Error(`Failed to parse ${provider} specification`);
     }
   }
 
@@ -20,9 +20,9 @@ export class Provider {
     return this.specification;
   }
 
-  public async syncModel(model: string, context: SyncContext) {
-    const modelPath = path.join(__dirname, this.specification.slug, `sync-${model}`);
-    const script = await import(modelPath);
+  public async syncCollection(collection: string, context: SyncContext) {
+    const file = path.join(__dirname, this.specification.unique_key, `sync-${collection}`);
+    const script = await import(file);
     return script.default(context);
   }
 }
