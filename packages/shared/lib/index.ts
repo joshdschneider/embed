@@ -2,6 +2,7 @@ import WorkerClient from './clients/worker.client';
 import { ActionContext } from './context/action.context';
 import { BaseContext } from './context/base.context';
 import { SyncContext } from './context/sync.context';
+import actionService from './services/action.service';
 import activityService from './services/activity.service';
 import apiKeyService from './services/apiKey.service';
 import collectionService from './services/collection.service';
@@ -18,13 +19,24 @@ export * from './utils/database';
 export * from './utils/enums';
 export * from './utils/helpers';
 
-export { Collection, Environment, Integration, LinkToken, LinkedAccount } from '@prisma/client';
+export {
+  Account,
+  ApiKey,
+  Collection,
+  Environment,
+  Integration,
+  LinkToken,
+  LinkedAccount,
+  Webhook,
+  WebhookEvent,
+} from '@prisma/client';
 
 export {
   ActionContext,
   BaseContext,
   SyncContext,
   WorkerClient,
+  actionService,
   activityService,
   apiKeyService,
   collectionService,

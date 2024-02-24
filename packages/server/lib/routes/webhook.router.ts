@@ -20,6 +20,6 @@ webhookRouter
 
 webhookRouter
   .route('/:webhook_id/events/:webhook_event_id')
-  .get(webhookController.retrieveWebhookEvents.bind(webhookController));
+  .get(webhookController.retrieveWebhookEvent.bind(webhookController));
 
 export default webhookRouter;

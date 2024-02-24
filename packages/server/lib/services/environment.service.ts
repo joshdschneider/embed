@@ -1,5 +1,5 @@
 import type { ApiKey, Environment } from '@kit/shared';
-import { database, encryptionService, errorService } from '@kit/shared';
+import { database, encryptionService, errorService, now } from '@kit/shared';
 import { DEFAULT_BRANDING } from '../utils/constants';
 import type { Branding } from '../utils/types';
 
@@ -85,6 +85,7 @@ class EnvironmentService {
         data: {
           enable_new_integrations: environment.enable_new_integrations,
           branding: environment.branding || undefined,
+          updated_at: now(),
         },
       });
     } catch (err) {

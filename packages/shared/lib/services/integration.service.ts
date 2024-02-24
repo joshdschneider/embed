@@ -170,7 +170,7 @@ class IntegrationService {
           },
           deleted_at: null,
         },
-        data,
+        data: { ...data, updated_at: now() },
       });
 
       return encryptionService.decryptIntegration(integration);

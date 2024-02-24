@@ -327,16 +327,16 @@ class IntegrationController {
   public async rerankIntegrations(req: Request, res: Response) {
     try {
       const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
-      const ranks = req.body['ranks'];
+      const integrations = req.body['integrations'];
 
-      if (!ranks || !Array.isArray(ranks)) {
+      if (!integrations || !Array.isArray(integrations)) {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
-          message: 'Invalid ranks',
+          message: 'Invalid request payload',
         });
       }
 
-      const count = await integrationService.rerankIntegrations(environmentId, ranks);
+      const count = await integrationService.rerankIntegrations(environmentId, integrations);
 
       if (!count) {
         return errorService.errorResponse(res, {
@@ -345,7 +345,7 @@ class IntegrationController {
         });
       }
 
-      res.status(200).json({ object: 'integrations.reranked', count });
+      res.status(200).json({ object: 'integration', updated: count });
     } catch (err) {
       await errorService.reportError(err);
 

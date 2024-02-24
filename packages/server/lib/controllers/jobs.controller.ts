@@ -9,7 +9,7 @@ import {
 import type { Request, Response } from 'express';
 
 class JobsController {
-  public async addNewProvider(req: Request, res: Response) {
+  public async addProvider(req: Request, res: Response) {
     try {
       const provider = req.body['provider'];
 
@@ -30,7 +30,7 @@ class JobsController {
       }
 
       const all = await database.environment.findMany({
-        include: { integrations: { select: { provider: true } } },
+        include: { integrations: { select: { unique_key: true } } },
       });
 
       const environments = all.filter((env) => env.enable_new_integrations === true);
@@ -39,26 +39,21 @@ class JobsController {
         environments.map((environment) => {
           return database.integration.create({
             data: {
-              provider,
+              unique_key: existingProvider.unique_key,
+              name: existingProvider.name,
               environment_id: environment.id,
               is_enabled: true,
-              use_client_credentials: false,
-              oauth_client_id: null,
-              oauth_client_secret: null,
-              oauth_scopes: null,
+              use_oauth_credentials: false,
               rank: environment.integrations.length + 1,
               created_at: now(),
               updated_at: now(),
-              deleted_at: null,
             },
           });
         })
       );
 
       res.status(200).json({
-        object: 'job',
-        job: 'add-new-provider',
-        success: true,
+        object: 'environment',
         updated: result.length,
       });
     } catch (err) {

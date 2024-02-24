@@ -149,6 +149,32 @@ class LinkedAccountService {
     }
   }
 
+  public async updateLinkedAccount(
+    linkedAccountId: string,
+    data: Partial<LinkedAccount>
+  ): Promise<LinkedAccount | null> {
+    try {
+      const linkedAccount = await database.linkedAccount.update({
+        where: { id: linkedAccountId, deleted_at: null },
+        data: {
+          ...data,
+          configuration: data.configuration || undefined,
+          metadata: data.metadata || undefined,
+          updated_at: now(),
+        },
+      });
+
+      if (!linkedAccount) {
+        return null;
+      }
+
+      return encryptionService.decryptLinkedAccount(linkedAccount);
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
+    }
+  }
+
   public async deleteLinkedAccount(linkedAccountId: string): Promise<LinkedAccount | null> {
     try {
       const linkedAccount = await database.linkedAccount.findUnique({

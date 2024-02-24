@@ -1,13 +1,13 @@
-import { Collection } from '@prisma/client';
+import { Action } from '@prisma/client';
 import { database } from '../utils/database';
 import { now } from '../utils/helpers';
 import errorService from './error.service';
 
-class CollectionService {
-  public async listCollections(
+class ActionService {
+  public async listActions(
     integrationKey: string,
     environmentId: string
-  ): Promise<Collection[] | null> {
+  ): Promise<Action[] | null> {
     try {
       const integration = await database.integration.findUnique({
         where: {
@@ -17,30 +17,30 @@ class CollectionService {
           },
           deleted_at: null,
         },
-        select: { collections: true },
+        select: { actions: true },
       });
 
       if (!integration) {
         return null;
       }
 
-      return integration.collections;
+      return integration.actions;
     } catch (err) {
       await errorService.reportError(err);
       return null;
     }
   }
 
-  public async retrieveCollection(
-    collectionKey: string,
+  public async retrieveAction(
+    actionKey: string,
     integrationKey: string,
     environmentId: string
-  ): Promise<Collection | null> {
+  ): Promise<Action | null> {
     try {
-      return await database.collection.findUnique({
+      return await database.action.findUnique({
         where: {
           unique_key_integration_key_environment_id: {
-            unique_key: collectionKey,
+            unique_key: actionKey,
             integration_key: integrationKey,
             environment_id: environmentId,
           },
@@ -53,17 +53,17 @@ class CollectionService {
     }
   }
 
-  public async updateCollection(
-    collectionKey: string,
+  public async updateAction(
+    actionKey: string,
     integrationKey: string,
     environmentId: string,
-    data: Partial<Collection>
-  ): Promise<Collection | null> {
+    data: Partial<Action>
+  ): Promise<Action | null> {
     try {
-      return await database.collection.update({
+      return await database.action.update({
         where: {
           unique_key_integration_key_environment_id: {
-            unique_key: collectionKey,
+            unique_key: actionKey,
             integration_key: integrationKey,
             environment_id: environmentId,
           },
@@ -78,4 +78,4 @@ class CollectionService {
   }
 }
 
-export default new CollectionService();
+export default new ActionService();

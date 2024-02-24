@@ -1,4 +1,5 @@
 import express from 'express';
+import actionController from '../controllers/action.controller';
 import linkedAccountController from '../controllers/linkedAccount.controller';
 import authMiddleware from '../middleware/auth.middleware';
 
@@ -21,5 +22,17 @@ linkedAccountRouter
 linkedAccountRouter
   .route('/:linked_account_id')
   .delete(linkedAccountController.deleteLinkedAccount.bind(linkedAccountController));
+
+linkedAccountRouter
+  .route('/:linked_account_id/actions/:action_key/runs')
+  .get(actionController.listActionRuns.bind(actionController));
+
+linkedAccountRouter
+  .route('/:linked_account_id/actions/:action_key/runs/:run_id')
+  .get(actionController.retrieveActionRun.bind(actionController));
+
+linkedAccountRouter
+  .route('/:linked_account_id/actions/:action_key/trigger')
+  .post(actionController.triggerAction.bind(actionController));
 
 export default linkedAccountRouter;
