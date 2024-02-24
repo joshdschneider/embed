@@ -16,6 +16,6 @@ linkTokenRouter
 
 linkTokenRouter
   .route('/:link_token_id')
-  .post(linkTokenController.updateLinkToken.bind(linkTokenController));
+  .delete(linkTokenController.deleteLinkToken.bind(linkTokenController));
 
 export default linkTokenRouter;

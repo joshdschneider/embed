@@ -1,20 +1,4 @@
-export const SUPPORTED_LANGUAGES = [
-  'da', // Danish
-  'nl', // Dutch
-  'en', // English
-  'et', // Estonian
-  'fr', // French
-  'de', // German
-  'it', // Italian
-  'lv', // Latvian
-  'lt', // Lithuanian
-  'no', // Norwegian
-  'pl', // Polish
-  'pt', // Portuguese
-  'ro', // Romanian
-  'es', // Spanish
-  'sv', // Swedish
-];
+export const SUPPORTED_LANGUAGES = ['en'];
 
 export const DEFAULT_BRANDING = {
   name: null,

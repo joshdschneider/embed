@@ -1,4 +1,4 @@
-import type { LinkedAccount, Webhook } from '@kit/shared';
+import type { LinkedAccount, Webhook, WebhookEvent } from '@kit/shared';
 import {
   LogLevel,
   Resource,
@@ -11,14 +11,13 @@ import {
 } from '@kit/shared';
 import { backOff } from 'exponential-backoff';
 import { getWebhookSignatureHeader } from '../utils/helpers';
-import { WebhookBody, WebhookEvent } from '../utils/types';
+import { LinkedAccountWebhookEvent, Metadata, WebhookBody } from '../utils/types';
 import environmentService from './environment.service';
 
 class WebhookService {
   public async createWebhook(webhook: Webhook): Promise<Webhook | null> {
     try {
       const encryptedWebhook = encryptionService.encryptWebhook(webhook);
-
       const createdWebhook = await database.webhook.create({
         data: encryptedWebhook,
       });
@@ -43,24 +42,53 @@ class WebhookService {
     }
   }
 
-  public async updateWebhook(
+  public async listWebhookEvents(webhookId: string): Promise<WebhookEvent[] | null> {
+    try {
+      return await database.webhookEvent.findMany({
+        where: { webhook_id: webhookId },
+      });
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
+    }
+  }
+
+  public async retrieveWebhook(webhookId: string): Promise<Webhook | null> {
+    try {
+      const webhook = await database.webhook.findUnique({
+        where: { id: webhookId, deleted_at: null },
+      });
+
+      if (!webhook) {
+        return null;
+      }
+
+      return encryptionService.decryptWebhook(webhook);
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
+    }
+  }
+
+  public async retrieveWebhookEvent(
     webhookId: string,
-    environmentId: string,
-    data: Partial<Webhook>
-  ): Promise<Webhook | null> {
+    webhookEventId: string
+  ): Promise<WebhookEvent | null> {
+    try {
+      return await database.webhookEvent.findUnique({
+        where: { id: webhookEventId, webhook_id: webhookId },
+      });
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
+    }
+  }
+
+  public async updateWebhook(webhookId: string, data: Partial<Webhook>): Promise<Webhook | null> {
     try {
       const webhook = await database.webhook.update({
-        where: {
-          id: webhookId,
-          environment_id: environmentId,
-          deleted_at: null,
-        },
-        data: {
-          url: data.url,
-          events: data.events,
-          is_enabled: data.is_enabled,
-          updated_at: now(),
-        },
+        where: { id: webhookId, deleted_at: null },
+        data: { ...data, updated_at: now() },
       });
 
       return encryptionService.decryptWebhook(webhook);
@@ -70,48 +98,31 @@ class WebhookService {
     }
   }
 
-  public async deleteWebhook(webhookId: string, environmentId: string): Promise<Webhook | null> {
+  public async deleteWebhook(webhookId: string): Promise<Webhook | null> {
     try {
-      const webhook = await database.webhook.findUnique({
-        where: { id: webhookId, environment_id: environmentId },
-      });
-
-      if (!webhook) {
-        return null;
-      }
-
-      return await database.webhook.update({
-        where: {
-          id: webhookId,
-          environment_id: environmentId,
-          deleted_at: null,
-        },
+      const deletedWebhook = await database.webhook.update({
+        where: { id: webhookId, deleted_at: null },
         data: { deleted_at: now() },
       });
+
+      return encryptionService.decryptWebhook(deletedWebhook);
     } catch (err) {
       await errorService.reportError(err);
       return null;
     }
   }
 
-  private async createWebhookLog(
-    webhookId: string,
-    data: WebhookBody,
-    delivered: boolean
-  ): Promise<void> {
+  private async createWebhookEvent(webhookEvent: WebhookEvent): Promise<WebhookEvent | null> {
     try {
-      await database.webhookLog.create({
+      return await database.webhookEvent.create({
         data: {
-          id: generateId(Resource.WebhookLog),
-          webhook_id: webhookId,
-          event: data.event,
-          payload: { ...data },
-          delivered,
-          timestamp: now(),
+          ...webhookEvent,
+          payload: webhookEvent.payload || {},
         },
       });
     } catch (err) {
       await errorService.reportError(err);
+      return null;
     }
   }
 
@@ -120,6 +131,7 @@ class WebhookService {
 
     try {
       const signatureHeader = getWebhookSignatureHeader(JSON.stringify(data), webhook.secret);
+
       const response = await backOff(
         () => {
           return fetch(webhook.url, {
@@ -140,7 +152,15 @@ class WebhookService {
       await errorService.reportError(err);
     }
 
-    await this.createWebhookLog(webhook.id, data, delivered);
+    await this.createWebhookEvent({
+      id: generateId(Resource.WebhookEvent),
+      webhook_id: webhook.id,
+      name: data.event,
+      payload: { ...data },
+      delivered,
+      timestamp: now(),
+    });
+
     return delivered;
   }
 
@@ -156,7 +176,6 @@ class WebhookService {
     action: 'created' | 'updated';
   }): Promise<void> {
     const webhooks = await this.listWebhooks(environmentId);
-
     if (!webhooks) {
       await activityService.createActivityLog(activityId, {
         timestamp: now(),
@@ -173,7 +192,6 @@ class WebhookService {
     }
 
     const environment = await environmentService.getEnvironmentById(environmentId);
-
     if (!environment) {
       await activityService.createActivityLog(activityId, {
         timestamp: now(),
@@ -185,7 +203,7 @@ class WebhookService {
       return await errorService.reportError(err);
     }
 
-    let event: WebhookEvent;
+    let event: LinkedAccountWebhookEvent;
 
     if (action === 'created') {
       event = 'linked_account.created';
@@ -195,7 +213,7 @@ class WebhookService {
       await activityService.createActivityLog(activityId, {
         timestamp: now(),
         level: LogLevel.Error,
-        message: `Failed to deliver webhook due to an unsupported action`,
+        message: `Failed to deliver webhook due to an internal error`,
       });
 
       const err = new Error(`Unsupported action: ${action}`);
@@ -206,13 +224,13 @@ class WebhookService {
 
     try {
       for (const webhook of enabledWebhooks) {
-        if (webhook.events.includes(event)) {
+        if (webhook.event_subscriptions.includes(event)) {
           const delivered = await this.sendWebhook(webhook, {
             event: event,
-            environment: environment.type,
-            integration: linkedAccount.integration_provider,
-            linked_account_id: linkedAccount.id,
-            metadata: linkedAccount.metadata || {},
+            integration: linkedAccount.integration_key,
+            linked_account: linkedAccount.id,
+            metadata: linkedAccount.metadata as Metadata,
+            configuration: linkedAccount.configuration as Record<string, any>,
             created_at: linkedAccount.created_at,
             updated_at: linkedAccount.updated_at,
           });

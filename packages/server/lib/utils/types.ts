@@ -104,16 +104,16 @@ export interface BasicTemplateData extends DefaultTemplateData {
   };
 }
 
-export type WebhookEvent = 'linked_account.created' | 'linked_account.updated';
+export type LinkedAccountWebhookEvent = 'linked_account.created' | 'linked_account.updated';
 
 export interface LinkedAccountWebhookBody {
-  event: WebhookEvent;
-  environment: string;
+  event: LinkedAccountWebhookEvent;
   integration: string;
-  linked_account_id: string;
-  metadata: any;
+  linked_account: string;
+  configuration: Record<string, any>;
+  metadata: Metadata;
   created_at: number;
-  updated_at: number | null;
+  updated_at: number;
 }
 
 export type WebhookBody = LinkedAccountWebhookBody;
@@ -159,25 +159,111 @@ export const UpdateCollectionRequestSchema = z.object({
 
 export type UpdateCollectionRequest = z.infer<typeof UpdateCollectionRequestSchema>;
 
+export interface ActionObject {
+  object: 'action';
+  unique_key: string;
+  integration: string;
+  is_enabled: boolean;
+  created_at: number;
+  updated_at: number;
+}
+
+export type Metadata = Record<string, any> | null;
+
 export interface LinkTokenObject {
   object: 'link_token';
-  id: string;
+  token: string;
   url: string;
-  integration_key: string;
-  linked_account_id: string | null;
+  integration: string | null;
+  linked_account: string | null;
   expires_in_mins: number;
-  language: 'en';
+  language: string;
   redirect_url: string | null;
-  metadata: Record<string, any> | null;
+  metadata: Metadata;
   created_at: number;
 }
+
+export interface LinkTokenDeletedObject {
+  object: 'link_token.deleted';
+  token: string;
+  deleted: true;
+}
+
+export const CreateLinkTokenRequestSchema = z.object({
+  integration: z.string().optional(),
+  linked_account_id: z.string().optional(),
+  expires_in_mins: z.number().optional(),
+  language: z.string().optional(),
+  redirect_url: z.string().optional(),
+  metadata: z.record(z.string(), z.any()).optional(),
+});
 
 export interface LinkedAccountObject {
   object: 'linked_account';
   id: string;
-  integration_key: string;
+  integration: string;
   configuration: Record<string, any>;
-  metadata: Record<string, any> | null;
+  metadata: Metadata;
   created_at: number;
   updated_at: number;
 }
+
+export const UpdateLinkedAccountRequestSchema = z.object({
+  metadata: z.record(z.string(), z.any()).optional().nullable(),
+});
+
+export interface LinkedAccountDeletedObject {
+  object: 'linked_account.deleted';
+  id: string;
+  deleted: true;
+}
+
+export interface WebhookObject {
+  object: 'webhook';
+  id: string;
+  url: string;
+  events: string[];
+  is_enabled: boolean;
+  signing_secret: string;
+  created_at: number;
+  updated_at: number;
+}
+
+export const CreateWebhookRequestSchema = z.object({
+  url: z.string(),
+  events: z.array(z.string()),
+});
+
+export const UpdateWebhookRequestSchema = z.object({
+  url: z.string().optional(),
+  events: z.array(z.string()).optional(),
+});
+
+export interface WebhookDeletedObject {
+  object: 'webhook.deleted';
+  id: string;
+  deleted: true;
+}
+
+export interface WebhookEventObject {
+  object: 'webhook_event';
+  id: string;
+  event: string;
+  webhook: string;
+  payload: Record<string, any>;
+  delivered: boolean;
+  timestamp: number;
+}
+
+export const PaginationParametersSchema = z.object({
+  order: z.union([z.literal('asc'), z.literal('desc')]).optional(),
+  limit: z
+    .string()
+    .optional()
+    .transform((val) => (val !== undefined ? Number(val) : undefined))
+    .refine((val) => val && !isNaN(val) && val >= 1 && val <= 100, {
+      message: 'Limit must be a number between 1 and 100',
+    }),
+  before: z.string().optional(),
+  after: z.string().optional(),
+});

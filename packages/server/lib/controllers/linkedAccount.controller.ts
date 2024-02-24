@@ -6,21 +6,35 @@ import {
   linkedAccountService,
 } from '@kit/shared';
 import type { Request, Response } from 'express';
+import { zodError } from '../utils/helpers';
+import {
+  LinkedAccountDeletedObject,
+  LinkedAccountObject,
+  Metadata,
+  PaginationParametersSchema,
+  UpdateLinkedAccountRequestSchema,
+} from '../utils/types';
 
 class LinkedAccountController {
   public async listLinkedAccounts(req: Request, res: Response) {
     try {
       const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
-      const searchQuery = req.query['search_query'] as string | undefined;
-      const endingBefore = req.query['ending_before'] as string | undefined;
-      const startingAfter = req.query['starting_after'] as string | undefined;
-      const limit = parseInt(req.query['limit'] as string) || 20;
+      const searchQuery = req.query['query'] as string | undefined;
+      const parsedParams = PaginationParametersSchema.safeParse(req.query);
 
-      const list = await linkedAccountService.listLinkedAccounts(
-        environmentId,
-        { limit, endingBefore, startingAfter },
-        searchQuery
-      );
+      if (!parsedParams.success) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.BadRequest,
+          message: zodError(parsedParams.error),
+        });
+      }
+
+      const { before, after, limit, order } = parsedParams.data;
+      const list = await linkedAccountService.listLinkedAccounts(environmentId, {
+        query: searchQuery,
+        order,
+        pagination: { after, before, limit },
+      });
 
       if (!list) {
         return errorService.errorResponse(res, {
@@ -30,14 +44,13 @@ class LinkedAccountController {
       }
 
       const { linkedAccounts, firstId, lastId, hasMore } = list;
-
-      const linkedAccountsList = linkedAccounts.map((linkedAccount) => {
+      const linkedAccountObjects: LinkedAccountObject[] = linkedAccounts.map((linkedAccount) => {
         return {
+          object: 'linked_account',
           id: linkedAccount.id,
-          environment_id: linkedAccount.environment_id,
-          integration_provider: linkedAccount.integration_provider,
-          configuration: linkedAccount.configuration,
-          metadata: linkedAccount.metadata,
+          integration: linkedAccount.integration_key,
+          configuration: linkedAccount.configuration as Record<string, any>,
+          metadata: linkedAccount.metadata as Metadata,
           created_at: linkedAccount.created_at,
           updated_at: linkedAccount.updated_at,
         };
@@ -45,7 +58,7 @@ class LinkedAccountController {
 
       res.status(200).json({
         object: 'list',
-        data: linkedAccountsList,
+        data: linkedAccountObjects,
         first_id: firstId,
         last_id: lastId,
         has_more: hasMore,
@@ -78,24 +91,67 @@ class LinkedAccountController {
         });
       }
 
-      let credentials = linkedAccount.credentials;
-      try {
-        credentials = JSON.parse(credentials);
-      } catch (err) {
-        await errorService.reportError(err);
-      }
-
-      res.status(200).send({
+      const linkedAccountObject: LinkedAccountObject = {
         object: 'linked_account',
         id: linkedAccount.id,
-        environment_id: linkedAccount.environment_id,
-        integration_provider: linkedAccount.integration_provider,
-        credentials,
-        configuration: linkedAccount.configuration,
-        metadata: linkedAccount.metadata,
+        integration: linkedAccount.integration_key,
+        configuration: linkedAccount.configuration as Record<string, any>,
+        metadata: linkedAccount.metadata as Metadata,
         created_at: linkedAccount.created_at,
         updated_at: linkedAccount.updated_at,
+      };
+
+      res.status(200).send(linkedAccountObject);
+    } catch (err) {
+      await errorService.reportError(err);
+
+      return errorService.errorResponse(res, {
+        code: ErrorCode.InternalServerError,
+        message: DEFAULT_ERROR_MESSAGE,
       });
+    }
+  }
+
+  public async updateLinkedAccount(req: Request, res: Response) {
+    try {
+      const linkedAccountId = req.params['linked_account_id'];
+      if (!linkedAccountId) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.BadRequest,
+          message: 'Linked account ID missing',
+        });
+      }
+
+      const parsedBody = UpdateLinkedAccountRequestSchema.safeParse(req.body);
+      if (!parsedBody.success) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.BadRequest,
+          message: zodError(parsedBody.error),
+        });
+      }
+
+      const linkedAccount = await linkedAccountService.updateLinkedAccount(linkedAccountId, {
+        metadata: parsedBody.data.metadata,
+      });
+
+      if (!linkedAccount) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.InternalServerError,
+          message: DEFAULT_ERROR_MESSAGE,
+        });
+      }
+
+      const linkedAccountObject: LinkedAccountObject = {
+        object: 'linked_account',
+        id: linkedAccount.id,
+        integration: linkedAccount.integration_key,
+        configuration: linkedAccount.configuration as Record<string, any>,
+        metadata: linkedAccount.metadata as Metadata,
+        created_at: linkedAccount.created_at,
+        updated_at: linkedAccount.updated_at,
+      };
+
+      res.status(200).send(linkedAccountObject);
     } catch (err) {
       await errorService.reportError(err);
 
@@ -109,16 +165,14 @@ class LinkedAccountController {
   public async deleteLinkedAccount(req: Request, res: Response) {
     try {
       const linkedAccountId = req.params['linked_account_id'];
-
       if (!linkedAccountId) {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
-          message: 'API key ID missing',
+          message: 'Linked account ID missing',
         });
       }
 
       const linkedAccount = await linkedAccountService.deleteLinkedAccount(linkedAccountId);
-
       if (!linkedAccount) {
         return errorService.errorResponse(res, {
           code: ErrorCode.InternalServerError,
@@ -126,11 +180,13 @@ class LinkedAccountController {
         });
       }
 
-      res.status(200).json({
-        object: 'linked_account',
+      const linkedAccountDeletedObject: LinkedAccountDeletedObject = {
+        object: 'linked_account.deleted',
         id: linkedAccount.id,
         deleted: true,
-      });
+      };
+
+      res.status(200).json(linkedAccountDeletedObject);
     } catch (err) {
       await errorService.reportError(err);
 

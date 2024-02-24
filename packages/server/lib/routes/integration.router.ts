@@ -1,4 +1,5 @@
 import express from 'express';
+import actionController from '../controllers/action.controller';
 import collectionController from '../controllers/collection.controller';
 import integrationController from '../controllers/integration.controller';
 import authMiddleware from '../middleware/auth.middleware';
@@ -10,6 +11,10 @@ integrationRouter.use(authMiddleware.apiKeyAuth.bind(authMiddleware));
 integrationRouter
   .route('/')
   .get(integrationController.listIntegrations.bind(integrationController));
+
+integrationRouter
+  .route('/rerank')
+  .post(integrationController.rerankIntegrations.bind(integrationController));
 
 integrationRouter
   .route('/:integration_key')
@@ -54,5 +59,29 @@ integrationRouter
 integrationRouter
   .route('/:integration_key/collections/:collection_key/schema')
   .get(collectionController.retrieveCollectionSchema.bind(collectionController));
+
+integrationRouter
+  .route('/:integration_key/actions')
+  .get(actionController.listActions.bind(actionController));
+
+integrationRouter
+  .route('/:integration_key/actions/schemas')
+  .get(actionController.listActionSchemas.bind(actionController));
+
+integrationRouter
+  .route('/:integration_key/actions/:action_key')
+  .get(actionController.retrieveAction.bind(actionController));
+
+integrationRouter
+  .route('/:integration_key/actions/:action_key/enable')
+  .post(actionController.enableAction.bind(actionController));
+
+integrationRouter
+  .route('/:integration_key/actions/:action_key/disable')
+  .post(actionController.disableAction.bind(actionController));
+
+integrationRouter
+  .route('/:integration_key/actions/:action_key/schema')
+  .get(actionController.retrieveActionSchema.bind(actionController));
 
 export default integrationRouter;
