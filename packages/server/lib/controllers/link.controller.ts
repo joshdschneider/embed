@@ -88,9 +88,7 @@ class LinkController {
       }
 
       if (!linkToken.can_choose_integration) {
-        return res.redirect(
-          `${serverUrl}/link/${linkToken.id}/i/${linkToken.integration_provider}`
-        );
+        return res.redirect(`${serverUrl}/link/${linkToken.id}/i/${linkToken.integration_key}`);
       }
 
       if (linkToken.expires_at < now()) {
@@ -122,10 +120,10 @@ class LinkController {
 
       const integrationsWithSpec = await Promise.all(
         enabledIntegrations.map(async (integration) => {
-          const providerSpec = await providerService.getProviderSpec(integration.provider);
+          const providerSpec = await providerService.getProviderSpec(integration.unique_key);
 
           if (!providerSpec) {
-            const err = new Error(`Provider specification not found for ${integration.provider}`);
+            const err = new Error(`Provider specification not found for ${integration.unique_key}`);
             await errorService.reportError(err);
           }
 
@@ -139,10 +137,10 @@ class LinkController {
 
       const integrationsList = integrationsFiltered.map((integration) => {
         return {
-          provider: integration.provider,
-          display_name: integration.provider_spec.display_name,
+          unique_key: integration.unique_key,
+          name: integration.provider_spec.name,
           logo_url: integration.provider_spec.logo_url,
-          logo_dark_url: integration.provider_spec.logo_dark_url,
+          logo_url_dark_mode: integration.provider_spec.logo_url_dark_mode,
         };
       });
 
@@ -184,7 +182,7 @@ class LinkController {
 
   public async consentView(req: Request, res: Response) {
     const token = req.params['token'];
-    const integrationProvider = req.params['integration'];
+    const integrationKey = req.params['integration'];
 
     if (!token) {
       return await publisher.publishError(res, {
@@ -208,7 +206,7 @@ class LinkController {
     const branding = await environmentService.getEnvironmentBranding(linkToken.environment_id);
 
     try {
-      if (!integrationProvider) {
+      if (!integrationKey) {
         const errorMessage = 'No integration selected';
 
         await activityService.createActivityLog(activityId, {
@@ -227,10 +225,7 @@ class LinkController {
         });
       }
 
-      if (
-        !linkToken.can_choose_integration &&
-        integrationProvider !== linkToken.integration_provider
-      ) {
+      if (!linkToken.can_choose_integration && integrationKey !== linkToken.integration_key) {
         const errorMessage = `Invalid integration`;
 
         await activityService.createActivityLog(activityId, {
@@ -273,13 +268,13 @@ class LinkController {
         throw new Error('SERVER_URL is undefined');
       }
 
-      const integration = await integrationService.getIntegrationByProvider(
-        integrationProvider,
+      const integration = await integrationService.getIntegrationByKey(
+        integrationKey,
         linkToken.environment_id
       );
 
       if (!integration) {
-        throw new Error(`Failed to retrieve integration ${integrationProvider}`);
+        throw new Error(`Failed to retrieve integration ${integrationKey}`);
       }
 
       if (!integration.is_enabled) {
@@ -301,9 +296,9 @@ class LinkController {
         });
       }
 
-      const providerSpec = await providerService.getProviderSpec(integration.provider);
+      const providerSpec = await providerService.getProviderSpec(integration.unique_key);
       if (!providerSpec) {
-        throw new Error(`Provider specification not found for ${integration.provider}`);
+        throw new Error(`Provider specification not found for ${integration.unique_key}`);
       }
 
       await activityService.createActivityLog(activityId, {
@@ -318,10 +313,10 @@ class LinkController {
         link_token: token,
         can_choose_integration: linkToken.can_choose_integration,
         integration: {
-          provider: integration.provider,
-          display_name: providerSpec.display_name,
+          unique_key: integration.unique_key,
+          name: providerSpec.name,
           logo_url: providerSpec.logo_url,
-          logo_dark_url: providerSpec.logo_dark_url,
+          logo_url_dark_mode: providerSpec.logo_url_dark_mode,
         },
         branding,
         prefers_dark_mode: prefersDarkMode,
@@ -412,7 +407,7 @@ class LinkController {
         });
       }
 
-      const integration = await integrationService.getIntegrationByProvider(
+      const integration = await integrationService.getIntegrationByKey(
         provider,
         linkToken.environment_id
       );
@@ -441,10 +436,9 @@ class LinkController {
       }
 
       const updatedLinkToken = await linkTokenService.updateLinkToken(linkToken.id, {
-        integration_provider: integration.provider,
+        integration_key: integration.unique_key,
         consent_given: true,
-        consent_date: now(),
-        consent_ip: req.ip,
+        consent_timestamp: now(),
       });
 
       if (!updatedLinkToken) {
@@ -452,12 +446,12 @@ class LinkController {
       }
 
       await activityService.updateActivity(activityId, {
-        integration_provider: integration.provider,
+        integration_key: integration.unique_key,
       });
 
-      const providerSpec = await providerService.getProviderSpec(integration.provider);
+      const providerSpec = await providerService.getProviderSpec(integration.unique_key);
       if (!providerSpec) {
-        throw new Error(`Provider specification not found for ${integration.provider}`);
+        throw new Error(`Provider specification not found for ${integration.unique_key}`);
       }
 
       const serverUrl = getServerUrl();
@@ -469,8 +463,8 @@ class LinkController {
       const baseUrl = `${serverUrl}/link/${token}`;
 
       switch (authScheme) {
-        case AuthScheme.OAUTH1:
-        case AuthScheme.OAUTH2:
+        case AuthScheme.OAuth1:
+        case AuthScheme.OAuth2:
           const oauthUrl = `${baseUrl}/oauth`;
 
           await activityService.createActivityLog(activityId, {
@@ -480,7 +474,7 @@ class LinkController {
           });
 
           return res.redirect(oauthUrl);
-        case AuthScheme.API_KEY:
+        case AuthScheme.ApiKey:
           const apiKeyUrl = `${baseUrl}/api-key`;
 
           await activityService.createActivityLog(activityId, {
@@ -490,7 +484,7 @@ class LinkController {
           });
 
           return res.redirect(apiKeyUrl);
-        case AuthScheme.BASIC:
+        case AuthScheme.Basic:
           const basicUrl = `${baseUrl}/basic`;
 
           await activityService.createActivityLog(activityId, {
@@ -500,7 +494,7 @@ class LinkController {
           });
 
           return res.redirect(basicUrl);
-        case AuthScheme.NONE:
+        case AuthScheme.None:
           await activityService.createActivityLog(activityId, {
             timestamp: now(),
             level: LogLevel.Info,
@@ -510,12 +504,11 @@ class LinkController {
           const response = await linkedAccountService.upsertLinkedAccount({
             id: linkToken.linked_account_id || generateId(Resource.LinkedAccount),
             environment_id: linkToken.environment_id,
-            integration_provider: integration.provider,
+            integration_key: integration.unique_key,
             consent_given: linkToken.consent_given,
-            consent_ip: linkToken.consent_ip,
-            consent_date: linkToken.consent_date,
+            consent_timestamp: linkToken.consent_timestamp,
             configuration: null,
-            credentials: JSON.stringify({ type: AuthScheme.NONE }),
+            credentials: JSON.stringify({ type: AuthScheme.None }),
             credentials_iv: null,
             credentials_tag: null,
             metadata: null,
@@ -525,7 +518,7 @@ class LinkController {
           });
 
           if (!response) {
-            throw new Error(`Failed to upsert linked account for ${integration.provider}`);
+            throw new Error(`Failed to upsert linked account for ${integration.unique_key}`);
           }
 
           await activityService.updateActivity(activityId, {
@@ -566,7 +559,7 @@ class LinkController {
           });
         default:
           throw new Error(
-            `Unsupported auth scheme ${authScheme} for provider ${providerSpec.slug}`
+            `Unsupported auth scheme ${authScheme} for provider ${providerSpec.unique_key}`
           );
       }
     } catch (err) {
@@ -651,7 +644,7 @@ class LinkController {
         });
       }
 
-      if (!linkToken.integration_provider) {
+      if (!linkToken.integration_key) {
         const errorMessage = 'No integration selected';
 
         await activityService.createActivityLog(activityId, {
@@ -675,16 +668,18 @@ class LinkController {
         throw new Error('SERVER_URL is undefined');
       }
 
-      const providerSpec = await providerService.getProviderSpec(linkToken.integration_provider);
+      const providerSpec = await providerService.getProviderSpec(linkToken.integration_key);
       if (!providerSpec) {
-        throw new Error(`Provider specification not found for ${linkToken.integration_provider}`);
+        throw new Error(`Provider specification not found for ${linkToken.integration_key}`);
       }
 
       if (
-        providerSpec.auth.scheme !== AuthScheme.OAUTH2 &&
-        providerSpec.auth.scheme !== AuthScheme.OAUTH1
+        providerSpec.auth.scheme !== AuthScheme.OAuth2 &&
+        providerSpec.auth.scheme !== AuthScheme.OAuth1
       ) {
-        throw new Error(`Invalid auth scheme ${providerSpec.auth.scheme} for ${providerSpec.slug}`);
+        throw new Error(
+          `Invalid auth scheme ${providerSpec.auth.scheme} for ${providerSpec.unique_key}`
+        );
       }
 
       const authorizationUrlKeys = extractConfigurationKeys(providerSpec.auth.authorization_url);
@@ -695,7 +690,7 @@ class LinkController {
         await activityService.createActivityLog(activityId, {
           timestamp: now(),
           level: LogLevel.Info,
-          message: `Collecting required fields for ${providerSpec.display_name} OAuth from user`,
+          message: `Collecting required fields for ${providerSpec.name} OAuth from user`,
           payload: { configuration_fields: keys },
         });
 
@@ -703,10 +698,10 @@ class LinkController {
           server_url: serverUrl,
           link_token: token,
           integration: {
-            provider: providerSpec.slug,
-            display_name: providerSpec.display_name,
+            unique_key: providerSpec.unique_key,
+            name: providerSpec.name,
             logo_url: providerSpec.logo_url,
-            logo_dark_url: providerSpec.logo_dark_url,
+            logo_url_dark_mode: providerSpec.logo_url_dark_mode,
           },
           configuration_fields: keys.map((key) => ({
             name: key,
@@ -827,7 +822,7 @@ class LinkController {
         });
       }
 
-      if (!linkToken.integration_provider) {
+      if (!linkToken.integration_key) {
         const errorMessage = 'No integration selected';
 
         await activityService.createActivityLog(activityId, {
@@ -953,7 +948,7 @@ class LinkController {
         });
       }
 
-      if (!linkToken.integration_provider) {
+      if (!linkToken.integration_key) {
         const errorMessage = 'No integration selected';
 
         await activityService.createActivityLog(activityId, {
@@ -977,9 +972,9 @@ class LinkController {
         throw new Error('SERVER_URL is undefined');
       }
 
-      const providerSpec = await providerService.getProviderSpec(linkToken.integration_provider);
+      const providerSpec = await providerService.getProviderSpec(linkToken.integration_key);
       if (!providerSpec) {
-        throw new Error(`Provider specification not found for ${linkToken.integration_provider}`);
+        throw new Error(`Provider specification not found for ${linkToken.integration_key}`);
       }
 
       await activityService.createActivityLog(activityId, {
@@ -992,10 +987,10 @@ class LinkController {
         server_url: serverUrl,
         link_token: token,
         integration: {
-          provider: providerSpec.slug,
-          display_name: providerSpec.display_name,
+          unique_key: providerSpec.unique_key,
+          name: providerSpec.name,
           logo_url: providerSpec.logo_url,
-          logo_dark_url: providerSpec.logo_dark_url,
+          logo_url_dark_mode: providerSpec.logo_url_dark_mode,
         },
         branding,
         prefers_dark_mode: prefersDarkMode,
@@ -1105,7 +1100,7 @@ class LinkController {
         });
       }
 
-      if (!linkToken.integration_provider) {
+      if (!linkToken.integration_key) {
         const errorMessage = 'No integration selected';
 
         await activityService.createActivityLog(activityId, {
@@ -1127,12 +1122,11 @@ class LinkController {
       const response = await linkedAccountService.upsertLinkedAccount({
         id: linkToken.linked_account_id || generateId(Resource.LinkedAccount),
         environment_id: linkToken.environment_id,
-        integration_provider: linkToken.integration_provider,
+        integration_key: linkToken.integration_key,
         consent_given: linkToken.consent_given,
-        consent_ip: linkToken.consent_ip,
-        consent_date: linkToken.consent_date,
+        consent_timestamp: linkToken.consent_timestamp,
         configuration: null,
-        credentials: JSON.stringify({ type: AuthScheme.API_KEY, apiKey }),
+        credentials: JSON.stringify({ type: AuthScheme.ApiKey, apiKey }),
         credentials_iv: null,
         credentials_tag: null,
         metadata: null,
@@ -1263,7 +1257,7 @@ class LinkController {
         });
       }
 
-      if (!linkToken.integration_provider) {
+      if (!linkToken.integration_key) {
         const errorMessage = 'No integration selected';
 
         await activityService.createActivityLog(activityId, {
@@ -1287,9 +1281,9 @@ class LinkController {
         throw new Error('SERVER_URL is undefined');
       }
 
-      const providerSpec = await providerService.getProviderSpec(linkToken.integration_provider);
+      const providerSpec = await providerService.getProviderSpec(linkToken.integration_key);
       if (!providerSpec) {
-        throw new Error(`Provider specification not found for ${linkToken.integration_provider}`);
+        throw new Error(`Provider specification not found for ${linkToken.integration_key}`);
       }
 
       await activityService.createActivityLog(activityId, {
@@ -1302,10 +1296,10 @@ class LinkController {
         server_url: serverUrl,
         link_token: token,
         integration: {
-          provider: providerSpec.slug,
-          display_name: providerSpec.display_name,
+          unique_key: providerSpec.unique_key,
+          name: providerSpec.name,
           logo_url: providerSpec.logo_url,
-          logo_dark_url: providerSpec.logo_dark_url,
+          logo_url_dark_mode: providerSpec.logo_url_dark_mode,
         },
         branding,
         prefers_dark_mode: prefersDarkMode,
@@ -1435,7 +1429,7 @@ class LinkController {
         });
       }
 
-      if (!linkToken.integration_provider) {
+      if (!linkToken.integration_key) {
         const errorMessage = 'No integration selected';
 
         await activityService.createActivityLog(activityId, {
@@ -1457,12 +1451,11 @@ class LinkController {
       const response = await linkedAccountService.upsertLinkedAccount({
         id: linkToken.linked_account_id || generateId(Resource.LinkedAccount),
         environment_id: linkToken.environment_id,
-        integration_provider: linkToken.integration_provider,
+        integration_key: linkToken.integration_key,
         consent_given: linkToken.consent_given,
-        consent_ip: linkToken.consent_ip,
-        consent_date: linkToken.consent_date,
+        consent_timestamp: linkToken.consent_timestamp,
         configuration: null,
-        credentials: JSON.stringify({ type: AuthScheme.BASIC, username, password }),
+        credentials: JSON.stringify({ type: AuthScheme.Basic, username, password }),
         credentials_iv: null,
         credentials_tag: null,
         metadata: null,

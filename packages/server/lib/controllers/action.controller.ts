@@ -7,7 +7,7 @@ import {
   providerService,
 } from '@kit/shared';
 import type { Request, Response } from 'express';
-import { ActionObject } from '../utils/types';
+import { ActionObject, ActionRunObject } from '../utils/types';
 
 class ActionController {
   public async listActions(req: Request, res: Response) {
@@ -299,7 +299,45 @@ class ActionController {
 
   public async listActionRuns(req: Request, res: Response) {
     try {
-      //..
+      const linkedAccountId = req.params['linked_account_id'];
+      const actionKey = req.params['action_key'];
+
+      if (!linkedAccountId) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.BadRequest,
+          message: 'Linked account ID missing',
+        });
+      } else if (!actionKey) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.BadRequest,
+          message: 'Action unique key missing',
+        });
+      }
+
+      const actionRuns = await actionService.listLinkedAccountActionRuns(
+        actionKey,
+        linkedAccountId
+      );
+
+      if (!actionRuns) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.InternalServerError,
+          message: DEFAULT_ERROR_MESSAGE,
+        });
+      }
+
+      const actionRunObjects: ActionRunObject[] = actionRuns.map((actionRun) => {
+        return {
+          object: 'action_run',
+          action: actionRun.action_key,
+          integration: actionRun.integration_key,
+          linked_account: actionRun.linked_account_id,
+          created_at: actionRun.created_at,
+          updated_at: actionRun.updated_at,
+        };
+      });
+
+      res.status(200).json({ object: 'list', data: actionRunObjects });
     } catch (err) {
       await errorService.reportError(err);
 
@@ -312,7 +350,32 @@ class ActionController {
 
   public async retrieveActionRun(req: Request, res: Response) {
     try {
-      //..
+      const actionRunId = req.params['run_id'];
+      if (!actionRunId) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.BadRequest,
+          message: 'Run ID missing',
+        });
+      }
+
+      const actionRun = await actionService.retrieveActionRun(actionRunId);
+      if (!actionRun) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.InternalServerError,
+          message: DEFAULT_ERROR_MESSAGE,
+        });
+      }
+
+      const actionRunObject: ActionRunObject = {
+        object: 'action_run',
+        action: actionRun.action_key,
+        integration: actionRun.integration_key,
+        linked_account: actionRun.linked_account_id,
+        created_at: actionRun.created_at,
+        updated_at: actionRun.updated_at,
+      };
+
+      res.status(200).json(actionRunObject);
     } catch (err) {
       await errorService.reportError(err);
 

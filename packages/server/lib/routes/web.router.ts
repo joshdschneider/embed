@@ -56,13 +56,13 @@ webRouter
   .route('/integrations/rerank')
   .put(integrationController.rerankIntegrations.bind(integrationController));
 
-webRouter
-  .route('/integrations/enable-all')
-  .put(integrationController.enableAllIntegrations.bind(integrationController));
+// webRouter
+//   .route('/integrations/enable-all')
+//   .put(integrationController.enableAllIntegrations.bind(integrationController));
 
-webRouter
-  .route('/integrations/disable-all')
-  .put(integrationController.disableAllIntegrations.bind(integrationController));
+// webRouter
+//   .route('/integrations/disable-all')
+//   .put(integrationController.disableAllIntegrations.bind(integrationController));
 
 webRouter.route('/link-preview').get(linkPreviewController.listView.bind(linkPreviewController));
 

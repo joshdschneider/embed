@@ -47,9 +47,9 @@ class LinkPreviewController {
 
       const integrationsWithSpec = await Promise.all(
         enabledIntegrations.map(async (integration) => {
-          const providerSpec = await providerService.getProviderSpec(integration.provider);
+          const providerSpec = await providerService.getProviderSpec(integration.unique_key);
           if (!providerSpec) {
-            const err = new Error(`Provider specification not found for ${integration.provider}`);
+            const err = new Error(`Provider specification not found for ${integration.unique_key}`);
             await errorService.reportError(err);
           }
 
@@ -63,10 +63,10 @@ class LinkPreviewController {
 
       const integrationsList = integrationsFiltered.map((integration) => {
         return {
-          provider: integration.provider,
-          display_name: integration.provider_spec.display_name,
+          unique_key: integration.unique_key,
+          name: integration.provider_spec.name,
           logo_url: integration.provider_spec.logo_url,
-          logo_dark_url: integration.provider_spec.logo_dark_url,
+          logo_url_dark_mode: integration.provider_spec.logo_url_dark_mode,
         };
       });
 
@@ -96,7 +96,7 @@ class LinkPreviewController {
   public async consentView(req: Request, res: Response) {
     const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
     const prefersDarkMode = req.query['prefers_dark_mode'] === 'true';
-    const integrationProvider = req.params['integration'];
+    const integrationKey = req.params['integration'];
     const override = req.query['branding'];
     let branding;
 
@@ -118,7 +118,7 @@ class LinkPreviewController {
         throw new Error('SERVER_URL is undefined');
       }
 
-      if (!integrationProvider) {
+      if (!integrationKey) {
         const data: ErrorTemplateData = {
           error_message: 'No integration selected',
           branding,
@@ -128,13 +128,13 @@ class LinkPreviewController {
         return res.render('error', data);
       }
 
-      const integration = await integrationService.getIntegrationByProvider(
-        integrationProvider,
+      const integration = await integrationService.getIntegrationByKey(
+        integrationKey,
         environment.id
       );
 
       if (!integration) {
-        throw new Error(`Failed to retrieve integration ${integrationProvider}`);
+        throw new Error(`Failed to retrieve integration ${integrationKey}`);
       }
 
       if (!integration.is_enabled) {
@@ -147,9 +147,9 @@ class LinkPreviewController {
         return res.render('error', data);
       }
 
-      const providerSpec = await providerService.getProviderSpec(integration.provider);
+      const providerSpec = await providerService.getProviderSpec(integration.unique_key);
       if (!providerSpec) {
-        throw new Error(`Provider specification not found for ${integration.provider}`);
+        throw new Error(`Provider specification not found for ${integration.unique_key}`);
       }
 
       const data: ConsentTemplateData = {
@@ -158,10 +158,10 @@ class LinkPreviewController {
         link_token: '_',
         can_choose_integration: true,
         integration: {
-          provider: integration.provider,
-          display_name: providerSpec.display_name,
+          unique_key: integration.unique_key,
+          name: providerSpec.name,
           logo_url: providerSpec.logo_url,
-          logo_dark_url: providerSpec.logo_dark_url,
+          logo_url_dark_mode: providerSpec.logo_url_dark_mode,
         },
         branding,
         prefers_dark_mode: prefersDarkMode,

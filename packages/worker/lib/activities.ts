@@ -1,4 +1,4 @@
-import { LogLevel, SyncType, activityService, errorService, now, syncService } from '@kit/shared';
+import { LogLevel, activityService, errorService, now } from '@kit/shared';
 import { Context } from '@temporalio/activity';
 import { ActionArgs, ContinuousSyncArgs, InitialSyncArgs } from './types';
 
@@ -9,12 +9,11 @@ export async function runInitialSync(args: InitialSyncArgs): Promise<boolean | o
     message: `Starting initial sync for ${rest.linkedAccountId}`,
     level: LogLevel.Info,
     timestamp: now(),
-    payload: { ...rest, syncType: SyncType.Initial },
   });
 
   try {
     const context: Context = Context.current();
-    return await syncService.runSync({ ...args, type: SyncType.Initial, context });
+    // run initial sync
   } catch (err) {
     await errorService.reportError(err);
 
@@ -22,7 +21,6 @@ export async function runInitialSync(args: InitialSyncArgs): Promise<boolean | o
       message: `Sync ${rest.syncId} failed to run`,
       level: LogLevel.Error,
       timestamp: now(),
-      payload: { ...rest, syncType: SyncType.Initial },
     });
   }
 

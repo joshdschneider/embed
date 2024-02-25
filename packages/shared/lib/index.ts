@@ -27,6 +27,7 @@ export {
   Integration,
   LinkToken,
   LinkedAccount,
+  User,
   Webhook,
   WebhookEvent,
 } from '@prisma/client';

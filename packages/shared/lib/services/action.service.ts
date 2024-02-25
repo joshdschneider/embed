@@ -1,4 +1,4 @@
-import { Action } from '@prisma/client';
+import { Action, ActionRun } from '@prisma/client';
 import { database } from '../utils/database';
 import { now } from '../utils/helpers';
 import errorService from './error.service';
@@ -70,6 +70,63 @@ class ActionService {
           deleted_at: null,
         },
         data: { ...data, updated_at: now() },
+      });
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
+    }
+  }
+
+  public async listIntegrationActionRuns(
+    actionKey: string,
+    integrationKey: string,
+    environmentId: string
+  ): Promise<ActionRun[] | null> {
+    try {
+      const action = await database.action.findUnique({
+        where: {
+          unique_key_integration_key_environment_id: {
+            unique_key: actionKey,
+            integration_key: integrationKey,
+            environment_id: environmentId,
+          },
+          deleted_at: null,
+        },
+        select: { runs: true },
+      });
+
+      if (!action) {
+        return null;
+      }
+
+      return action.runs;
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
+    }
+  }
+
+  public async listLinkedAccountActionRuns(
+    actionKey: string,
+    linkedAccountId: string
+  ): Promise<ActionRun[] | null> {
+    try {
+      return await database.actionRun.findMany({
+        where: {
+          linked_account_id: linkedAccountId,
+          action_key: actionKey,
+        },
+      });
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
+    }
+  }
+
+  public async retrieveActionRun(actionRunId: string): Promise<ActionRun | null> {
+    try {
+      return await database.actionRun.findUnique({
+        where: { id: actionRunId },
       });
     } catch (err) {
       await errorService.reportError(err);

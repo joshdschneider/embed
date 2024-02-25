@@ -1,5 +1,4 @@
 import type { LinkedAccount } from '@kit/shared';
-import { linkedAccountService } from '@kit/shared';
 import webhookService from '../services/webhook.service';
 
 class LinkedAccountHook {
@@ -19,11 +18,11 @@ class LinkedAccountHook {
       action: 'created',
     });
 
-    linkedAccountService.initiatePostLinkSyncs({
-      linkedAccount,
-      activityId,
-      action: 'created',
-    });
+    // linkedAccountService.initiatePostLinkSyncs({
+    //   linkedAccount,
+    //   activityId,
+    //   action: 'created',
+    // });
   }
 
   public async linkedAccountUpdated({
@@ -42,11 +41,11 @@ class LinkedAccountHook {
       action: 'updated',
     });
 
-    linkedAccountService.initiatePostLinkSyncs({
-      linkedAccount,
-      activityId,
-      action: 'updated',
-    });
+    // linkedAccountService.initiatePostLinkSyncs({
+    //   linkedAccount,
+    //   activityId,
+    //   action: 'updated',
+    // });
   }
 }
 

@@ -45,10 +45,17 @@ export enum SyncStatus {
   Error = 'error',
 }
 
-export enum SyncType {
+export enum SyncRunType {
   Initial = 'initial',
   Incremental = 'incremental',
   Full = 'full',
+}
+
+export enum SyncRunStatus {
+  Running = 'running',
+  Stopped = 'stopped',
+  Succeeded = 'succeeded',
+  Failed = 'failed',
 }
 
 export enum ScheduleStatus {

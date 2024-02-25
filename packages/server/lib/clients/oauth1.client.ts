@@ -25,13 +25,14 @@ export class OAuth1Client {
     this.specification = specification;
 
     const headers = { 'User-Agent': 'Kit' };
-    const { client_id, client_secret } = integrationService.loadClientCredentials(integration);
+    const { oauth_client_id, oauth_client_secret } =
+      integrationService.getIntegrationOauthCredentials(integration);
 
     this.client = new OAuth1.OAuth(
       this.specification.request_url,
       this.specification.token_url,
-      client_id,
-      client_secret,
+      oauth_client_id,
+      oauth_client_secret,
       '1.0A',
       callbackUrl || null,
       this.specification.signature_method,

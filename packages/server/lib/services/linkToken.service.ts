@@ -39,6 +39,25 @@ class LinkTokenService {
     }
   }
 
+  public async updateLinkToken(
+    linkTokenId: string,
+    data: Partial<LinkToken>
+  ): Promise<LinkToken | null> {
+    try {
+      return await database.linkToken.update({
+        where: { id: linkTokenId },
+        data: {
+          ...data,
+          metadata: data.metadata || undefined,
+          configuration: data.configuration || undefined,
+        },
+      });
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
+    }
+  }
+
   public async deleteLinkToken(linkTokenId: string): Promise<LinkToken | null> {
     try {
       return await database.linkToken.update({
