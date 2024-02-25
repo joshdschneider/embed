@@ -1,4 +1,5 @@
 import { AuthScheme } from '@kit/providers';
+import { SyncRunStatus, SyncRunType, SyncStatus } from '@kit/shared';
 import { z } from 'zod';
 
 export enum EnvironmentType {
@@ -47,10 +48,10 @@ export interface ListTemplateData extends DefaultTemplateData {
   server_url: string;
   link_token: string;
   integrations: {
-    provider: string;
-    display_name: string;
+    unique_key: string;
+    name: string;
     logo_url: string | undefined;
-    logo_dark_url: string | undefined;
+    logo_url_dark_mode: string | undefined;
   }[];
 }
 
@@ -60,10 +61,10 @@ export interface ConsentTemplateData extends DefaultTemplateData {
   link_token: string;
   can_choose_integration: boolean;
   integration: {
-    provider: string;
-    display_name: string;
+    unique_key: string;
+    name: string;
     logo_url: string | undefined;
-    logo_dark_url: string | undefined;
+    logo_url_dark_mode: string | undefined;
   };
 }
 
@@ -71,10 +72,10 @@ export interface ConfigTemplateData extends DefaultTemplateData {
   server_url: string;
   link_token: string;
   integration: {
-    provider: string;
-    display_name: string;
+    unique_key: string;
+    name: string;
     logo_url: string | undefined;
-    logo_dark_url: string | undefined;
+    logo_url_dark_mode: string | undefined;
   };
   configuration_fields: {
     name: string;
@@ -86,10 +87,10 @@ export interface ApiKeyTemplateData extends DefaultTemplateData {
   server_url: string;
   link_token: string;
   integration: {
-    provider: string;
-    display_name: string;
+    unique_key: string;
+    name: string;
     logo_url: string | undefined;
-    logo_dark_url: string | undefined;
+    logo_url_dark_mode: string | undefined;
   };
 }
 
@@ -97,10 +98,10 @@ export interface BasicTemplateData extends DefaultTemplateData {
   server_url: string;
   link_token: string;
   integration: {
-    provider: string;
-    display_name: string;
+    unique_key: string;
+    name: string;
     logo_url: string | undefined;
-    logo_dark_url: string | undefined;
+    logo_url_dark_mode: string | undefined;
   };
 }
 
@@ -168,6 +169,15 @@ export interface ActionObject {
   updated_at: number;
 }
 
+export interface ActionRunObject {
+  object: 'action_run';
+  action: string;
+  integration: string;
+  linked_account: string;
+  created_at: number;
+  updated_at: number;
+}
+
 export type Metadata = Record<string, any> | null;
 
 export interface LinkTokenObject {
@@ -216,6 +226,36 @@ export interface LinkedAccountDeletedObject {
   object: 'linked_account.deleted';
   id: string;
   deleted: true;
+}
+
+export interface SyncObject {
+  object: 'sync';
+  collection: string;
+  integration: string;
+  linked_account: string;
+  status: SyncStatus;
+  frequency: string;
+  last_synced_at: number | null;
+  created_at: number;
+  updated_at: number;
+}
+
+export const UpdateSyncRequestSchema = z.object({
+  frequency: z.string(),
+});
+
+export interface SyncRunObject {
+  object: 'sync_run';
+  collection: string;
+  integration: string;
+  linked_account: string;
+  type: SyncRunType;
+  status: SyncRunStatus;
+  records_added: number | null;
+  records_updated: number | null;
+  records_deleted: number | null;
+  created_at: number;
+  updated_at: number;
 }
 
 export interface WebhookObject {

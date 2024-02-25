@@ -3,7 +3,6 @@ import type { Request, Response } from 'express';
 
 class ProviderController {
   public async listProviders(req: Request, res: Response): Promise<void> {
-    // todo: caching layer
     const providers = await providerService.listProviders();
     if (!providers) {
       return errorService.errorResponse(res, {
