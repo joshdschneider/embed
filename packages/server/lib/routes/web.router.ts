@@ -40,13 +40,13 @@ webRouter.use(authMiddleware.webEnvironmentAuth.bind(authMiddleware));
 
 webRouter
   .route('/environments/:environment_id')
-  .put(environmentController.modifyEnvironment.bind(environmentController));
+  .post(environmentController.modifyEnvironment.bind(environmentController));
 
 webRouter.route('/api-keys').post(apiKeyController.generateApiKey.bind(apiKeyController));
 
 webRouter.route('/api-keys').get(apiKeyController.listApiKeys.bind(apiKeyController));
 
-webRouter.route('/api-keys/:api_key_id').put(apiKeyController.modifyApiKey.bind(apiKeyController));
+webRouter.route('/api-keys/:api_key_id').post(apiKeyController.updateApiKey.bind(apiKeyController));
 
 webRouter
   .route('/api-keys/:api_key_id')
@@ -55,14 +55,6 @@ webRouter
 webRouter
   .route('/integrations/rerank')
   .put(integrationController.rerankIntegrations.bind(integrationController));
-
-// webRouter
-//   .route('/integrations/enable-all')
-//   .put(integrationController.enableAllIntegrations.bind(integrationController));
-
-// webRouter
-//   .route('/integrations/disable-all')
-//   .put(integrationController.disableAllIntegrations.bind(integrationController));
 
 webRouter.route('/link-preview').get(linkPreviewController.listView.bind(linkPreviewController));
 

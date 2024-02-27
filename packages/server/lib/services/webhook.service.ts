@@ -5,6 +5,7 @@ import {
   activityService,
   database,
   encryptionService,
+  environmentService,
   errorService,
   generateId,
   now,
@@ -12,7 +13,6 @@ import {
 import { backOff } from 'exponential-backoff';
 import { getWebhookSignatureHeader } from '../utils/helpers';
 import { LinkedAccountWebhookEvent, Metadata, WebhookBody } from '../utils/types';
-import environmentService from './environment.service';
 
 class WebhookService {
   public async createWebhook(webhook: Webhook): Promise<Webhook | null> {

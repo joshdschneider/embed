@@ -14,6 +14,7 @@ import integrationRouter from './routes/integration.router';
 import jobRouter from './routes/job.router';
 import linkRouter from './routes/link.router';
 import linkTokenRouter from './routes/linkToken.router';
+import linkedAccountRouter from './routes/linkedAccount.router';
 import oauthRouter from './routes/oauth.router';
 import providerRouter from './routes/provider.router';
 import proxyRouter from './routes/proxy.router';
@@ -39,7 +40,7 @@ function setupExpressApp() {
 
   app.use('/v1/integrations', integrationRouter);
   app.use('/v1/link-tokens', linkTokenRouter);
-  app.use('/v1/linked-accounts', linkTokenRouter);
+  app.use('/v1/linked-accounts', linkedAccountRouter);
   app.use('/v1/proxy', proxyRouter);
   app.use('/v1/webhooks', webhookRouter);
 

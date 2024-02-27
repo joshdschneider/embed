@@ -1,20 +1,20 @@
-import { Connection, ScheduleOverlapPolicy, Client as TemporalClient } from '@temporalio/client';
+import { Client, Connection, ScheduleOverlapPolicy } from '@temporalio/client';
 import fs from 'fs';
-import errorService from '../services/error.service';
 import { getTemporalNamespace, getTemporalUrl, isProd } from '../utils/constants';
 
+const TEMPORAL_URL = getTemporalUrl();
 const TEMPORAL_NAMESPACE = getTemporalNamespace();
 const OVERLAP_POLICY = ScheduleOverlapPolicy.BUFFER_ONE;
 
-class WorkerClient {
-  private static instance: Promise<WorkerClient | null>;
-  private client: TemporalClient | null = null;
+class TemporalClient {
+  private static instance: Promise<TemporalClient>;
+  private client: Client | null = null;
 
-  private constructor(client: TemporalClient) {
+  private constructor(client: Client) {
     this.client = client;
   }
 
-  static getInstance(): Promise<WorkerClient | null> {
+  static getInstance(): Promise<TemporalClient> {
     if (!this.instance) {
       this.instance = this.create();
     }
@@ -22,30 +22,31 @@ class WorkerClient {
     return this.instance;
   }
 
-  private static async create(): Promise<WorkerClient | null> {
-    try {
-      const connection = await Connection.connect({
-        address: getTemporalUrl(),
-        tls: isProd()
-          ? {
-              clientCertPair: {
-                crt: fs.readFileSync(`/etc/secrets/${TEMPORAL_NAMESPACE}.crt`),
-                key: fs.readFileSync(`/etc/secrets/${TEMPORAL_NAMESPACE}.key`),
-              },
-            }
-          : false,
-      });
-
-      const client = new TemporalClient({
-        connection,
-        namespace: TEMPORAL_NAMESPACE,
-      });
-
-      return new WorkerClient(client);
-    } catch (err) {
-      await errorService.reportError(err);
-      return null;
+  private static async create(): Promise<TemporalClient> {
+    if (!TEMPORAL_URL) {
+      throw new Error('Temporal URL not set');
+    } else if (!TEMPORAL_NAMESPACE) {
+      throw new Error('Temporal namespace not set');
     }
+
+    const connection = await Connection.connect({
+      address: TEMPORAL_URL,
+      tls: isProd()
+        ? {
+            clientCertPair: {
+              crt: fs.readFileSync(`/etc/secrets/${TEMPORAL_NAMESPACE}.crt`),
+              key: fs.readFileSync(`/etc/secrets/${TEMPORAL_NAMESPACE}.key`),
+            },
+          }
+        : false,
+    });
+
+    const client = new Client({
+      connection,
+      namespace: TEMPORAL_NAMESPACE,
+    });
+
+    return new TemporalClient(client);
   }
 
   // public async startInitialSync(
@@ -367,4 +368,4 @@ class WorkerClient {
   // }
 }
 
-export default WorkerClient;
+export default TemporalClient;

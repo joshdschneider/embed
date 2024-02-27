@@ -15,6 +15,14 @@ webhookRouter.route('/:webhook_id').post(webhookController.updateWebhook.bind(we
 webhookRouter.route('/:webhook_id').delete(webhookController.deleteWebhook.bind(webhookController));
 
 webhookRouter
+  .route('/:webhook_id/enable')
+  .post(webhookController.enableWebhook.bind(webhookController));
+
+webhookRouter
+  .route('/:webhook_id/disable')
+  .post(webhookController.disableWebhook.bind(webhookController));
+
+webhookRouter
   .route('/:webhook_id/events')
   .get(webhookController.listWebhookEvents.bind(webhookController));
 

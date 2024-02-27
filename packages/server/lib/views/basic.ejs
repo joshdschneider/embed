@@ -231,7 +231,7 @@
           </div>
           <div class="logo">
             <% if (integration.logo_dark_url && (branding.appearance === "dark" || (branding.appearance === "system" && prefers_dark_mode))) { %>
-              <img src="<%= integration.logo_dark_url || "#_fallback_" %>" width="100px" height="100px" />
+              <img src="<%= integration.logo_url_dark_mode || "#_fallback_" %>" width="100px" height="100px" />
             <% } else { %>
               <img src="<%= integration.logo_url || "#_fallback_" %>" width="100px" height="100px" />
             <% } %>
@@ -239,18 +239,18 @@
         </div>
         <form action="/link/<%= link_token %>/api-key" method="post">
           <div class="input-group">
-            <label for="username">Enter your <%= integration.display_name %> username</label>
+            <label for="username">Enter your <%= integration.name %> username</label>
             <input type="text" id="username" name="username" />
-            <small><a href="#__">Where can I find my <%= integration.display_name %> credentials?</a></small>
+            <small><a href="#__">Where can I find my <%= integration.name %> credentials?</a></small>
           </div>
           <div class="input-group">
-            <label for="password">Enter your <%= integration.display_name %> password</label>
+            <label for="password">Enter your <%= integration.name %> password</label>
             <input type="password" id="password" name="password" />
           </div>
           <input id="submit" type="submit" value="Submit" />
         </form>
       </div>
-      <a id="back" href="<%= server_url %>/link/<%= link_token %>/i/<%= integration.provider %>">
+      <a id="back" href="<%= server_url %>/link/<%= link_token %>/i/<%= integration.unique_key %>">
         <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M6.85355 3.14645C7.04882 3.34171 7.04882 3.65829 6.85355 3.85355L3.70711 7H12.5C12.7761 7 13 7.22386 13 7.5C13 7.77614 12.7761 8 12.5 8H3.70711L6.85355 11.1464C7.04882 11.3417 7.04882 11.6583 6.85355 11.8536C6.65829 12.0488 6.34171 12.0488 6.14645 11.8536L2.14645 7.85355C1.95118 7.65829 1.95118 7.34171 2.14645 7.14645L6.14645 3.14645C6.34171 2.95118 6.65829 2.95118 6.85355 3.14645Z" fill="currentColor" fill-rule="evenodd" clip-rule="evenodd"></path>
         </svg>

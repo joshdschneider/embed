@@ -126,7 +126,7 @@ model Integration {
   oauth_client_secret     String?
   oauth_client_secret_iv  String?
   oauth_client_secret_tag String?
-  oauth_scopes            String?
+  proxy_scopes            String?
   rank                    Int?
   created_at              Int
   updated_at              Int

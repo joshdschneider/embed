@@ -4,8 +4,16 @@ base_url: https://${configuration.subdomain}.myshopify.com
 docs_url: https://shopify.dev/docs/admin-api/rest/reference
 logo_url: https://kit-integrations.s3.amazonaws.com/shopify.svg
 auth:
-  scheme: OAUTH2
+  scheme: oauth2
   authorization_url: https://${configuration.subdomain}.myshopify.com/admin/oauth/authorize
   token_url: https://${configuration.subdomain}.myshopify.com/admin/oauth/access_token
 headers:
   X-Shopify-Access-Token: ${accessToken}
+collections:
+  - unique_key: products
+    default_enabled: true
+    default_frequency: 1d
+    default_auto_start: true
+    required_scopes: [read_products, read_product_listings]
+    schema:
+      foo: bar

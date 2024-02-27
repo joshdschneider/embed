@@ -3,11 +3,11 @@ import {
   DEFAULT_ERROR_MESSAGE,
   ENVIRONMENT_ID_LOCALS_KEY,
   ErrorCode,
+  environmentService,
   errorService,
   now,
 } from '@kit/shared';
 import type { Request, Response } from 'express';
-import environmentService from '../services/environment.service';
 
 class EnvironmentController {
   public async retrieveEnvironment(req: Request, res: Response) {

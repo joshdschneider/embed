@@ -125,8 +125,9 @@ export const CollectionsSchema = z.array(
   z.object({
     unique_key: z.string(),
     default_enabled: z.boolean().optional(),
-    default_frequency: z.string().optional(),
-    default_auto_start: z.boolean().optional(),
+    default_sync_frequency: z.string().optional(),
+    default_auto_start_sync: z.boolean().optional(),
+    required_scopes: z.array(z.string()).optional(),
     schema: z.any(),
   })
 );
@@ -137,6 +138,7 @@ export const ActionsSchema = z.array(
   z.object({
     unique_key: z.string(),
     default_enabled: z.boolean().optional(),
+    required_scopes: z.array(z.string()).optional(),
     schema: z.any(),
   })
 );
@@ -146,7 +148,6 @@ export type Actions = z.infer<typeof ActionsSchema>;
 export const ProviderSpecificationSchema = z.object({
   unique_key: z.string(),
   name: z.string(),
-  description: z.string(),
   base_url: z.string(),
   auth: AuthSchema,
   headers: z.record(z.string()).optional(),
