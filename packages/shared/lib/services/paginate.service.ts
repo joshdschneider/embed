@@ -1,7 +1,7 @@
 import { ProxyOptions } from '@kit/node';
 import { CursorPagination, LinkPagination, OffsetPagination, Pagination } from '@kit/providers';
 import { AxiosResponse } from 'axios';
-import get from 'lodash-es/get.js';
+import { get } from 'lodash';
 import parseLinkHeader from 'parse-link-header';
 import { PaginationType } from '../utils/enums';
 

@@ -1,10 +1,12 @@
 import { AuthScheme, OAuth, OAuth1, OAuth2 } from '@kit/providers';
 import type { Integration, LinkToken } from '@kit/shared';
 import {
+  Branding,
   DEFAULT_ERROR_MESSAGE,
   LogLevel,
   Resource,
   activityService,
+  environmentService,
   errorService,
   generateId,
   integrationService,
@@ -19,14 +21,13 @@ import { OAuth1Client } from '../clients/oauth1.client';
 import { getSimpleOAuth2ClientConfig } from '../clients/oauth2.client';
 import publisher from '../clients/publisher.client';
 import linkedAccountHook from '../hooks/linkedAccount.hook';
-import environmentService from '../services/environment.service';
 import linkTokenService from '../services/linkToken.service';
 import {
   extractConfigurationKeys,
   getOauthCallbackUrl,
+  getScopes,
   missesInterpolationParam,
 } from '../utils/helpers';
-import { Branding } from '../utils/types';
 
 class OAuthController {
   public async authorize(req: Request, res: Response) {
@@ -143,6 +144,10 @@ class OAuthController {
         throw new Error('Failed to retrieve provider specification');
       }
 
+      const scopes = getScopes(integration, provider).join(
+        (provider.auth as OAuth).scope_separator || ' '
+      );
+
       const updatedLinkToken = await linkTokenService.updateLinkToken(linkToken.id, {
         code_verifier: crypto.randomBytes(24).toString('hex'),
         updated_at: now(),
@@ -161,6 +166,7 @@ class OAuthController {
       if (provider.auth.scheme === AuthScheme.OAuth2) {
         return this.oauth2Request(res, {
           authSpec: provider.auth as OAuth2,
+          scopes,
           integration,
           linkToken: updatedLinkToken,
           activityId,
@@ -169,6 +175,7 @@ class OAuthController {
       } else if (provider.auth.scheme === AuthScheme.OAuth1) {
         return this.oauth1Request(res, {
           authSpec: provider.auth as OAuth1,
+          scopes,
           integration,
           linkToken: updatedLinkToken,
           activityId,
@@ -202,12 +209,14 @@ class OAuthController {
     {
       linkToken,
       authSpec,
+      scopes,
       integration,
       activityId,
       branding,
     }: {
       linkToken: LinkToken;
       authSpec: OAuth2;
+      scopes: string;
       integration: Integration;
       activityId: string | null;
       branding: Branding;
@@ -220,11 +229,7 @@ class OAuthController {
 
     try {
       if (integration.use_oauth_credentials) {
-        if (
-          integration.oauth_client_id == null ||
-          integration.oauth_client_secret == null ||
-          integration.oauth_scopes == null
-        ) {
+        if (integration.oauth_client_id == null || integration.oauth_client_secret == null) {
           const errorMessage = `OAuth credentials missing for ${integration.unique_key}`;
 
           await activityService.createActivityLog(activityId, {
@@ -306,9 +311,6 @@ class OAuthController {
         );
 
         const callbackUrl = getOauthCallbackUrl();
-        const scopes = integration.oauth_scopes
-          ? integration.oauth_scopes.split(',').join(authSpec.scope_separator || ' ')
-          : '';
 
         const simpleOAuth2ClientConfig = getSimpleOAuth2ClientConfig(
           integration,
@@ -361,12 +363,14 @@ class OAuthController {
     {
       linkToken,
       authSpec,
+      scopes,
       integration,
       activityId,
       branding,
     }: {
       linkToken: LinkToken;
       authSpec: OAuth1;
+      scopes: string;
       integration: Integration;
       activityId: string | null;
       branding: Branding;
@@ -385,6 +389,7 @@ class OAuthController {
       const oauth1Client = new OAuth1Client({
         integration,
         specification: authSpec,
+        scopes,
         callbackUrl: oauth1CallbackURL,
       });
 
@@ -479,6 +484,10 @@ class OAuthController {
         throw new Error('Failed to retrieve provider specification');
       }
 
+      const scopes = getScopes(integration, provider).join(
+        (provider.auth as OAuth).scope_separator || ' '
+      );
+
       await activityService.createActivityLog(activityId, {
         timestamp: now(),
         level: LogLevel.Info,
@@ -498,6 +507,7 @@ class OAuthController {
         return this.oauth1Callback(req, res, {
           linkToken,
           authSpec: authSpec as OAuth1,
+          scopes,
           integration,
           activityId,
           branding,
@@ -675,12 +685,14 @@ class OAuthController {
     {
       linkToken,
       authSpec,
+      scopes,
       integration,
       activityId,
       branding,
     }: {
       linkToken: LinkToken;
       authSpec: OAuth1;
+      scopes: string;
       integration: Integration;
       activityId: string | null;
       branding: Branding;
@@ -709,6 +721,7 @@ class OAuthController {
         integration,
         specification: authSpec,
         callbackUrl: '',
+        scopes,
       });
 
       const accessTokenResult = await oauth1Client.getOAuthAccessToken({

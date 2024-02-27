@@ -5,6 +5,7 @@ import {
   ErrorCode,
   KIT_AUTH_TOKEN_KEY,
   KIT_ENVIRONMENT_KEY,
+  environmentService,
   errorService,
   getAuthTokenSecret,
   getInternalApiKey,
@@ -12,7 +13,6 @@ import {
 import Cookies from 'cookies';
 import { NextFunction, Request, Response } from 'express';
 import { jwtVerify } from 'jose';
-import environmentService from './environment.service';
 
 class AuthService {
   public async verifyApiKey(apiKey: string, req: Request, res: Response, next: NextFunction) {

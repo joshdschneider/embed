@@ -1,4 +1,5 @@
-import { getLocalhostUrl, getServerUrl } from '@kit/shared';
+import { AuthScheme, ProviderSpecification } from '@kit/providers';
+import { Integration, getLocalhostUrl, getServerUrl } from '@kit/shared';
 import crypto from 'crypto';
 import { ZodError } from 'zod';
 import { EnvironmentType } from './types';
@@ -60,4 +61,32 @@ export function getWebhookSignatureHeader(
 
 export function zodError(err: ZodError) {
   return err.issues.map((i) => `${i.path.join('.')} ${i.message}`).join(', ');
+}
+
+export function getScopes(integration: Integration, providerSpec: ProviderSpecification): string[] {
+  const scopes = new Set<string>();
+  if (integration.proxy_scopes) {
+    integration.proxy_scopes.split(',').forEach((scope) => scopes.add(scope));
+  }
+
+  if (providerSpec.collections) {
+    providerSpec.collections.forEach((collection) => {
+      collection.required_scopes?.forEach((scope) => scopes.add(scope));
+    });
+  }
+
+  if (providerSpec.actions) {
+    providerSpec.actions.forEach((action) => {
+      action.required_scopes?.forEach((scope) => scopes.add(scope));
+    });
+  }
+
+  if (
+    providerSpec.auth.scheme === AuthScheme.OAuth2 ||
+    providerSpec.auth.scheme === AuthScheme.OAuth1
+  ) {
+    providerSpec.auth.default_scopes?.forEach((scope) => scopes.add(scope));
+  }
+
+  return Array.from(scopes);
 }

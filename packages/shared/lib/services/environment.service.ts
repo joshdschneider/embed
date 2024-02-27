@@ -1,7 +1,10 @@
-import type { ApiKey, Environment } from '@kit/shared';
-import { database, encryptionService, errorService, now } from '@kit/shared';
+import { ApiKey, Environment } from '@prisma/client';
 import { DEFAULT_BRANDING } from '../utils/constants';
-import type { Branding } from '../utils/types';
+import { database } from '../utils/database';
+import { now } from '../utils/helpers';
+import { Branding } from '../utils/types';
+import encryptionService from './encryption.service';
+import errorService from './error.service';
 
 class EnvironmentService {
   public async createEnvironment(environment: Environment): Promise<Environment | null> {

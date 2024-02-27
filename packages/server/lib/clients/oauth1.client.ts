@@ -12,17 +12,18 @@ export type OAuth1RequestTokenResult = {
 type OAuth1ClientOptions = {
   integration: Integration;
   specification: OAuth1Spec;
+  scopes: string;
   callbackUrl?: string;
 };
 
 export class OAuth1Client {
   private client: OAuth1.OAuth;
-  private integration: Integration;
   private specification: OAuth1Spec;
+  private scopes: string;
 
-  constructor({ integration, specification, callbackUrl }: OAuth1ClientOptions) {
-    this.integration = integration;
+  constructor({ integration, specification, scopes, callbackUrl }: OAuth1ClientOptions) {
     this.specification = specification;
+    this.scopes = scopes;
 
     const headers = { 'User-Agent': 'Kit' };
     const { oauth_client_id, oauth_client_secret } =
@@ -127,10 +128,6 @@ export class OAuth1Client {
   }
 
   getAuthorizationURL(requestToken: OAuth1RequestTokenResult) {
-    const scopes = this.integration.oauth_scopes
-      ? this.integration.oauth_scopes.split(',').join(this.specification.scope_separator || ' ')
-      : '';
-
     let authParams = {};
     if (this.specification.authorization_params) {
       authParams = this.specification.authorization_params;
@@ -138,7 +135,7 @@ export class OAuth1Client {
 
     const queryParams = {
       oauth_token: requestToken.request_token,
-      scope: scopes,
+      scope: this.scopes,
       ...authParams,
     };
 

@@ -15,12 +15,20 @@ export function getRedisUrl() {
   return process.env['REDIS_URL'];
 }
 
+export function getWeaviateUrl() {
+  return process.env['WEAVIATE_URL'];
+}
+
+export function getWeaviateApiKey() {
+  return process.env['WEAVIATE_API_KEY'];
+}
+
 export function getTemporalUrl() {
-  return process.env['TEMPORAL_URL'] || 'localhost:7233';
+  return process.env['TEMPORAL_URL'];
 }
 
 export function getTemporalNamespace() {
-  return process.env['TEMPORAL_NAMESPACE'] || 'default';
+  return process.env['TEMPORAL_NAMESPACE'];
 }
 
 export function getLocalhostUrl() {
@@ -33,7 +41,7 @@ export function getEncryptonKey() {
 }
 
 export function getInternalApiKey() {
-  return process.env['INTERNAL_API_KEY'];
+  return process.env['KIT_INTERNAL_API_KEY'];
 }
 
 export function getLogLevel() {
@@ -71,5 +79,29 @@ export const ACTIONS_TASK_QUEUE = 'actions';
 export const MIN_LIMIT = 1;
 export const MAX_LIMIT = 100;
 export const DEFAULT_LIMIT = 20;
+
+export const SUPPORTED_LANGUAGES = ['en'];
+
+export const DEFAULT_BRANDING = {
+  name: null,
+  appearance: 'system',
+  border_radius: 'medium',
+  light_mode: {
+    logo: null,
+    favicon: null,
+    page_background: 'FCFCFC',
+    button_background: '000000',
+    button_text: 'FFFFFF',
+    links: '5753C6',
+  },
+  dark_mode: {
+    logo: null,
+    favicon: null,
+    page_background: '000000',
+    button_background: 'FFFFFF',
+    button_text: '000000',
+    links: 'B1A9FF',
+  },
+};
 
 export const DEFAULT_ERROR_MESSAGE = 'Something went wrong';

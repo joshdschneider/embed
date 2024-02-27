@@ -2,7 +2,7 @@ unique_key: github
 name: GitHub
 base_url: https://api.github.com
 auth:
-  scheme: OAUTH2
+  scheme: oauth2
   authorization_url: https://github.com/login/oauth/authorize
   token_url: https://github.com/login/oauth/access_token
 retry:

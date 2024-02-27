@@ -118,7 +118,9 @@ class LinkedAccountService {
         linkedAccounts.reverse();
       }
 
-      const decryptedLinkedAccounts = linkedAccounts.map(encryptionService.decryptLinkedAccount);
+      const decryptedLinkedAccounts = linkedAccounts.map((linkedAccount) => {
+        return encryptionService.decryptLinkedAccount(linkedAccount);
+      });
 
       return {
         linkedAccounts: decryptedLinkedAccounts,

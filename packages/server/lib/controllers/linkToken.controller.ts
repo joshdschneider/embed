@@ -5,6 +5,7 @@ import {
   LogAction,
   LogLevel,
   Resource,
+  SUPPORTED_LANGUAGES,
   activityService,
   errorService,
   generateId,
@@ -15,7 +16,6 @@ import {
 import { Metadata } from '@temporalio/client';
 import type { Request, Response } from 'express';
 import linkTokenService from '../services/linkToken.service';
-import { SUPPORTED_LANGUAGES } from '../utils/constants';
 import { zodError } from '../utils/helpers';
 import {
   CreateLinkTokenRequestSchema,

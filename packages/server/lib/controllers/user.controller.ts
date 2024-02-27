@@ -1,8 +1,10 @@
 import {
+  DEFAULT_BRANDING,
   DEFAULT_ERROR_MESSAGE,
   ErrorCode,
   Resource,
   apiKeyService,
+  environmentService,
   errorService,
   generateId,
   integrationService,
@@ -10,9 +12,7 @@ import {
 } from '@kit/shared';
 import type { Request, Response } from 'express';
 import accountService from '../services/account.service';
-import environmentService from '../services/environment.service';
 import userService from '../services/user.service';
-import { DEFAULT_BRANDING } from '../utils/constants';
 import { generateSecretKey } from '../utils/helpers';
 import { AccountType, EnvironmentType } from '../utils/types';
 

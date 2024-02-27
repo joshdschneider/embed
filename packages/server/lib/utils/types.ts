@@ -1,5 +1,5 @@
 import { AuthScheme } from '@kit/providers';
-import { SyncRunStatus, SyncRunType, SyncStatus } from '@kit/shared';
+import { Branding, SyncRunStatus, SyncRunType, SyncStatus } from '@kit/shared';
 import { z } from 'zod';
 
 export enum EnvironmentType {
@@ -11,28 +11,6 @@ export enum AccountType {
   Personal = 'personal',
   Organization = 'organization',
 }
-
-export type Branding = {
-  name: string | null;
-  appearance: string;
-  border_radius: string;
-  light_mode: {
-    logo: string | null;
-    favicon: string | null;
-    page_background: string;
-    button_background: string;
-    button_text: string;
-    links: string;
-  };
-  dark_mode: {
-    logo: string | null;
-    favicon: string | null;
-    page_background: string;
-    button_background: string;
-    button_text: string;
-    links: string;
-  };
-};
 
 export interface DefaultTemplateData {
   branding: Branding;
@@ -126,6 +104,7 @@ export interface IntegrationObject {
   logo_url: string;
   logo_url_dark_mode?: string;
   is_enabled: boolean;
+  rank: number | null;
   auth_scheme: AuthScheme;
   use_oauth_credentials: boolean;
   oauth_client_id: string | null;
@@ -134,8 +113,8 @@ export interface IntegrationObject {
 
 export const UpdateIntegrationRequestSchema = z.object({
   use_oauth_credentials: z.boolean().optional(),
-  oauth_client_id: z.string().optional(),
-  oauth_client_secret: z.string().optional(),
+  oauth_client_id: z.string().optional().nullable(),
+  oauth_client_secret: z.string().optional().nullable(),
 });
 
 export type UpdateIntegrationRequest = z.infer<typeof UpdateIntegrationRequestSchema>;

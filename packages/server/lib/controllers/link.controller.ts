@@ -5,6 +5,7 @@ import {
   LogLevel,
   Resource,
   activityService,
+  environmentService,
   errorService,
   generateId,
   getServerUrl,
@@ -16,7 +17,6 @@ import {
 import type { Request, Response } from 'express';
 import publisher from '../clients/publisher.client';
 import linkedAccountHook from '../hooks/linkedAccount.hook';
-import environmentService from '../services/environment.service';
 import linkTokenService from '../services/linkToken.service';
 import {
   appendParamsToUrl,
@@ -39,6 +39,7 @@ class LinkController {
     let wsClientId = req.query['ws_client_id'] as string | undefined;
     let redirectUrl = req.query['redirect_url'] as string | undefined;
     let prefersDarkMode = req.query['prefers_dark_mode'] === 'true';
+    res.setHeader('Content-Security-Policy', '');
 
     if (!token) {
       return await publisher.publishError(res, {

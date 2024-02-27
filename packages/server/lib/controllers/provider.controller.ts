@@ -18,7 +18,7 @@ class ProviderController {
   }
 
   public async retrieveProvider(req: Request, res: Response): Promise<void> {
-    const { provider_slug: slug } = req.params;
+    const { unique_key: slug } = req.params;
     if (!slug) {
       return errorService.errorResponse(res, {
         code: ErrorCode.BadRequest,

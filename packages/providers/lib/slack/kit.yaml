@@ -4,7 +4,7 @@ base_url: https://slack.com/api
 docs_url: https://api.slack.com/apis
 logo_url: https://kit-integrations.s3.amazonaws.com/slack.svg
 auth:
-  scheme: OAUTH2
+  scheme: oauth2
   authorization_url: https://slack.com/oauth/v2/authorize
   token_url: https://slack.com/api/oauth.v2.access
   token_response_metadata:

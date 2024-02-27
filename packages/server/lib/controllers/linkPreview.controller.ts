@@ -1,16 +1,16 @@
 import type { ProviderSpecification } from '@kit/providers';
 import type { Integration } from '@kit/shared';
 import {
+  DEFAULT_BRANDING,
   DEFAULT_ERROR_MESSAGE,
   ENVIRONMENT_ID_LOCALS_KEY,
+  environmentService,
   errorService,
   getServerUrl,
   integrationService,
   providerService,
 } from '@kit/shared';
 import type { Request, Response } from 'express';
-import environmentService from '../services/environment.service';
-import { DEFAULT_BRANDING } from '../utils/constants';
 import type { ConsentTemplateData, ErrorTemplateData, ListTemplateData } from '../utils/types';
 
 class LinkPreviewController {
@@ -19,6 +19,9 @@ class LinkPreviewController {
     const prefersDarkMode = req.query['prefers_dark_mode'] === 'true';
     const override = req.query['branding'];
     let branding;
+
+    res.setHeader('Content-Security-Policy', 'frame-ancestors *');
+    res.removeHeader('X-Frame-Options');
 
     try {
       const environment = await environmentService.getEnvironmentById(environmentId);
@@ -99,6 +102,9 @@ class LinkPreviewController {
     const integrationKey = req.params['integration'];
     const override = req.query['branding'];
     let branding;
+
+    res.setHeader('Content-Security-Policy', 'frame-ancestors *');
+    res.removeHeader('X-Frame-Options');
 
     try {
       const environment = await environmentService.getEnvironmentById(environmentId);

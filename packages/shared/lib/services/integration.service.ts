@@ -1,10 +1,11 @@
-import { Action, Integration } from '@prisma/client';
+import { Action, Collection, Integration } from '@prisma/client';
 import fs from 'fs';
 import yaml from 'js-yaml';
 import path from 'path';
 import { database } from '../utils/database';
 import { now } from '../utils/helpers';
 import encryptionService from './encryption.service';
+import environmentService from './environment.service';
 import errorService from './error.service';
 import providerService from './provider.service';
 
@@ -24,38 +25,127 @@ class IntegrationService {
     }
   }
 
-  public async seedIntegrations(environmentId: string): Promise<number | null> {
+  public async seedIntegrations(environmentId: string): Promise<{
+    integrations_added: number;
+    collections_added: number;
+    actions_added: number;
+  } | null> {
     try {
       const providers = await providerService.listProviders();
-
       if (!providers) {
-        return null;
+        throw new Error('Failed to list providers');
       }
 
-      const providerIntegrations: Integration[] = providers.map((provider, index) => {
-        return {
-          unique_key: provider.unique_key,
-          name: provider.name,
-          environment_id: environmentId,
-          is_enabled: true,
-          use_oauth_credentials: false,
-          oauth_client_id: null,
-          oauth_client_secret: null,
-          oauth_client_secret_iv: null,
-          oauth_client_secret_tag: null,
-          oauth_scopes: null,
-          rank: index + 1,
-          created_at: now(),
-          updated_at: now(),
-          deleted_at: null,
+      const environment = await environmentService.getEnvironmentById(environmentId);
+      if (!environment) {
+        throw new Error('Environment not found');
+      }
+
+      const integrationCount = await database.integration.count();
+      let rank = integrationCount;
+
+      let integrationsAdded = 0;
+      let collectionsAdded = 0;
+      let actionsAdded = 0;
+
+      for (const provider of providers) {
+        let integration: Integration & {
+          collections: Collection[];
+          actions: Action[];
         };
-      });
 
-      const integrations = await database.integration.createMany({
-        data: [...providerIntegrations],
-      });
+        const existingIntegration = await database.integration.findUnique({
+          where: {
+            unique_key_environment_id: {
+              unique_key: provider.unique_key,
+              environment_id: environmentId,
+            },
+          },
+          include: { collections: true, actions: true },
+        });
 
-      return integrations.count;
+        if (existingIntegration) {
+          integration = existingIntegration;
+        } else {
+          integration = await database.integration.create({
+            data: {
+              unique_key: provider.unique_key,
+              name: provider.name,
+              environment_id: environmentId,
+              is_enabled: environment.enable_new_integrations,
+              use_oauth_credentials: false,
+              oauth_client_id: null,
+              oauth_client_secret: null,
+              oauth_client_secret_iv: null,
+              oauth_client_secret_tag: null,
+              proxy_scopes: null,
+              rank,
+              created_at: now(),
+              updated_at: now(),
+              deleted_at: null,
+            },
+            include: { collections: true, actions: true },
+          });
+
+          rank++;
+          integrationsAdded++;
+        }
+
+        const collectionKeys = integration.collections.map((collection) => collection.unique_key);
+
+        const collections: Collection[] =
+          provider.collections
+            ?.filter((collection) => !collectionKeys.includes(collection.unique_key))
+            .map((collection) => ({
+              unique_key: collection.unique_key,
+              integration_key: provider.unique_key,
+              environment_id: environmentId,
+              is_enabled: collection.default_enabled || false,
+              default_sync_frequency: collection.default_sync_frequency || '1d',
+              auto_start_sync: collection.default_auto_start_sync || false,
+              exclude_properties_from_sync: [],
+              created_at: now(),
+              updated_at: now(),
+              deleted_at: null,
+            })) || [];
+
+        if (collections.length > 0) {
+          const createdCollections = await database.collection.createMany({
+            data: [...collections],
+          });
+
+          collectionsAdded += createdCollections.count;
+        }
+
+        const actionKeys = integration.actions.map((action) => action.unique_key);
+
+        const actions: Action[] =
+          provider.actions
+            ?.filter((action) => !actionKeys.includes(action.unique_key))
+            .map((action) => ({
+              unique_key: action.unique_key,
+              integration_key: provider.unique_key,
+              environment_id: environmentId,
+              is_enabled: action.default_enabled || false,
+              created_at: now(),
+              updated_at: now(),
+              deleted_at: null,
+            })) || [];
+
+        if (actions.length > 0) {
+          const createdActions = await database.action.createMany({
+            data: [...actions],
+          });
+
+          actionsAdded += createdActions.count;
+        }
+      }
+
+      return {
+        integrations_added: integrationsAdded,
+        collections_added: collectionsAdded,
+        actions_added: actionsAdded,
+      };
     } catch (err) {
       await errorService.reportError(err);
       return null;
