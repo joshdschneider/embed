@@ -3,17 +3,38 @@ name: Shopify
 base_url: https://${configuration.subdomain}.myshopify.com
 docs_url: https://shopify.dev/docs/admin-api/rest/reference
 logo_url: https://kit-integrations.s3.amazonaws.com/shopify.svg
+
 auth:
   scheme: oauth2
   authorization_url: https://${configuration.subdomain}.myshopify.com/admin/oauth/authorize
   token_url: https://${configuration.subdomain}.myshopify.com/admin/oauth/access_token
+
 headers:
   X-Shopify-Access-Token: ${accessToken}
+
+schemas:
+  product: &product
+    name: product
+    description: A product in a merchant's Shopify store.
+    properties:
+      id:
+        type: number
+        description: An unsigned 64-bit integer that's used as a unique identifier for the product. Each id is unique across the Shopify system. No two products will have the same id, even if they're from different shops.
+      created_at:
+        type: string
+        description: The date and time (ISO 8601 format) when the product was created.
+      body_html:
+        type: string
+        description: A description of the product. Supports HTML formatting.
+      required:
+        - id
+        - created_at
+        - body_html
+
 collections:
   - unique_key: products
     default_enabled: true
     default_frequency: 1d
     default_auto_start: true
     required_scopes: [read_products, read_product_listings]
-    schema:
-      foo: bar
+    schema: *product

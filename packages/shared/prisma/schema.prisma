@@ -34,14 +34,16 @@ model User {
 }
 
 model Environment {
-  id                      String  @id
-  account_id              String
-  type                    String
-  enable_new_integrations Boolean
-  branding                Json
-  created_at              Int
-  updated_at              Int
-  deleted_at              Int?
+  id                                 String  @id
+  account_id                         String
+  type                               String
+  enable_new_integrations            Boolean
+  default_text_embedding_model       String
+  default_multimodal_embedding_model String
+  branding                           Json
+  created_at                         Int
+  updated_at                         Int
+  deleted_at                         Int?
 
   api_keys        ApiKey[]
   integrations    Integration[]
@@ -126,7 +128,7 @@ model Integration {
   oauth_client_secret     String?
   oauth_client_secret_iv  String?
   oauth_client_secret_tag String?
-  proxy_scopes            String?
+  additional_scopes       String?
   rank                    Int?
   created_at              Int
   updated_at              Int
@@ -150,6 +152,9 @@ model Collection {
   default_sync_frequency       String
   auto_start_sync              Boolean
   exclude_properties_from_sync String[]
+  text_embedding_model         String
+  multimodal_embedding_model   String
+  is_multimodal                Boolean
   created_at                   Int
   updated_at                   Int
   deleted_at                   Int?
