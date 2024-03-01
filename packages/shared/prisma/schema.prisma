@@ -113,6 +113,7 @@ model LinkedAccount {
   sync_runs      SyncRun[]
   sync_schedules SyncSchedule[]
   action_runs    ActionRun[]
+  records        Record[]
 
   environment Environment @relation(fields: [environment_id], references: [id])
   integration Integration @relation(fields: [integration_key, environment_id], references: [unique_key, environment_id])
@@ -159,7 +160,8 @@ model Collection {
   updated_at                   Int
   deleted_at                   Int?
 
-  syncs Sync[]
+  syncs   Sync[]
+  records Record[]
 
   integration Integration @relation(fields: [integration_key, environment_id], references: [unique_key, environment_id])
 
@@ -249,6 +251,25 @@ model ActionRun {
   linked_account LinkedAccount @relation(fields: [linked_account_id], references: [id])
 
   @@unique([action_key, linked_account_id])
+}
+
+model Record {
+  id                String  @id
+  collection_key    String
+  integration_key   String
+  environment_id    String
+  linked_account_id String
+  external_id       String
+  object            String
+  object_iv         String?
+  object_tag        String?
+  checksum          String
+  created_at        Int
+  updated_at        Int
+  deleted_at        Int?
+
+  collection     Collection    @relation(fields: [collection_key, integration_key, environment_id], references: [unique_key, integration_key, environment_id])
+  linked_account LinkedAccount @relation(fields: [linked_account_id], references: [id])
 }
 
 model Webhook {
