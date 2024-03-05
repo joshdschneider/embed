@@ -263,7 +263,7 @@ model Record {
   object            String
   object_iv         String?
   object_tag        String?
-  checksum          String
+  hash              String
   created_at        Int
   updated_at        Int
   deleted_at        Int?

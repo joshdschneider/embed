@@ -43,6 +43,8 @@ class CollectionController {
           default_sync_frequency: collection.default_sync_frequency,
           auto_start_sync: collection.auto_start_sync,
           exclude_properties_from_sync: collection.exclude_properties_from_sync,
+          text_embedding_model: collection.text_embedding_model,
+          multimodal_embedding_model: collection.multimodal_embedding_model,
           created_at: collection.created_at,
           updated_at: collection.updated_at,
         };
@@ -98,6 +100,8 @@ class CollectionController {
         default_sync_frequency: collection.default_sync_frequency,
         auto_start_sync: collection.auto_start_sync,
         exclude_properties_from_sync: collection.exclude_properties_from_sync,
+        text_embedding_model: collection.text_embedding_model,
+        multimodal_embedding_model: collection.multimodal_embedding_model,
         created_at: collection.created_at,
         updated_at: collection.updated_at,
       };
@@ -153,6 +157,8 @@ class CollectionController {
         default_sync_frequency: updatedCollection.default_sync_frequency,
         auto_start_sync: updatedCollection.auto_start_sync,
         exclude_properties_from_sync: updatedCollection.exclude_properties_from_sync,
+        text_embedding_model: updatedCollection.text_embedding_model,
+        multimodal_embedding_model: updatedCollection.multimodal_embedding_model,
         created_at: updatedCollection.created_at,
         updated_at: updatedCollection.updated_at,
       };
@@ -208,6 +214,8 @@ class CollectionController {
         default_sync_frequency: updatedCollection.default_sync_frequency,
         auto_start_sync: updatedCollection.auto_start_sync,
         exclude_properties_from_sync: updatedCollection.exclude_properties_from_sync,
+        text_embedding_model: updatedCollection.text_embedding_model,
+        multimodal_embedding_model: updatedCollection.multimodal_embedding_model,
         created_at: updatedCollection.created_at,
         updated_at: updatedCollection.updated_at,
       };
@@ -289,6 +297,8 @@ class CollectionController {
         default_sync_frequency: updatedCollection.default_sync_frequency,
         auto_start_sync: updatedCollection.auto_start_sync,
         exclude_properties_from_sync: updatedCollection.exclude_properties_from_sync,
+        text_embedding_model: updatedCollection.text_embedding_model,
+        multimodal_embedding_model: updatedCollection.multimodal_embedding_model,
         created_at: updatedCollection.created_at,
         updated_at: updatedCollection.updated_at,
       };
@@ -324,10 +334,10 @@ class CollectionController {
         });
       }
 
-      res.status(200).json({
-        object: 'list',
-        data: providerSpec.collections?.map((collection) => collection.schema) || [],
-      });
+      const entries = Object.entries(providerSpec.collections || {});
+      const schemas = entries.map(([k, v]) => v.schema);
+
+      res.status(200).json({ object: 'list', data: schemas });
     } catch (err) {
       await errorService.reportError(err);
 
@@ -364,16 +374,18 @@ class CollectionController {
         });
       }
 
-      const collection = providerSpec.collections?.find((c) => c.unique_key === collectionKey);
+      const entries = Object.entries(providerSpec.collections || {});
+      const collection = entries.find(([k, v]) => k === collectionKey);
 
-      if (!collection || !collection.schema) {
+      if (!collection) {
         return errorService.errorResponse(res, {
           code: ErrorCode.NotFound,
           message: `Schema not found for ${collectionKey}`,
         });
       }
 
-      res.status(200).json(collection.schema);
+      const schema = collection[1].schema;
+      res.status(200).json(schema);
     } catch (err) {
       await errorService.reportError(err);
 

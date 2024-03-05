@@ -2,6 +2,7 @@ import { Action, Collection, Integration } from '@prisma/client';
 import fs from 'fs';
 import yaml from 'js-yaml';
 import path from 'path';
+import { DEFAULT_AUTO_START_SYNC, DEFAULT_SYNC_FREQUENCY } from '../utils/constants';
 import { database } from '../utils/database';
 import { now } from '../utils/helpers';
 import encryptionService from './encryption.service';
@@ -78,7 +79,7 @@ class IntegrationService {
               oauth_client_secret: null,
               oauth_client_secret_iv: null,
               oauth_client_secret_tag: null,
-              proxy_scopes: null,
+              additional_scopes: null,
               rank,
               created_at: now(),
               updated_at: now(),
@@ -92,22 +93,28 @@ class IntegrationService {
         }
 
         const collectionKeys = integration.collections.map((collection) => collection.unique_key);
+        const collectionEntries = Object.entries(provider.collections || {});
+        const filteredCollectionEntries = collectionEntries.filter(
+          ([k, v]) => !collectionKeys.includes(k)
+        );
 
-        const collections: Collection[] =
-          provider.collections
-            ?.filter((collection) => !collectionKeys.includes(collection.unique_key))
-            .map((collection) => ({
-              unique_key: collection.unique_key,
-              integration_key: provider.unique_key,
-              environment_id: environmentId,
-              is_enabled: collection.default_enabled || false,
-              default_sync_frequency: collection.default_sync_frequency || '1d',
-              auto_start_sync: collection.default_auto_start_sync || false,
-              exclude_properties_from_sync: [],
-              created_at: now(),
-              updated_at: now(),
-              deleted_at: null,
-            })) || [];
+        const collections: Collection[] = filteredCollectionEntries.map(([k, v]) => {
+          return {
+            unique_key: k,
+            integration_key: provider.unique_key,
+            environment_id: environmentId,
+            is_enabled: v.default_enabled || false,
+            default_sync_frequency: v.default_sync_frequency || DEFAULT_SYNC_FREQUENCY,
+            auto_start_sync: v.default_auto_start_sync || DEFAULT_AUTO_START_SYNC,
+            exclude_properties_from_sync: [],
+            is_multimodal: v.is_multimodal,
+            text_embedding_model: '', // TODO
+            multimodal_embedding_model: '', // TODO
+            created_at: now(),
+            updated_at: now(),
+            deleted_at: null,
+          };
+        });
 
         if (collections.length > 0) {
           const createdCollections = await database.collection.createMany({
@@ -118,19 +125,20 @@ class IntegrationService {
         }
 
         const actionKeys = integration.actions.map((action) => action.unique_key);
+        const actionEntries = Object.entries(provider.actions || {});
+        const filteredActionEntries = actionEntries.filter(([k, v]) => !actionKeys.includes(k));
 
-        const actions: Action[] =
-          provider.actions
-            ?.filter((action) => !actionKeys.includes(action.unique_key))
-            .map((action) => ({
-              unique_key: action.unique_key,
-              integration_key: provider.unique_key,
-              environment_id: environmentId,
-              is_enabled: action.default_enabled || false,
-              created_at: now(),
-              updated_at: now(),
-              deleted_at: null,
-            })) || [];
+        const actions: Action[] = filteredActionEntries.map(([k, v]) => {
+          return {
+            unique_key: k,
+            integration_key: provider.unique_key,
+            environment_id: environmentId,
+            is_enabled: v.default_enabled || false,
+            created_at: now(),
+            updated_at: now(),
+            deleted_at: null,
+          };
+        });
 
         if (actions.length > 0) {
           const createdActions = await database.action.createMany({

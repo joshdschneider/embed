@@ -79,6 +79,8 @@ class UserController {
         type: EnvironmentType.Staging,
         enable_new_integrations: true,
         branding: DEFAULT_BRANDING,
+        default_text_embedding_model: '',
+        default_multimodal_embedding_model: '',
         created_at: now(),
         updated_at: now(),
         deleted_at: null,

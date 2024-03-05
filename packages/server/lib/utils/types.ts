@@ -104,7 +104,6 @@ export interface IntegrationObject {
   logo_url: string;
   logo_url_dark_mode?: string;
   is_enabled: boolean;
-  rank: number | null;
   auth_scheme: AuthScheme;
   use_oauth_credentials: boolean;
   oauth_client_id: string | null;
@@ -127,6 +126,8 @@ export interface CollectionObject {
   default_sync_frequency: string;
   auto_start_sync: boolean;
   exclude_properties_from_sync: string[];
+  text_embedding_model: string;
+  multimodal_embedding_model: string;
   created_at: number;
   updated_at: number;
 }
@@ -135,6 +136,8 @@ export const UpdateCollectionRequestSchema = z.object({
   default_sync_frequency: z.string().optional(),
   auto_start_sync: z.boolean().optional(),
   exclude_properties_from_sync: z.array(z.string()).optional(),
+  text_embedding_model: z.string().optional(),
+  multimodal_embedding_model: z.string().optional(),
 });
 
 export type UpdateCollectionRequest = z.infer<typeof UpdateCollectionRequestSchema>;

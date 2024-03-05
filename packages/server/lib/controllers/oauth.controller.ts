@@ -1,11 +1,13 @@
-import { AuthScheme, OAuth, OAuth1, OAuth2 } from '@kit/providers';
+import { AuthScheme, OAuth, OAuth1, OAuth2, ProviderSpecification } from '@kit/providers';
 import type { Integration, LinkToken } from '@kit/shared';
 import {
   Branding,
   DEFAULT_ERROR_MESSAGE,
   LogLevel,
   Resource,
+  actionService,
   activityService,
+  collectionService,
   environmentService,
   errorService,
   generateId,
@@ -25,7 +27,6 @@ import linkTokenService from '../services/linkToken.service';
 import {
   extractConfigurationKeys,
   getOauthCallbackUrl,
-  getScopes,
   missesInterpolationParam,
 } from '../utils/helpers';
 
@@ -144,9 +145,8 @@ class OAuthController {
         throw new Error('Failed to retrieve provider specification');
       }
 
-      const scopes = getScopes(integration, provider).join(
-        (provider.auth as OAuth).scope_separator || ' '
-      );
+      const scopesArray = await this.getScopes(integration, provider);
+      const scopes = scopesArray.join((provider.auth as OAuth).scope_separator || ' ');
 
       const updatedLinkToken = await linkTokenService.updateLinkToken(linkToken.id, {
         code_verifier: crypto.randomBytes(24).toString('hex'),
@@ -484,9 +484,8 @@ class OAuthController {
         throw new Error('Failed to retrieve provider specification');
       }
 
-      const scopes = getScopes(integration, provider).join(
-        (provider.auth as OAuth).scope_separator || ' '
-      );
+      const scopesArray = await this.getScopes(integration, provider);
+      const scopes = scopesArray.join((provider.auth as OAuth).scope_separator || ' ');
 
       await activityService.createActivityLog(activityId, {
         timestamp: now(),
@@ -907,6 +906,57 @@ class OAuthController {
     }
 
     return new Date(expirationDate);
+  }
+
+  private async getScopes(
+    integration: Integration,
+    providerSpec: ProviderSpecification
+  ): Promise<string[]> {
+    const scopes = new Set<string>();
+    if (integration.additional_scopes) {
+      integration.additional_scopes.split(',').forEach((scope) => scopes.add(scope));
+    }
+
+    if (providerSpec.collections) {
+      const collections = await collectionService.listCollections(
+        integration.unique_key,
+        integration.environment_id
+      );
+
+      const enabledKeys = collections?.filter((c) => c.is_enabled).map((c) => c.unique_key) || [];
+      const allEnabledCollections = Object.entries(providerSpec.collections)
+        .filter(([k, v]) => enabledKeys.includes(k))
+        .map(([k, v]) => ({ ...v }));
+
+      allEnabledCollections.forEach((c) => {
+        c.required_scopes?.forEach((scope) => scopes.add(scope));
+      });
+    }
+
+    if (providerSpec.actions) {
+      const actions = await actionService.listActions(
+        integration.unique_key,
+        integration.environment_id
+      );
+
+      const enabledKeys = actions?.filter((a) => a.is_enabled).map((a) => a.unique_key) || [];
+      const allEnabledActions = Object.entries(providerSpec.actions)
+        .filter(([k, v]) => enabledKeys.includes(k))
+        .map(([k, v]) => ({ ...v }));
+
+      allEnabledActions.forEach((a) => {
+        a.required_scopes?.forEach((scope) => scopes.add(scope));
+      });
+    }
+
+    if (
+      providerSpec.auth.scheme === AuthScheme.OAuth2 ||
+      providerSpec.auth.scheme === AuthScheme.OAuth1
+    ) {
+      providerSpec.auth.default_scopes?.forEach((scope) => scopes.add(scope));
+    }
+
+    return Array.from(scopes);
   }
 }
 
