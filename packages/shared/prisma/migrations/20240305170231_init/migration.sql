@@ -31,6 +31,8 @@ CREATE TABLE "Environment" (
     "account_id" TEXT NOT NULL,
     "type" TEXT NOT NULL,
     "enable_new_integrations" BOOLEAN NOT NULL,
+    "default_text_embedding_model" TEXT NOT NULL,
+    "default_multimodal_embedding_model" TEXT NOT NULL,
     "branding" JSONB NOT NULL,
     "created_at" INTEGER NOT NULL,
     "updated_at" INTEGER NOT NULL,
@@ -91,7 +93,7 @@ CREATE TABLE "LinkedAccount" (
     "configuration" JSONB NOT NULL,
     "metadata" JSONB,
     "consent_given" BOOLEAN NOT NULL DEFAULT false,
-    "consent_date" INTEGER,
+    "consent_timestamp" INTEGER,
     "created_at" INTEGER NOT NULL,
     "updated_at" INTEGER NOT NULL,
     "deleted_at" INTEGER,
@@ -110,7 +112,7 @@ CREATE TABLE "Integration" (
     "oauth_client_secret" TEXT,
     "oauth_client_secret_iv" TEXT,
     "oauth_client_secret_tag" TEXT,
-    "oauth_scopes" TEXT,
+    "additional_scopes" TEXT,
     "rank" INTEGER,
     "created_at" INTEGER NOT NULL,
     "updated_at" INTEGER NOT NULL,
@@ -126,6 +128,9 @@ CREATE TABLE "Collection" (
     "default_sync_frequency" TEXT NOT NULL,
     "auto_start_sync" BOOLEAN NOT NULL,
     "exclude_properties_from_sync" TEXT[],
+    "text_embedding_model" TEXT NOT NULL,
+    "multimodal_embedding_model" TEXT NOT NULL,
+    "is_multimodal" BOOLEAN NOT NULL,
     "created_at" INTEGER NOT NULL,
     "updated_at" INTEGER NOT NULL,
     "deleted_at" INTEGER
@@ -148,6 +153,7 @@ CREATE TABLE "Sync" (
     "integration_key" TEXT NOT NULL,
     "environment_id" TEXT NOT NULL,
     "linked_account_id" TEXT NOT NULL,
+    "status" TEXT NOT NULL,
     "frequency" TEXT NOT NULL,
     "last_synced_at" INTEGER,
     "created_at" INTEGER NOT NULL,
@@ -162,13 +168,12 @@ CREATE TABLE "SyncRun" (
     "linked_account_id" TEXT NOT NULL,
     "type" TEXT NOT NULL,
     "status" TEXT NOT NULL,
-    "run_id" TEXT,
-    "added" INTEGER,
-    "updated" INTEGER,
-    "deleted" INTEGER,
+    "temporal_run_id" TEXT,
+    "records_added" INTEGER,
+    "records_updated" INTEGER,
+    "records_deleted" INTEGER,
     "created_at" INTEGER NOT NULL,
     "updated_at" INTEGER NOT NULL,
-    "deleted_at" INTEGER,
 
     CONSTRAINT "SyncRun_pkey" PRIMARY KEY ("id")
 );
@@ -190,13 +195,34 @@ CREATE TABLE "SyncSchedule" (
 
 -- CreateTable
 CREATE TABLE "ActionRun" (
+    "id" TEXT NOT NULL,
     "action_key" TEXT NOT NULL,
     "integration_key" TEXT NOT NULL,
     "environment_id" TEXT NOT NULL,
     "linked_account_id" TEXT NOT NULL,
     "created_at" INTEGER NOT NULL,
     "updated_at" INTEGER NOT NULL,
-    "deleted_at" INTEGER
+
+    CONSTRAINT "ActionRun_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Record" (
+    "id" TEXT NOT NULL,
+    "collection_key" TEXT NOT NULL,
+    "integration_key" TEXT NOT NULL,
+    "environment_id" TEXT NOT NULL,
+    "linked_account_id" TEXT NOT NULL,
+    "external_id" TEXT NOT NULL,
+    "object" TEXT NOT NULL,
+    "object_iv" TEXT,
+    "object_tag" TEXT,
+    "hash" TEXT NOT NULL,
+    "created_at" INTEGER NOT NULL,
+    "updated_at" INTEGER NOT NULL,
+    "deleted_at" INTEGER,
+
+    CONSTRAINT "Record_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -314,7 +340,13 @@ ALTER TABLE "Sync" ADD CONSTRAINT "Sync_integration_key_environment_id_fkey" FOR
 ALTER TABLE "SyncRun" ADD CONSTRAINT "SyncRun_collection_key_linked_account_id_fkey" FOREIGN KEY ("collection_key", "linked_account_id") REFERENCES "Sync"("collection_key", "linked_account_id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "SyncRun" ADD CONSTRAINT "SyncRun_linked_account_id_fkey" FOREIGN KEY ("linked_account_id") REFERENCES "LinkedAccount"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "SyncSchedule" ADD CONSTRAINT "SyncSchedule_collection_key_linked_account_id_fkey" FOREIGN KEY ("collection_key", "linked_account_id") REFERENCES "Sync"("collection_key", "linked_account_id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "SyncSchedule" ADD CONSTRAINT "SyncSchedule_linked_account_id_fkey" FOREIGN KEY ("linked_account_id") REFERENCES "LinkedAccount"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "ActionRun" ADD CONSTRAINT "ActionRun_action_key_integration_key_environment_id_fkey" FOREIGN KEY ("action_key", "integration_key", "environment_id") REFERENCES "Action"("unique_key", "integration_key", "environment_id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -323,7 +355,10 @@ ALTER TABLE "ActionRun" ADD CONSTRAINT "ActionRun_action_key_integration_key_env
 ALTER TABLE "ActionRun" ADD CONSTRAINT "ActionRun_linked_account_id_fkey" FOREIGN KEY ("linked_account_id") REFERENCES "LinkedAccount"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "ActionRun" ADD CONSTRAINT "ActionRun_integration_key_environment_id_fkey" FOREIGN KEY ("integration_key", "environment_id") REFERENCES "Integration"("unique_key", "environment_id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Record" ADD CONSTRAINT "Record_collection_key_integration_key_environment_id_fkey" FOREIGN KEY ("collection_key", "integration_key", "environment_id") REFERENCES "Collection"("unique_key", "integration_key", "environment_id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Record" ADD CONSTRAINT "Record_linked_account_id_fkey" FOREIGN KEY ("linked_account_id") REFERENCES "LinkedAccount"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Webhook" ADD CONSTRAINT "Webhook_environment_id_fkey" FOREIGN KEY ("environment_id") REFERENCES "Environment"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

@@ -224,10 +224,10 @@ class ActionController {
         });
       }
 
-      res.status(200).json({
-        object: 'list',
-        data: providerSpec.actions?.map((action) => action.schema) || [],
-      });
+      const entries = Object.entries(providerSpec.actions || {});
+      const schemas = entries.map(([k, v]) => v.schema);
+
+      res.status(200).json({ object: 'list', data: schemas });
     } catch (err) {
       await errorService.reportError(err);
 
@@ -264,16 +264,18 @@ class ActionController {
         });
       }
 
-      const action = providerSpec.actions?.find((c) => c.unique_key === actionKey);
+      const entries = Object.entries(providerSpec.actions || {});
+      const action = entries.find(([k, v]) => k === actionKey);
 
-      if (!action || !action.schema) {
+      if (!action) {
         return errorService.errorResponse(res, {
           code: ErrorCode.NotFound,
           message: `Schema not found for ${actionKey}`,
         });
       }
 
-      res.status(200).json(action.schema);
+      const schema = action[1].schema;
+      res.status(200).json(schema);
     } catch (err) {
       await errorService.reportError(err);
 
