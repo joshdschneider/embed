@@ -296,10 +296,8 @@ class WeaviateClient {
     collectionKey: string,
     imageBase64: string,
     options?: {
-      alpha?: number;
       limit?: number;
       offset?: number;
-      filter?: Filter;
       returnProperties?: string[];
     }
   ): Promise<(T & { _score: number })[] | null> {
