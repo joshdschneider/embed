@@ -20,14 +20,9 @@ export type Branding = {
   };
 };
 
-export type Filter = Omit<WeaviateFilter, 'operands' | 'path'> & {
+export type Filter = {
   conditions?: Filter[];
   property?: string[];
-};
-
-export type WeaviateFilter = {
-  operands?: WeaviateFilter[];
-  path?: string[];
   operator?:
     | 'And'
     | 'Or'

@@ -1,10 +1,13 @@
+import { CollectionProperty } from '@kit/providers';
 import weaviate, { WeaviateClient as Client, WeaviateClass } from 'weaviate-ts-client';
+import GraphQLHybrid from '../graphql/hybrid';
+import GraphQLWhere from '../graphql/where';
 import collectionService from '../services/collection.service';
 import errorService from '../services/error.service';
 import linkedAccountService from '../services/linkedAccount.service';
 import providerService from '../services/provider.service';
 import { getWeaviateUrl, isProd } from '../utils/constants';
-import { Filter, WeaviateFilter } from '../utils/types';
+import { Filter } from '../utils/types';
 import { VectorClient } from './vector.client';
 
 const WEAVIATE_URL = getWeaviateUrl();
@@ -158,38 +161,133 @@ class WeaviateClient {
         collectionSchema.name
       );
 
-      const vector = await this.vectorizer.vectorize(collection.text_embedding_model, [query]);
+      const fields =
+        options?.returnProperties && options?.returnProperties.length > 0
+          ? options.returnProperties
+          : Object.keys(collectionSchema.properties);
 
-      const chain = this.client.graphql
-        .get()
-        .withClassName(collectionName)
-        .withTenant(linkedAccountId)
-        .withHybrid({
+      let textProperties: string[] = [];
+      let multimodalProperties: string[] = [];
+
+      for (const [k, v] of Object.entries(collectionSchema.properties)) {
+        if (v.vector_searchable !== false) {
+          if (v.embedding_model !== 'multimodal') {
+            textProperties.push(k);
+          } else if (v.embedding_model === 'multimodal') {
+            multimodalProperties.push(k);
+          }
+        }
+      }
+
+      let promises: Promise<
+        { _additional: { score: string; id: string }; [key: string]: unknown }[]
+      >[] = [];
+
+      if (textProperties.length > 0) {
+        const textQueryPromise = this.vectorQuery({
+          tenant: linkedAccountId,
+          collection: collectionName,
           query,
-          vector: vector[0],
+          targetVectors: textProperties,
+          embeddingModel: collection.text_embedding_model,
           alpha: options?.alpha,
+          limit: options?.limit,
+          where: options?.filter,
+          fields: fields,
         });
 
-      if (options?.filter) {
-        const whereFilters = WeaviateClient.transformFilter(options.filter);
-        chain.withWhere(whereFilters);
+        promises.push(textQueryPromise);
       }
 
-      const properties = Object.keys(collectionSchema.properties);
-      if (options?.returnProperties && options?.returnProperties.length > 0) {
-        const props = options.returnProperties.filter((prop) => properties.includes(prop));
-        chain.withFields(props.join(' ') + ' _additional { score }');
-      } else {
-        chain.withFields(properties.join(' ') + ' _additional { score }');
+      if (multimodalProperties.length > 0) {
+        const multimodalQueryPromise = this.vectorQuery({
+          tenant: linkedAccountId,
+          collection: collectionName,
+          query,
+          targetVectors: multimodalProperties,
+          embeddingModel: collection.multimodal_embedding_model,
+          alpha: options?.alpha,
+          limit: options?.limit,
+          where: options?.filter,
+          fields: fields,
+        });
+
+        promises.push(multimodalQueryPromise);
       }
 
-      const data = await chain.do();
+      const resolvedPromises = await Promise.all(promises);
+      const mergedArray = resolvedPromises.flat(1);
+      const uniqueArray = mergedArray.reduce(
+        (
+          acc: { _additional: { score: string; id: string }; [key: string]: unknown }[],
+          current
+        ) => {
+          const x = acc.find((item) => item._additional.id === current._additional.id);
+          if (!x) {
+            return acc.concat([current]);
+          } else {
+            return acc.map((item) =>
+              item._additional.id === current._additional.id
+                ? parseFloat(item._additional.score) > parseFloat(current._additional.score)
+                  ? item
+                  : current
+                : item
+            );
+          }
+        },
+        []
+      );
 
-      return data.data;
+      const limit = options?.limit || resolvedPromises[0]?.length;
+      const sortedAndLimitedArray = uniqueArray
+        .sort((a, b) => parseFloat(b._additional.score) - parseFloat(a._additional.score))
+        .slice(0, limit);
+
+      return sortedAndLimitedArray as T[];
     } catch (err) {
       await errorService.reportError(err);
       return null;
     }
+  }
+
+  private async vectorQuery({
+    embeddingModel,
+    query,
+    collection,
+    tenant,
+    targetVectors,
+    alpha,
+    limit,
+    where,
+    fields,
+  }: {
+    embeddingModel: string;
+    query: string;
+    collection: string;
+    tenant: string;
+    targetVectors: string[];
+    alpha?: number;
+    limit?: number;
+    where?: Filter;
+    fields: string[];
+  }): Promise<{ _additional: { score: string; id: string }; [key: string]: unknown }[]> {
+    if (!this.client) {
+      throw new Error('Weaviate client not initialized');
+    }
+
+    const vector = await this.vectorizer.vectorize(embeddingModel, [query]);
+
+    const queryString = this.buildQueryString({
+      collection,
+      tenant,
+      hybrid: { query, vector: vector[0]!, targetVectors, alpha },
+      limit,
+      where,
+      fields,
+    });
+
+    const response = await this.client.graphql.raw().withQuery(queryString).do();
+    return response?.data?.Get[collection] || [];
   }
 
   private async getCollection(collectionName: string): Promise<WeaviateClass | null> {
@@ -213,19 +311,7 @@ class WeaviateClient {
     return titleCasedWords.join('');
   }
 
-  private transformProperty(
-    schemaProperty: [
-      string,
-      {
-        type: 'string' | 'number' | 'boolean' | 'integer';
-        format?: 'date' | 'date-time';
-        description?: string;
-        index_searchable?: boolean;
-        index_filterable?: boolean;
-        vector_searchable?: boolean;
-      },
-    ]
-  ): {
+  private transformProperty(schemaProperty: [string, CollectionProperty]): {
     dataType?: string[];
     description?: string;
     name?: string;
@@ -256,29 +342,41 @@ class WeaviateClient {
     };
   }
 
-  static transformFilter(filter: Filter): WeaviateFilter {
-    const { conditions, property, ...rest } = filter;
-    const weaviateFilter: WeaviateFilter = {
-      ...rest,
-      ...(property && { path: property }),
-      ...(conditions && { operands: conditions.map(WeaviateClient.transformFilter) }),
+  private buildQueryString(query: {
+    collection: string;
+    tenant: string;
+    hybrid: {
+      query: string;
+      vector: number[];
+      targetVectors: string[];
+      alpha?: number;
     };
-    return weaviateFilter;
+    limit?: number;
+    where?: Filter;
+    fields: string[];
+  }): string {
+    let args = [`tenant:${JSON.stringify(query.tenant)}`];
+
+    args = [...args, `hybrid:${new GraphQLHybrid(query.hybrid).toString()}`];
+
+    if (query.limit !== undefined) {
+      args = [...args, `limit:${JSON.stringify(query.limit)}`];
+    }
+
+    if (query.where !== undefined) {
+      args = [...args, `where:${new GraphQLWhere(query.where).toString()}`];
+    }
+
+    const params = args.join(',');
+
+    return `{
+      Get{${query.collection}(${params}) {
+        ${query.fields.join(' ')} _additional { id score } }
+      }
+    }`;
   }
 
-  private getVectorConfig(
-    schemaProperties: [
-      string,
-      {
-        type: 'string' | 'number' | 'boolean' | 'integer';
-        format?: 'date' | 'date-time';
-        description?: string;
-        index_searchable?: boolean;
-        index_filterable?: boolean;
-        vector_searchable?: boolean;
-      },
-    ][]
-  ): {
+  private getVectorConfig(schemaProperties: [string, CollectionProperty][]): {
     [key: string]: {
       vectorizer?: { [key: string]: unknown };
       vectorIndexType?: string;

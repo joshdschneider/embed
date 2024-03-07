@@ -96,14 +96,19 @@ export const CollectionPropertySchema = z.object({
   index_searchable: z.boolean().optional(),
   index_filterable: z.boolean().optional(),
   vector_searchable: z.boolean().optional(),
+  embedding_model: z.union([z.literal('text'), z.literal('multimodal')]).optional(),
 });
 
-export const CollectionSchema = z.object({
+export type CollectionProperty = z.infer<typeof CollectionPropertySchema>;
+
+export const CollectionSchemaSchema = z.object({
   name: z.string(),
   description: z.string(),
   properties: z.record(CollectionPropertySchema),
   required: z.array(z.string()).optional(),
 });
+
+export type CollectionSchema = z.infer<typeof CollectionSchemaSchema>;
 
 export const CollectionsSchema = z.record(
   z.object({
@@ -112,7 +117,7 @@ export const CollectionsSchema = z.record(
     default_auto_start_sync: z.boolean().optional(),
     required_scopes: z.array(z.string()).optional(),
     is_multimodal: z.boolean(),
-    schema: CollectionSchema,
+    schema: CollectionSchemaSchema,
   })
 );
 
@@ -124,7 +129,9 @@ export const ActionPropertySchema = z.object({
   description: z.string().optional(),
 });
 
-export const ActionSchema = z.object({
+export type ActionProperty = z.infer<typeof ActionPropertySchema>;
+
+export const ActionSchemaSchema = z.object({
   name: z.string(),
   description: z.string(),
   parameters: z.object({
@@ -135,11 +142,13 @@ export const ActionSchema = z.object({
   required: z.array(z.string()).optional(),
 });
 
+export type ActionSchema = z.infer<typeof ActionSchemaSchema>;
+
 export const ActionsSchema = z.record(
   z.object({
     default_enabled: z.boolean().optional(),
     required_scopes: z.array(z.string()).optional(),
-    schema: ActionSchema,
+    schema: ActionSchemaSchema,
   })
 );
 
