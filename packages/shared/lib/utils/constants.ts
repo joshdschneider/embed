@@ -64,6 +64,10 @@ export function getAuthTokenSecret() {
   return process.env['KIT_AUTH_TOKEN_SECRET'];
 }
 
+export function getOpenAIApiKey() {
+  return process.env['OPENAI_API_KEY'];
+}
+
 export const ACCOUNT_ID_LOCALS_KEY = 'kit_account_id';
 export const ENVIRONMENT_ID_LOCALS_KEY = 'kit_environment_id';
 
