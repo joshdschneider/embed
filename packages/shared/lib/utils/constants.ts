@@ -1,3 +1,8 @@
+import { BedrockRuntimeClient } from '@aws-sdk/client-bedrock-runtime';
+import { CohereClient } from 'cohere-ai';
+import { GoogleAuth } from 'google-auth-library';
+import OpenAI from 'openai';
+
 export function getServerUrl() {
   return process.env['SERVER_URL'];
 }
@@ -64,8 +69,79 @@ export function getAuthTokenSecret() {
   return process.env['KIT_AUTH_TOKEN_SECRET'];
 }
 
-export function getOpenAIApiKey() {
-  return process.env['OPENAI_API_KEY'];
+export function getOpenai(): OpenAI {
+  const apiKey = process.env['OPENAI_API_KEY'];
+  if (!apiKey) {
+    throw new Error('OpenAI API key not set');
+  }
+
+  return new OpenAI({ apiKey });
+}
+
+export function getCohere(): CohereClient {
+  const token = process.env['COHERE_API_KEY'];
+  if (!token) {
+    throw new Error('Cohere API key not set');
+  }
+
+  return new CohereClient({ token });
+}
+
+export function getBedrock(): BedrockRuntimeClient {
+  const awsAccessKey = process.env['AWS_ACCESS_KEY'];
+  const awsSecretAccessKey = process.env['AWS_SECRET_ACCESS_KEY'];
+  const awsRegion = process.env['AWS_REGION'];
+
+  if (!awsAccessKey) {
+    throw new Error('Bedrock access key not set');
+  } else if (!awsSecretAccessKey) {
+    throw new Error('Bedrock secret access key not set');
+  }
+
+  return new BedrockRuntimeClient({
+    credentials: {
+      accessKeyId: awsAccessKey,
+      secretAccessKey: awsSecretAccessKey,
+    },
+    region: awsRegion,
+  });
+}
+
+export async function getGoogleCloud() {
+  const keyPath = process.env['GOOGLE_CLOUD_KEY_PATH'];
+  const projectId = process.env['GOOGLE_CLOUD_PROJECT_ID'];
+  const region = process.env['GOOGLE_CLOUD_REGION'];
+
+  if (!keyPath) {
+    throw new Error('Google Cloud key path not set');
+  } else if (!projectId) {
+    throw new Error('Google Cloud project ID not set');
+  } else if (!region) {
+    throw new Error('Google Cloud region not set');
+  }
+
+  const auth = new GoogleAuth({ keyFilename: keyPath });
+
+  const client = await auth.getClient();
+  const accessToken = await client.getAccessToken();
+  if (!accessToken.token) {
+    throw new Error('Failed to get Google access token');
+  }
+
+  return {
+    accessToken: accessToken.token,
+    projectId,
+    region,
+  };
+}
+
+export function getMistralApiKey() {
+  const apiKey = process.env['MISTRAL_API_KEY'];
+  if (!apiKey) {
+    throw new Error('Mistral API key not set');
+  }
+
+  return apiKey;
 }
 
 export const ACCOUNT_ID_LOCALS_KEY = 'kit_account_id';
