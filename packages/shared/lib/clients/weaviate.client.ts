@@ -9,18 +9,18 @@ import linkedAccountService from '../services/linkedAccount.service';
 import providerService from '../services/provider.service';
 import { getWeaviateUrl, isProd } from '../utils/constants';
 import { Filter } from '../utils/types';
-import { EmbeddingModel, VectorClient } from './vector.client';
+import { EmbeddingClient, EmbeddingModel } from './embedding.client';
 
 const WEAVIATE_URL = getWeaviateUrl();
 
 class WeaviateClient {
   private static instance: WeaviateClient;
-  private client: Client | null = null;
-  private vectorizer: VectorClient;
+  private weaviateClient: Client | null = null;
+  private embeddingClient: EmbeddingClient;
 
   private constructor(client: Client) {
-    this.client = client;
-    this.vectorizer = new VectorClient();
+    this.weaviateClient = client;
+    this.embeddingClient = new EmbeddingClient();
   }
 
   static getInstance(): WeaviateClient {
@@ -49,7 +49,7 @@ class WeaviateClient {
     integrationKey: string,
     collectionKey: string
   ) {
-    if (!this.client) {
+    if (!this.weaviateClient) {
       await errorService.reportError(new Error('Weaviate client not initialized'));
       return null;
     }
@@ -64,7 +64,7 @@ class WeaviateClient {
 
       const collectionSchema = providerCollection[1].schema;
       const collectionName = this.formatCollectionName(integrationKey, collectionSchema.name);
-      return await this.client.schema
+      return await this.weaviateClient.schema
         .tenantsCreator(collectionName, [{ name: linkedAccountId }])
         .do();
     } catch (err) {
@@ -79,7 +79,7 @@ class WeaviateClient {
     collectionKey: string,
     objects: T[]
   ): Promise<boolean> {
-    if (!this.client) {
+    if (!this.weaviateClient) {
       await errorService.reportError(new Error('Weaviate client not initialized'));
       return false;
     }
@@ -111,7 +111,7 @@ class WeaviateClient {
       const collectionName = this.formatCollectionName(integrationKey, collectionSchema.name);
       const collectionProperties = Object.entries(collectionSchema.properties);
 
-      let batcher = this.client.batch.objectsBatcher();
+      let batcher = this.weaviateClient.batch.objectsBatcher();
 
       for (const obj of objects) {
         const vectors = await this.vectorizeProperties(obj, collection, collectionProperties);
@@ -144,7 +144,7 @@ class WeaviateClient {
       returnProperties?: string[];
     }
   ): Promise<(T & { _score: number })[] | null> {
-    if (!this.client) {
+    if (!this.weaviateClient) {
       await errorService.reportError(new Error('Weaviate client not initialized'));
       return null;
     }
@@ -206,6 +206,7 @@ class WeaviateClient {
           query,
           targetVectors: textProperties,
           embeddingModel: collection.text_embedding_model as EmbeddingModel,
+          isMultimodal: false,
           alpha: options?.alpha,
           limit: options?.limit,
           where: options?.filter,
@@ -220,6 +221,7 @@ class WeaviateClient {
           query,
           targetVectors: multimodalProperties,
           embeddingModel: collection.multimodal_embedding_model as EmbeddingModel,
+          isMultimodal: true,
           alpha: options?.alpha,
           limit: options?.limit,
           where: options?.filter,
@@ -301,7 +303,7 @@ class WeaviateClient {
       returnProperties?: string[];
     }
   ): Promise<(T & { _score: number })[] | null> {
-    if (!this.client) {
+    if (!this.weaviateClient) {
       await errorService.reportError(new Error('Weaviate client not initialized'));
       return null;
     }
@@ -366,6 +368,7 @@ class WeaviateClient {
 
   private async hybridQuery({
     embeddingModel,
+    isMultimodal,
     query,
     collection,
     tenant,
@@ -376,6 +379,7 @@ class WeaviateClient {
     fields,
   }: {
     embeddingModel: EmbeddingModel;
+    isMultimodal: boolean;
     query: string;
     collection: string;
     tenant: string;
@@ -385,28 +389,38 @@ class WeaviateClient {
     where?: Filter;
     fields: string[];
   }): Promise<{ _additional: { score: string; id: string }; [key: string]: unknown }[]> {
-    if (!this.client) {
+    if (!this.weaviateClient) {
       throw new Error('Weaviate client not initialized');
     }
 
-    const vector = await this.vectorizer.vectorize(embeddingModel, [query]);
+    let vector;
+    if (isMultimodal) {
+      const textVectors = await this.embeddingClient.embedText({
+        model: embeddingModel,
+        purpose: 'query',
+        text: [query],
+      });
+      vector = textVectors[0]!;
+    } else {
+      const multimodalVectors = await this.embeddingClient.embedMultimodal({
+        model: embeddingModel,
+        content: [query],
+        type: 'text',
+      });
+      vector = multimodalVectors[0]!;
+    }
 
     const queryString = this.buildHybridQueryString({
       collection,
       tenant,
-      hybrid: { query, vector: vector[0]!, targetVectors, alpha },
+      hybrid: { query, vector, targetVectors, alpha },
       limit,
       where,
       fields,
     });
 
-    const response = await this.client.graphql.raw().withQuery(queryString).do();
-    if (response?.data?.Get[collection] && Array.isArray(response.data.Get[collection])) {
-      return response.data.Get[collection];
-    } else {
-      await errorService.reportError(new Error('Unexpected query return value'));
-      return [];
-    }
+    const response = await this.weaviateClient.graphql.raw().withQuery(queryString).do();
+    return response.data.Get[collection];
   }
 
   private async imageQuery({
@@ -426,33 +440,29 @@ class WeaviateClient {
     limit?: number;
     fields: string[];
   }): Promise<{ _additional: { score: string; id: string }; [key: string]: unknown }[]> {
-    if (!this.client) {
+    if (!this.weaviateClient) {
       throw new Error('Weaviate client not initialized');
     }
 
-    const vector = await this.vectorizer.vectorize(embeddingModel, [imageBase64]);
+    const [vector] = await this.embeddingClient.embedMultimodal({
+      model: embeddingModel,
+      content: [imageBase64],
+      type: 'images',
+    });
 
-    const chain = this.client.graphql
+    const chain = this.weaviateClient.graphql
       .get()
       .withClassName(collection)
       .withTenant(tenant)
       .withFields(fields.join(' ') + ' _additional { id score }')
-      .withNearVector({
-        vector: vector[0]!,
-        targetVectors,
-      });
+      .withNearVector({ vector: vector!, targetVectors });
 
     if (limit) {
       chain.withLimit(limit);
     }
 
     const data = await chain.do();
-    if (data.data.Get[collection] && Array.isArray(data.data.Get[collection])) {
-      return data.data.Get[collection];
-    } else {
-      await errorService.reportError(new Error('Unexpected query return value'));
-      return [];
-    }
+    return data.data.Get[collection];
   }
 
   private formatCollectionName(integrationKey: string, collectionSchemaName: string) {
@@ -512,10 +522,11 @@ class WeaviateClient {
         .filter(([k, v]) => textProperties.includes(k))
         .map(([k, v]) => v) as string[];
 
-      textVectorsPromise = this.vectorizer.vectorize(
-        collection.text_embedding_model as EmbeddingModel,
-        textChunks
-      );
+      textVectorsPromise = this.embeddingClient.embedText({
+        model: collection.text_embedding_model as EmbeddingModel,
+        text: textChunks,
+        purpose: 'object',
+      });
     }
 
     if (multimodalProperties.length > 0) {
@@ -523,10 +534,11 @@ class WeaviateClient {
         .filter(([k, v]) => multimodalProperties.includes(k))
         .map(([k, v]) => v) as string[];
 
-      multimodalVectorsPromise = this.vectorizer.vectorize(
-        collection.multimodal_embedding_model as EmbeddingModel,
-        multimodalChunks
-      );
+      multimodalVectorsPromise = this.embeddingClient.embedMultimodal({
+        model: collection.multimodal_embedding_model as EmbeddingModel,
+        content: multimodalChunks,
+        type: 'images',
+      });
     }
 
     const [textVectors, multimodalVectors] = await Promise.all([
