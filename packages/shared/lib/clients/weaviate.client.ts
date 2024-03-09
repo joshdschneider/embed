@@ -75,7 +75,6 @@ class WeaviateClient {
 
   public async batchSave<T extends { [key: string]: unknown }>(
     linkedAccountId: string,
-    integrationKey: string,
     collectionKey: string,
     objects: T[]
   ): Promise<boolean> {
@@ -92,7 +91,7 @@ class WeaviateClient {
 
       const collection = await collectionService.retrieveCollection(
         collectionKey,
-        integrationKey,
+        linkedAccount.integration_key,
         linkedAccount.environment_id
       );
 
@@ -100,16 +99,19 @@ class WeaviateClient {
         throw new Error(`Collection not found with key ${collectionKey}`);
       }
 
-      const providerSpec = await providerService.getProviderSpec(integrationKey);
+      const providerSpec = await providerService.getProviderSpec(linkedAccount.integration_key);
       const collectionEntries = Object.entries(providerSpec?.collections || {});
       const providerCollection = collectionEntries.find(([k, v]) => k === collectionKey);
       if (!providerCollection) {
-        throw new Error(`Collection not found for provider ${integrationKey}`);
+        throw new Error(`Collection not found for provider ${linkedAccount.integration_key}`);
       }
 
       const collectionSchema = providerCollection[1].schema;
-      const collectionName = this.formatCollectionName(integrationKey, collectionSchema.name);
       const collectionProperties = Object.entries(collectionSchema.properties);
+      const collectionName = this.formatCollectionName(
+        linkedAccount.integration_key,
+        collectionSchema.name
+      );
 
       let batcher = this.weaviateClient.batch.objectsBatcher();
 
@@ -139,7 +141,6 @@ class WeaviateClient {
     options?: {
       alpha?: number;
       limit?: number;
-      offset?: number;
       filter?: Filter;
       returnProperties?: string[];
     }
@@ -238,7 +239,10 @@ class WeaviateClient {
         const flatArray = [textQueryResponse, multimodalQueryResponse].flat(1);
         const mergedArray = flatArray.reduce(
           (
-            acc: { _additional: { score: string; id: string }; [key: string]: unknown }[],
+            acc: {
+              [key: string]: unknown;
+              _additional: { id: string; score: string };
+            }[],
             current
           ) => {
             const x = acc.find((item) => item._additional.id === current._additional.id);
@@ -368,10 +372,10 @@ class WeaviateClient {
 
   private async hybridQuery({
     embeddingModel,
-    isMultimodal,
-    query,
     collection,
     tenant,
+    query,
+    isMultimodal,
     targetVectors,
     alpha,
     limit,

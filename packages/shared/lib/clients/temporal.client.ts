@@ -1,6 +1,8 @@
 import { Client, Connection, ScheduleOverlapPolicy } from '@temporalio/client';
 import fs from 'fs';
-import { getTemporalNamespace, getTemporalUrl, isProd } from '../utils/constants';
+import ms, { StringValue } from 'ms';
+import errorService from '../services/error.service';
+import { SYNC_TASK_QUEUE, getTemporalNamespace, getTemporalUrl, isProd } from '../utils/constants';
 
 const TEMPORAL_URL = getTemporalUrl();
 const TEMPORAL_NAMESPACE = getTemporalNamespace();
@@ -48,6 +50,233 @@ class TemporalClient {
 
     return new TemporalClient(client);
   }
+
+  public async startInitialSync(
+    syncRunId: string,
+    args: {
+      environmentId: string;
+      linkedAccountId: string;
+      integrationKey: string;
+      collectionKey: string;
+      syncId: string;
+      syncRunId: string;
+      activityId: string | null;
+    }
+  ): Promise<string | null> {
+    if (!this.client) {
+      await errorService.reportError(new Error('Temporal client not initialized'));
+      return null;
+    }
+
+    try {
+      const handle = await this.client.workflow.start('initialSync', {
+        taskQueue: SYNC_TASK_QUEUE,
+        workflowId: syncRunId,
+        args: [{ ...args }],
+      });
+
+      return handle.firstExecutionRunId;
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
+    }
+  }
+
+  public async createSyncSchedule(
+    scheduleId: string,
+    interval: StringValue,
+    offset: number,
+    pauseAfterCreate: boolean,
+    args: {
+      environmentId: string;
+      linkedAccountId: string;
+      integrationKey: string;
+      collectionKey: string;
+      syncId: string;
+      syncRunId: string;
+      activityId: string | null;
+    }
+  ): Promise<boolean> {
+    if (!this.client) {
+      await errorService.reportError(new Error('Temporal client not initialized'));
+      return false;
+    }
+
+    try {
+      const handle = await this.client.schedule.create({
+        scheduleId,
+        policies: { overlap: OVERLAP_POLICY },
+        spec: { intervals: [{ every: interval, offset }] },
+        action: {
+          type: 'startWorkflow',
+          workflowType: 'continuousSync',
+          taskQueue: SYNC_TASK_QUEUE,
+          args: [{ ...args }],
+        },
+      });
+
+      if (pauseAfterCreate) {
+        await handle.pause();
+      }
+
+      return true;
+    } catch (err) {
+      await errorService.reportError(err);
+      return false;
+    }
+  }
+
+  public async terminateSyncRun(runId: string): Promise<boolean> {
+    if (!this.client) {
+      await errorService.reportError(new Error('Temporal client not initialized'));
+      return false;
+    }
+
+    try {
+      await this.client.workflow.workflowService.terminateWorkflowExecution({
+        firstExecutionRunId: runId,
+      });
+      return true;
+    } catch (err) {
+      await errorService.reportError(err);
+      return false;
+    }
+  }
+
+  public async triggerSyncSchedule(scheduleId: string): Promise<boolean> {
+    if (!this.client) {
+      await errorService.reportError(new Error('Temporal client not initialized'));
+      return false;
+    }
+
+    try {
+      const scheduleHandle = this.client.schedule.getHandle(scheduleId);
+      await scheduleHandle.trigger(OVERLAP_POLICY);
+      return true;
+    } catch (err) {
+      await errorService.reportError(err);
+      return false;
+    }
+  }
+
+  public async pauseSyncSchedule(scheduleId: string): Promise<boolean> {
+    if (!this.client) {
+      await errorService.reportError(new Error('Temporal client not initialized'));
+      return false;
+    }
+
+    try {
+      const scheduleHandle = this.client.schedule.getHandle(scheduleId);
+      await scheduleHandle.pause();
+      return true;
+    } catch (err) {
+      await errorService.reportError(err);
+      return false;
+    }
+  }
+
+  public async unpauseSyncSchedule(scheduleId: string): Promise<boolean> {
+    if (!this.client) {
+      await errorService.reportError(new Error('Temporal client not initialized'));
+      return false;
+    }
+
+    try {
+      const scheduleHandle = this.client.schedule.getHandle(scheduleId);
+      await scheduleHandle.unpause();
+      return true;
+    } catch (err) {
+      await errorService.reportError(err);
+      return false;
+    }
+  }
+
+  public async describeSyncSchedule(scheduleId: string) {
+    if (!this.client) {
+      await errorService.reportError(new Error('Temporal client not initialized'));
+      return null;
+    }
+
+    try {
+      return await this.client.workflowService.describeSchedule({
+        scheduleId,
+        namespace: TEMPORAL_NAMESPACE,
+      });
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
+    }
+  }
+
+  public async updateSyncSchedule(
+    scheduleId: string,
+    interval: StringValue,
+    offset: number
+  ): Promise<boolean> {
+    if (!this.client) {
+      await errorService.reportError(new Error('Temporal client not initialized'));
+      return false;
+    }
+
+    try {
+      const scheduleHandle = this.client.schedule.getHandle(scheduleId);
+      await scheduleHandle.update((prev) => {
+        prev.spec = {
+          intervals: [{ every: ms(interval), offset }],
+        };
+        return prev;
+      });
+      return true;
+    } catch (err) {
+      await errorService.reportError(err);
+      return false;
+    }
+  }
+
+  public async deleteSyncSchedule(scheduleId: string): Promise<boolean> {
+    if (!this.client) {
+      await errorService.reportError(new Error('Temporal client not initialized'));
+      return false;
+    }
+
+    try {
+      await this.client.workflowService.deleteSchedule({
+        scheduleId,
+        namespace: TEMPORAL_NAMESPACE,
+      });
+      return true;
+    } catch (err) {
+      await errorService.reportError(err);
+      return false;
+    }
+  }
+
+  public async triggerAction() {
+    throw new Error('Not implemented');
+  }
+
+  /**
+   * Create a sync client that orchestrates syncs
+   * with temporal and db persist:
+   *
+   * initializeSync
+   * - create sync schedule
+   * - if auto-start, call startSync
+   *
+   * startSync
+   * - initial sync doesnt exist? Create and start initial sync
+   * - initial sync never finished? Start initial sync
+   * - initial sync done? Start and trigger schedule
+   *
+   * stopSync
+   * - Any sync runs running? Terminate them
+   * - Pause sync schedule
+   *
+   * triggerSync
+   * - Any syncs still running? Throw error
+   * - Initial sync exists and schedule running? Trigger incremental schedule
+   * - No initial sync exists? Run initial sync
+   */
 
   // public async startInitialSync(
   //   sync: Sync,
@@ -221,150 +450,6 @@ class TemporalClient {
   //   }
 
   //   return await this.startInitialSync(sync, syncModel, linkedAccount);
-  // }
-
-  // public async terminateInitialSync(syncJobId: string): Promise<boolean> {
-  //   if (!this.client) {
-  //     await errorService.reportError(new Error('Temporal client not initialized'));
-  //     return false;
-  //   }
-
-  //   try {
-  //     const syncJob = await syncService.getSyncJobById(syncJobId);
-  //     if (!syncJob) {
-  //       return false;
-  //     }
-
-  //     await this.client.workflow.workflowService.terminateWorkflowExecution({
-  //       firstExecutionRunId: syncJob.run_id,
-  //     });
-  //     return true;
-  //   } catch (err) {
-  //     await errorService.reportError(err);
-  //     return false;
-  //   }
-  // }
-
-  // public async triggerSync(scheduleId: string): Promise<boolean> {
-  //   if (!this.client) {
-  //     await errorService.reportError(new Error('Temporal client not initialized'));
-  //     return false;
-  //   }
-
-  //   try {
-  //     const scheduleHandle = this.client.schedule.getHandle(scheduleId);
-  //     await scheduleHandle.trigger(OVERLAP_POLICY);
-  //     return true;
-  //   } catch (err) {
-  //     await errorService.reportError(err);
-  //     return false;
-  //   }
-  // }
-
-  // public async pauseSync(scheduleId: string): Promise<boolean> {
-  //   if (!this.client) {
-  //     await errorService.reportError(new Error('Temporal client not initialized'));
-  //     return false;
-  //   }
-
-  //   try {
-  //     const scheduleHandle = this.client.schedule.getHandle(scheduleId);
-  //     await scheduleHandle.pause();
-  //     return true;
-  //   } catch (err) {
-  //     await errorService.reportError(err);
-  //     return false;
-  //   }
-  // }
-
-  // public async unpauseSync(scheduleId: string): Promise<boolean> {
-  //   if (!this.client) {
-  //     await errorService.reportError(new Error('Temporal client not initialized'));
-  //     return false;
-  //   }
-
-  //   try {
-  //     const scheduleHandle = this.client.schedule.getHandle(scheduleId);
-  //     await scheduleHandle.unpause();
-  //     await scheduleHandle.trigger(OVERLAP_POLICY);
-  //     const schedule = await syncService.getSyncScheduleById(scheduleId);
-  //     if (schedule) {
-  //       const frequency = schedule.frequency as StringValue;
-  //       const { offset, error } = getFrequencyInterval(frequency, new Date());
-  //       if (error === null) {
-  //         await this.updateSyncSchedule(scheduleId, frequency, offset);
-  //         await syncService.updateSyncSchedule(scheduleId, { offset });
-  //       }
-  //     }
-  //     return true;
-  //   } catch (err) {
-  //     await errorService.reportError(err);
-  //     return false;
-  //   }
-  // }
-
-  // public async describeSyncSchedule(scheduleId: string) {
-  //   if (!this.client) {
-  //     await errorService.reportError(new Error('Temporal client not initialized'));
-  //     return null;
-  //   }
-
-  //   try {
-  //     return await this.client.workflowService.describeSchedule({
-  //       scheduleId,
-  //       namespace: TEMPORAL_NAMESPACE,
-  //     });
-  //   } catch (err) {
-  //     await errorService.reportError(err);
-  //     return null;
-  //   }
-  // }
-
-  // public async updateSyncSchedule(
-  //   scheduleId: string,
-  //   interval: StringValue,
-  //   offset: number
-  // ): Promise<boolean> {
-  //   if (!this.client) {
-  //     await errorService.reportError(new Error('Temporal client not initialized'));
-  //     return false;
-  //   }
-
-  //   try {
-  //     const scheduleHandle = this.client.schedule.getHandle(scheduleId);
-  //     await scheduleHandle.update((prev) => {
-  //       prev.spec = {
-  //         intervals: [{ every: ms(interval), offset }],
-  //       };
-  //       return prev;
-  //     });
-  //     return true;
-  //   } catch (err) {
-  //     await errorService.reportError(err);
-  //     return false;
-  //   }
-  // }
-
-  // public async deleteSyncSchedule(scheduleId: string): Promise<boolean> {
-  //   if (!this.client) {
-  //     await errorService.reportError(new Error('Temporal client not initialized'));
-  //     return false;
-  //   }
-
-  //   try {
-  //     await this.client.workflowService.deleteSchedule({
-  //       scheduleId,
-  //       namespace: TEMPORAL_NAMESPACE,
-  //     });
-  //     return true;
-  //   } catch (err) {
-  //     await errorService.reportError(err);
-  //     return false;
-  //   }
-  // }
-
-  // public async triggerAction() {
-  //   throw new Error('Not implemented');
   // }
 }
 
