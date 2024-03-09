@@ -58,7 +58,7 @@ export enum SyncRunStatus {
   Failed = 'failed',
 }
 
-export enum ScheduleStatus {
+export enum SyncScheduleStatus {
   Running = 'running',
   Stopped = 'stopped',
 }

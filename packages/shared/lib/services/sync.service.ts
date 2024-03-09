@@ -87,10 +87,6 @@ class SyncService {
 
   public async stopSync(linkedAccountId: string, collectionKey: string): Promise<Sync | null> {
     try {
-      /**
-       * Handle stop
-       */
-
       return await database.sync.update({
         where: {
           collection_key_linked_account_id: {
@@ -109,10 +105,6 @@ class SyncService {
 
   public async triggerSync(linkedAccountId: string, collectionKey: string): Promise<Sync | null> {
     try {
-      /**
-       * Handle trigger
-       */
-
       return await database.sync.update({
         where: {
           collection_key_linked_account_id: {
@@ -121,10 +113,7 @@ class SyncService {
           },
           deleted_at: null,
         },
-        data: {
-          last_synced_at: now(), // ??
-          updated_at: now(),
-        },
+        data: { last_synced_at: now(), updated_at: now() },
       });
     } catch (err) {
       await errorService.reportError(err);
