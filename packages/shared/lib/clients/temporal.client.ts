@@ -10,7 +10,7 @@ const OVERLAP_POLICY = ScheduleOverlapPolicy.BUFFER_ONE;
 
 class TemporalClient {
   private static instance: Promise<TemporalClient>;
-  private client: Client | null = null;
+  private client: Client;
 
   private constructor(client: Client) {
     this.client = client;
@@ -58,16 +58,10 @@ class TemporalClient {
       linkedAccountId: string;
       integrationKey: string;
       collectionKey: string;
-      syncId: string;
       syncRunId: string;
       activityId: string | null;
     }
   ): Promise<string | null> {
-    if (!this.client) {
-      await errorService.reportError(new Error('Temporal client not initialized'));
-      return null;
-    }
-
     try {
       const handle = await this.client.workflow.start('initialSync', {
         taskQueue: SYNC_TASK_QUEUE,
@@ -86,22 +80,14 @@ class TemporalClient {
     scheduleId: string,
     interval: StringValue,
     offset: number,
-    pauseAfterCreate: boolean,
+    autoStartSync: boolean,
     args: {
       environmentId: string;
       linkedAccountId: string;
       integrationKey: string;
       collectionKey: string;
-      syncId: string;
-      syncRunId: string;
-      activityId: string | null;
     }
   ): Promise<boolean> {
-    if (!this.client) {
-      await errorService.reportError(new Error('Temporal client not initialized'));
-      return false;
-    }
-
     try {
       const handle = await this.client.schedule.create({
         scheduleId,
@@ -115,7 +101,7 @@ class TemporalClient {
         },
       });
 
-      if (pauseAfterCreate) {
+      if (!autoStartSync) {
         await handle.pause();
       }
 
@@ -127,11 +113,6 @@ class TemporalClient {
   }
 
   public async terminateSyncRun(runId: string): Promise<boolean> {
-    if (!this.client) {
-      await errorService.reportError(new Error('Temporal client not initialized'));
-      return false;
-    }
-
     try {
       await this.client.workflow.workflowService.terminateWorkflowExecution({
         firstExecutionRunId: runId,
@@ -144,11 +125,6 @@ class TemporalClient {
   }
 
   public async triggerSyncSchedule(scheduleId: string): Promise<boolean> {
-    if (!this.client) {
-      await errorService.reportError(new Error('Temporal client not initialized'));
-      return false;
-    }
-
     try {
       const scheduleHandle = this.client.schedule.getHandle(scheduleId);
       await scheduleHandle.trigger(OVERLAP_POLICY);
@@ -160,11 +136,6 @@ class TemporalClient {
   }
 
   public async pauseSyncSchedule(scheduleId: string): Promise<boolean> {
-    if (!this.client) {
-      await errorService.reportError(new Error('Temporal client not initialized'));
-      return false;
-    }
-
     try {
       const scheduleHandle = this.client.schedule.getHandle(scheduleId);
       await scheduleHandle.pause();
@@ -176,11 +147,6 @@ class TemporalClient {
   }
 
   public async unpauseSyncSchedule(scheduleId: string): Promise<boolean> {
-    if (!this.client) {
-      await errorService.reportError(new Error('Temporal client not initialized'));
-      return false;
-    }
-
     try {
       const scheduleHandle = this.client.schedule.getHandle(scheduleId);
       await scheduleHandle.unpause();
@@ -192,11 +158,6 @@ class TemporalClient {
   }
 
   public async describeSyncSchedule(scheduleId: string) {
-    if (!this.client) {
-      await errorService.reportError(new Error('Temporal client not initialized'));
-      return null;
-    }
-
     try {
       return await this.client.workflowService.describeSchedule({
         scheduleId,
@@ -213,11 +174,6 @@ class TemporalClient {
     interval: StringValue,
     offset: number
   ): Promise<boolean> {
-    if (!this.client) {
-      await errorService.reportError(new Error('Temporal client not initialized'));
-      return false;
-    }
-
     try {
       const scheduleHandle = this.client.schedule.getHandle(scheduleId);
       await scheduleHandle.update((prev) => {
@@ -234,11 +190,6 @@ class TemporalClient {
   }
 
   public async deleteSyncSchedule(scheduleId: string): Promise<boolean> {
-    if (!this.client) {
-      await errorService.reportError(new Error('Temporal client not initialized'));
-      return false;
-    }
-
     try {
       await this.client.workflowService.deleteSchedule({
         scheduleId,
