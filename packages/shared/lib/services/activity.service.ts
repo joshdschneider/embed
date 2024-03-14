@@ -25,6 +25,7 @@ class ActivityService {
         where: { link_token_id: linkToken },
         select: { id: true },
       });
+
       return activity ? activity.id : null;
     } catch (err) {
       await errorService.reportError(err);

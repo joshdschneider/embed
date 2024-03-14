@@ -1,55 +1,271 @@
-import { Sync, SyncJob, SyncSchedule } from '@prisma/client';
-import { Context } from '@temporalio/activity';
-import { SyncContext } from '../context/sync.context';
+import { Collection, Sync, SyncRun, SyncSchedule } from '@prisma/client';
+import { StringValue } from 'ms';
+import TemporalClient from '../clients/temporal.client';
 import { database } from '../utils/database';
-import { LogLevel, SyncType } from '../utils/enums';
-import { now, unixToDate } from '../utils/helpers';
+import {
+  LogAction,
+  LogLevel,
+  Resource,
+  SyncRunStatus,
+  SyncRunType,
+  SyncStatus,
+} from '../utils/enums';
+import { generateId, getFrequencyInterval, now } from '../utils/helpers';
 import activityService from './activity.service';
 import errorService from './error.service';
-import providerService from './provider.service';
 
 class SyncService {
-  public async getSyncById(syncId: string): Promise<(Sync & { model_name: string }) | null> {
+  public async initializeSync({
+    linkedAccountId,
+    collection,
+    activityId,
+  }: {
+    linkedAccountId: string;
+    collection: Collection;
+    activityId: string;
+  }): Promise<void> {
     try {
-      const sync = await database.sync.findUnique({
-        where: { id: syncId, deleted_at: null },
-        include: { model: { select: { name: true } } },
+      const sync = await this.createSync({
+        linked_account_id: linkedAccountId,
+        environment_id: collection.environment_id,
+        integration_key: collection.integration_key,
+        collection_key: collection.unique_key,
+        status: SyncStatus.Stopped,
+        frequency: collection.default_sync_frequency,
+        last_synced_at: null,
+        created_at: now(),
+        updated_at: now(),
+        deleted_at: null,
       });
 
       if (!sync) {
-        return null;
-      } else {
-        const { model, ...rest } = sync;
-        return { ...rest, model_name: model.name };
+        throw new Error('Failed to create sync in database');
       }
+
+      if (!collection.is_enabled) {
+        return;
+      }
+
+      if (collection.auto_start_sync) {
+        await this.startSync(sync);
+      }
+    } catch (err) {
+      await errorService.reportError(err);
+
+      await activityService.createActivityLog(activityId, {
+        level: LogLevel.Error,
+        message: 'Failed to initialize sync',
+        timestamp: now(),
+        payload: {
+          linked_account: linkedAccountId,
+          integration: collection.integration_key,
+          collection: collection.unique_key,
+        },
+      });
+    }
+  }
+
+  public async startSync(sync: Sync) {
+    const activityId = await activityService.createActivity({
+      id: generateId(Resource.Activity),
+      environment_id: sync.environment_id,
+      integration_key: sync.integration_key,
+      linked_account_id: sync.linked_account_id,
+      collection_key: sync.collection_key,
+      link_token_id: null,
+      action_key: null,
+      level: LogLevel.Info,
+      action: LogAction.Sync,
+      timestamp: now(),
+    });
+
+    try {
+      const temporal = await TemporalClient.getInstance();
+      if (!temporal) {
+        throw new Error('Failed to get Temporal client instance');
+      }
+
+      const syncRuns = await this.listSyncRuns(sync.linked_account_id, sync.collection_key);
+      if (!syncRuns) {
+        throw new Error('Failed to retrieve sync runs from database');
+      }
+
+      const initialSyncRun = syncRuns.find((run) => run.type === SyncRunType.Initial);
+
+      if (
+        !initialSyncRun ||
+        initialSyncRun.status === SyncRunStatus.Failed ||
+        initialSyncRun.status === SyncRunStatus.Stopped
+      ) {
+        const newSyncRun = await this.createSyncRun({
+          id: generateId(Resource.SyncRun),
+          linked_account_id: sync.linked_account_id,
+          collection_key: sync.collection_key,
+          temporal_run_id: null,
+          status: SyncRunStatus.Running,
+          type: SyncRunType.Initial,
+          records_added: null,
+          records_updated: null,
+          records_deleted: null,
+          created_at: now(),
+          updated_at: now(),
+        });
+
+        if (!newSyncRun) {
+          throw new Error('Failed to create sync run in the database');
+        }
+
+        const temporalRunId = await temporal.startInitialSync(newSyncRun.id, {
+          environmentId: sync.environment_id,
+          integrationKey: sync.integration_key,
+          linkedAccountId: sync.linked_account_id,
+          collectionKey: sync.collection_key,
+          syncRunId: newSyncRun.id,
+          activityId,
+        });
+
+        if (!temporalRunId) {
+          await this.updateSyncRun(newSyncRun.id, { status: SyncRunStatus.Failed });
+          throw new Error('Failed to start initial sync in Temporal');
+        } else {
+          await this.updateSyncRun(newSyncRun.id, { temporal_run_id: temporalRunId });
+        }
+
+        await activityService.createActivityLog(activityId, {
+          level: LogLevel.Info,
+          message: 'Running initial sync',
+          timestamp: now(),
+          payload: {
+            integration: sync.integration_key,
+            linked_account: sync.linked_account_id,
+            collection: sync.collection_key,
+          },
+        });
+      } else if (initialSyncRun.status === SyncRunStatus.Running) {
+        throw new Error('Initial sync is still running');
+      }
+
+      const syncSchedule = await this.getSyncSchedule(sync.linked_account_id, sync.collection_key);
+      if (!syncSchedule) {
+        const { interval, offset, error } = getFrequencyInterval(
+          sync.frequency as StringValue,
+          new Date()
+        );
+
+        if (error !== null) {
+          throw new Error(error);
+        }
+
+        const scheduleHandle = await temporal.createSyncSchedule(
+          generateId(Resource.SyncSchedule),
+          interval,
+          offset,
+          {
+            environmentId: sync.environment_id,
+            linkedAccountId: sync.environment_id,
+            integrationKey: sync.integration_key,
+            collectionKey: sync.collection_key,
+          }
+        );
+
+        if (!scheduleHandle) {
+          throw new Error('Failed to create sync schedule in Temporal');
+        }
+
+        await activityService.createActivityLog(activityId, {
+          level: LogLevel.Info,
+          message: 'Sync schedule created',
+          timestamp: now(),
+          payload: {
+            integration: sync.integration_key,
+            linked_account: sync.linked_account_id,
+            collection: sync.collection_key,
+            frequency: interval,
+          },
+        });
+      } else {
+        const scheduleHandle = await temporal.getSyncSchedule(syncSchedule.id);
+        if (!scheduleHandle) {
+          throw new Error('Failed to get sync schedule in Temporal');
+        }
+
+        const description = await scheduleHandle.describe();
+        const schedulePaused = description.state.paused;
+        if (schedulePaused) {
+          await scheduleHandle.unpause();
+
+          await activityService.createActivityLog(activityId, {
+            level: LogLevel.Info,
+            message: 'Sync schedule started',
+            timestamp: now(),
+            payload: {
+              integration: sync.integration_key,
+              linked_account: sync.linked_account_id,
+              collection: sync.collection_key,
+            },
+          });
+        }
+      }
+    } catch (err) {
+      await errorService.reportError(err);
+
+      await activityService.createActivityLog(activityId, {
+        level: LogLevel.Error,
+        message: 'Failed to start sync',
+        timestamp: now(),
+        payload: {
+          integration: sync.integration_key,
+          linked_account: sync.linked_account_id,
+          collection: sync.collection_key,
+        },
+      });
+    }
+  }
+
+  public async listSyncs(linkedAccountId: string): Promise<Sync[] | null> {
+    try {
+      return await database.sync.findMany({
+        where: { linked_account_id: linkedAccountId, deleted_at: null },
+      });
     } catch (err) {
       await errorService.reportError(err);
       return null;
     }
   }
 
-  public async getSyncByModelId(
-    modelId: string,
-    linkedAccountId: string
-  ): Promise<(Sync & { model_name: string }) | null> {
+  public async retrieveSync(linkedAccountId: string, collectionKey: string): Promise<Sync | null> {
     try {
-      const sync = await database.sync.findUnique({
+      return await database.sync.findUnique({
         where: {
-          model_id_linked_account_id: {
-            model_id: modelId,
+          collection_key_linked_account_id: {
             linked_account_id: linkedAccountId,
+            collection_key: collectionKey,
           },
           deleted_at: null,
         },
-        include: { model: { select: { name: true } } },
       });
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
+    }
+  }
 
-      if (!sync) {
-        return null;
-      } else {
-        const { model, ...rest } = sync;
-        return { ...rest, model_name: model.name };
-      }
+  public async updateSync(
+    linkedAccountId: string,
+    collectionKey: string,
+    data: Partial<Sync>
+  ): Promise<Sync | null> {
+    try {
+      return await database.sync.update({
+        where: {
+          collection_key_linked_account_id: {
+            linked_account_id: linkedAccountId,
+            collection_key: collectionKey,
+          },
+          deleted_at: null,
+        },
+        data: { ...data, updated_at: now() },
+      });
     } catch (err) {
       await errorService.reportError(err);
       return null;
@@ -58,20 +274,6 @@ class SyncService {
 
   public async createSync(sync: Sync): Promise<Sync | null> {
     try {
-      const existingSync = await database.sync.findUnique({
-        where: {
-          model_id_linked_account_id: {
-            model_id: sync.model_id,
-            linked_account_id: sync.linked_account_id,
-          },
-          deleted_at: null,
-        },
-      });
-
-      if (existingSync) {
-        return existingSync;
-      }
-
       return await database.sync.create({ data: sync });
     } catch (err) {
       await errorService.reportError(err);
@@ -79,21 +281,17 @@ class SyncService {
     }
   }
 
-  public async createSyncJob(syncJob: SyncJob): Promise<SyncJob | null> {
+  public async stopSync(linkedAccountId: string, collectionKey: string): Promise<Sync | null> {
     try {
-      return await database.syncJob.create({ data: syncJob });
-    } catch (err) {
-      await errorService.reportError(err);
-      return null;
-    }
-  }
-
-  public async updateSyncJob(syncJobId: string, data: Partial<SyncJob>): Promise<SyncJob | null> {
-    try {
-      const { id, sync_id, created_at, deleted_at, ...rest } = data;
-      return await database.syncJob.update({
-        where: { id: syncJobId },
-        data: { ...rest, updated_at: now() },
+      return await database.sync.update({
+        where: {
+          collection_key_linked_account_id: {
+            linked_account_id: linkedAccountId,
+            collection_key: collectionKey,
+          },
+          deleted_at: null,
+        },
+        data: { status: SyncStatus.Stopped, updated_at: now() },
       });
     } catch (err) {
       await errorService.reportError(err);
@@ -101,10 +299,17 @@ class SyncService {
     }
   }
 
-  public async getSyncJobById(syncJobId: string): Promise<SyncJob | null> {
+  public async triggerSync(linkedAccountId: string, collectionKey: string): Promise<Sync | null> {
     try {
-      return await database.syncJob.findUnique({
-        where: { id: syncJobId, deleted_at: null },
+      return await database.sync.update({
+        where: {
+          collection_key_linked_account_id: {
+            linked_account_id: linkedAccountId,
+            collection_key: collectionKey,
+          },
+          deleted_at: null,
+        },
+        data: { last_synced_at: now(), updated_at: now() },
       });
     } catch (err) {
       await errorService.reportError(err);
@@ -112,11 +317,68 @@ class SyncService {
     }
   }
 
-  public async listSyncJobs(syncId: string): Promise<SyncJob[] | null> {
+  public async listSyncRuns(
+    linkedAccountId: string,
+    collectionKey: string
+  ): Promise<(SyncRun & { integration_key: string })[] | null> {
     try {
-      return await database.syncJob.findMany({
-        where: { sync_id: syncId, deleted_at: null },
+      const syncRuns = await database.syncRun.findMany({
+        where: {
+          linked_account_id: linkedAccountId,
+          collection_key: collectionKey,
+        },
+        include: { linked_account: { select: { integration_key: true } } },
       });
+
+      if (!syncRuns) {
+        return null;
+      }
+
+      return syncRuns.map((run) => {
+        const { linked_account, ...rest } = run;
+        return { ...rest, integration_key: linked_account.integration_key };
+      });
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
+    }
+  }
+
+  public async retrieveSyncRun(
+    syncRunId: string
+  ): Promise<(SyncRun & { integration_key: string }) | null> {
+    try {
+      const syncRun = await database.syncRun.findUnique({
+        where: { id: syncRunId },
+        include: { linked_account: { select: { integration_key: true } } },
+      });
+
+      if (!syncRun) {
+        return null;
+      }
+
+      const { linked_account, ...rest } = syncRun;
+      return { ...rest, integration_key: linked_account.integration_key };
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
+    }
+  }
+
+  public async createSyncRun(syncRun: SyncRun): Promise<SyncRun | null> {
+    try {
+      return await database.syncRun.create({
+        data: syncRun,
+      });
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
+    }
+  }
+
+  public async updateSyncRun(syncRunId: string, data: Partial<SyncRun>): Promise<SyncRun | null> {
+    try {
+      return await database.syncRun.update({ where: { id: syncRunId }, data });
     } catch (err) {
       await errorService.reportError(err);
       return null;
@@ -125,7 +387,9 @@ class SyncService {
 
   public async createSyncSchedule(syncSchedule: SyncSchedule): Promise<SyncSchedule | null> {
     try {
-      return await database.syncSchedule.create({ data: syncSchedule });
+      return await database.syncSchedule.create({
+        data: syncSchedule,
+      });
     } catch (err) {
       await errorService.reportError(err);
       return null;
@@ -134,12 +398,30 @@ class SyncService {
 
   public async updateSyncSchedule(
     syncScheduleId: string,
-    { status, frequency, offset }: Partial<SyncSchedule>
+    data: Partial<SyncSchedule>
   ): Promise<SyncSchedule | null> {
     try {
       return await database.syncSchedule.update({
-        where: { id: syncScheduleId },
-        data: { status, frequency, offset, updated_at: now() },
+        where: { id: syncScheduleId, deleted_at: null },
+        data: { ...data, updated_at: now() },
+      });
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
+    }
+  }
+
+  public async getSyncSchedule(
+    linkedAccountId: string,
+    collectionKey: string
+  ): Promise<SyncSchedule | null> {
+    try {
+      return await database.syncSchedule.findFirst({
+        where: {
+          linked_account_id: linkedAccountId,
+          collection_key: collectionKey,
+          deleted_at: null,
+        },
       });
     } catch (err) {
       await errorService.reportError(err);
@@ -156,71 +438,6 @@ class SyncService {
       await errorService.reportError(err);
       return null;
     }
-  }
-
-  public async listSyncSchedules(syncId: string): Promise<SyncSchedule[] | null> {
-    try {
-      return await database.syncSchedule.findMany({
-        where: { sync_id: syncId, deleted_at: null },
-      });
-    } catch (err) {
-      await errorService.reportError(err);
-      return null;
-    }
-  }
-
-  public async runSync({
-    type,
-    environmentId,
-    linkedAccountId,
-    integration,
-    syncId,
-    jobId,
-    activityId,
-    context,
-  }: {
-    type: SyncType;
-    environmentId: string;
-    linkedAccountId: string;
-    integration: string;
-    syncId: string;
-    jobId: string;
-    activityId: string | null;
-    context: Context;
-  }) {
-    const sync = await this.getSyncById(syncId);
-    if (!sync) {
-      const err = new Error(`Sync failed: Failed to fetch sync by ID ${syncId}`);
-      await errorService.reportError(err);
-
-      await activityService.createActivityLog(activityId, {
-        message: err.message,
-        level: LogLevel.Error,
-        timestamp: now(),
-        payload: { environmentId, linkedAccountId, integration, syncId, jobId, context },
-      });
-
-      return false;
-    }
-
-    const lastSyncDate = sync.last_synced_at ? unixToDate(sync.last_synced_at) : null;
-
-    const syncContext = new SyncContext({
-      integration,
-      linkedAccountId,
-      lastSyncDate,
-      syncId,
-      jobId,
-      activityId,
-      context,
-    });
-
-    await providerService.syncProviderModel(integration, sync.model_name, syncContext);
-
-    const results = await syncContext.finish();
-    // Update sync job
-    // Send webhook
-    return true;
   }
 }
 

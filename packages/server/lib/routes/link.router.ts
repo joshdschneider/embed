@@ -3,6 +3,14 @@ import linkController from '../controllers/link.controller';
 
 const linkRouter = express.Router();
 
+linkRouter.use((req, res, next) => {
+  res.setHeader(
+    'Content-Security-Policy',
+    "default-src 'self'; img-src https://*; style-src 'self' 'unsafe-inline';"
+  );
+  next();
+});
+
 linkRouter.route('/:token').get(linkController.listView.bind(linkController));
 
 linkRouter.route('/:token/i/:integration').get(linkController.consentView.bind(linkController));

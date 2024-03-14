@@ -4,12 +4,12 @@ import {
   ErrorCode,
   Resource,
   apiKeyService,
+  environmentService,
   errorService,
   generateId,
   now,
 } from '@kit/shared';
 import type { Request, Response } from 'express';
-import environmentService from '../services/environment.service';
 import { generateSecretKey } from '../utils/helpers';
 import { EnvironmentType } from '../utils/types';
 
@@ -101,7 +101,7 @@ class ApiKeyController {
     }
   }
 
-  public async modifyApiKey(req: Request, res: Response) {
+  public async updateApiKey(req: Request, res: Response) {
     try {
       const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
       const apiKeyId = req.params['api_key_id'];

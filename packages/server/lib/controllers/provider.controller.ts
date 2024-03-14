@@ -3,7 +3,6 @@ import type { Request, Response } from 'express';
 
 class ProviderController {
   public async listProviders(req: Request, res: Response): Promise<void> {
-    // todo: caching layer
     const providers = await providerService.listProviders();
     if (!providers) {
       return errorService.errorResponse(res, {
@@ -19,7 +18,7 @@ class ProviderController {
   }
 
   public async retrieveProvider(req: Request, res: Response): Promise<void> {
-    const { provider_slug: slug } = req.params;
+    const { unique_key: slug } = req.params;
     if (!slug) {
       return errorService.errorResponse(res, {
         code: ErrorCode.BadRequest,

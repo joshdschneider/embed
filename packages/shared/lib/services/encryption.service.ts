@@ -1,4 +1,4 @@
-import type { ApiKey, LinkedAccount, Webhook } from '@prisma/client';
+import type { ApiKey, Integration, LinkedAccount, Webhook } from '@prisma/client';
 import crypto, { CipherGCMTypes } from 'crypto';
 import { getEncryptonKey } from '../utils/constants';
 
@@ -39,6 +39,45 @@ class EncryptionService {
     let str = decipher.update(enc, this.encoding, 'utf8');
     str += decipher.final('utf8');
     return str;
+  }
+
+  public encryptIntegration(integration: Integration): Integration {
+    if (!this.shouldEncrypt() || !integration.oauth_client_secret) {
+      return integration;
+    }
+
+    const [encryptedSecret, iv, tag] = this.encrypt(integration.oauth_client_secret);
+    const encryptedIntegration: Integration = {
+      ...integration,
+      oauth_client_secret: encryptedSecret,
+      oauth_client_secret_iv: iv,
+      oauth_client_secret_tag: tag,
+    };
+
+    return encryptedIntegration;
+  }
+
+  public decryptIntegration(integration: Integration): Integration {
+    if (
+      !integration.oauth_client_secret ||
+      !integration.oauth_client_secret_iv ||
+      !integration.oauth_client_secret_tag
+    ) {
+      return integration;
+    }
+
+    const decryptedSecret = this.decrypt(
+      integration.oauth_client_secret,
+      integration.oauth_client_secret_iv,
+      integration.oauth_client_secret_tag
+    );
+
+    const decryptedIntegration: Integration = {
+      ...integration,
+      oauth_client_secret: decryptedSecret,
+    };
+
+    return decryptedIntegration;
   }
 
   public encryptApiKey(apiKey: ApiKey): ApiKey {

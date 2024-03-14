@@ -10,8 +10,24 @@ webhookRouter.route('/').post(webhookController.createWebhook.bind(webhookContro
 
 webhookRouter.route('/').get(webhookController.listWebhooks.bind(webhookController));
 
-webhookRouter.route('/:webhook_id').put(webhookController.modifyWebhook.bind(webhookController));
+webhookRouter.route('/:webhook_id').post(webhookController.updateWebhook.bind(webhookController));
 
 webhookRouter.route('/:webhook_id').delete(webhookController.deleteWebhook.bind(webhookController));
+
+webhookRouter
+  .route('/:webhook_id/enable')
+  .post(webhookController.enableWebhook.bind(webhookController));
+
+webhookRouter
+  .route('/:webhook_id/disable')
+  .post(webhookController.disableWebhook.bind(webhookController));
+
+webhookRouter
+  .route('/:webhook_id/events')
+  .get(webhookController.listWebhookEvents.bind(webhookController));
+
+webhookRouter
+  .route('/:webhook_id/events/:webhook_event_id')
+  .get(webhookController.retrieveWebhookEvent.bind(webhookController));
 
 export default webhookRouter;

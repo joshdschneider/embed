@@ -8,10 +8,14 @@ linkTokenRouter.use(authMiddleware.apiKeyAuth.bind(authMiddleware));
 
 linkTokenRouter.route('/').post(linkTokenController.createLinkToken.bind(linkTokenController));
 
+linkTokenRouter.route('/').get(linkTokenController.listLinkTokens.bind(linkTokenController));
+
 linkTokenRouter
-  .route('/:token')
+  .route('/:link_token_id')
   .get(linkTokenController.retrieveLinkToken.bind(linkTokenController));
 
-linkTokenRouter.route('/').put(linkTokenController.modifyLinkToken.bind(linkTokenController));
+linkTokenRouter
+  .route('/:link_token_id')
+  .delete(linkTokenController.deleteLinkToken.bind(linkTokenController));
 
 export default linkTokenRouter;
