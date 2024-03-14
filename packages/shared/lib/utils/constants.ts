@@ -36,6 +36,14 @@ export function getTemporalNamespace() {
   return process.env['TEMPORAL_NAMESPACE'];
 }
 
+export function getTemporalKeyPath() {
+  return process.env['TEMPORAL_KEY_PATH'];
+}
+
+export function getTemporalCertPath() {
+  return process.env['TEMPORAL_CERT_PATH'];
+}
+
 export function getLocalhostUrl() {
   const serverPort = getServerPort();
   return `http://localhost:${serverPort}`;
