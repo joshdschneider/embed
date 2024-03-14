@@ -1,11 +1,20 @@
-import { Client, Connection, ScheduleOverlapPolicy } from '@temporalio/client';
+import { Client, Connection, ScheduleHandle, ScheduleOverlapPolicy } from '@temporalio/client';
 import fs from 'fs';
 import ms, { StringValue } from 'ms';
 import errorService from '../services/error.service';
-import { SYNC_TASK_QUEUE, getTemporalNamespace, getTemporalUrl, isProd } from '../utils/constants';
+import {
+  SYNC_TASK_QUEUE,
+  getTemporalCertPath,
+  getTemporalKeyPath,
+  getTemporalNamespace,
+  getTemporalUrl,
+  isProd,
+} from '../utils/constants';
 
 const TEMPORAL_URL = getTemporalUrl();
 const TEMPORAL_NAMESPACE = getTemporalNamespace();
+const TEMPORAL_CERT_PATH = getTemporalCertPath();
+const TEMPORAL_KEY_PATH = getTemporalKeyPath();
 const OVERLAP_POLICY = ScheduleOverlapPolicy.BUFFER_ONE;
 
 class TemporalClient {
@@ -29,6 +38,10 @@ class TemporalClient {
       throw new Error('Temporal URL not set');
     } else if (!TEMPORAL_NAMESPACE) {
       throw new Error('Temporal namespace not set');
+    } else if (!TEMPORAL_CERT_PATH) {
+      throw new Error('Temporal cert path not set');
+    } else if (!TEMPORAL_KEY_PATH) {
+      throw new Error('Temporal key path not set');
     }
 
     const connection = await Connection.connect({
@@ -36,8 +49,8 @@ class TemporalClient {
       tls: isProd()
         ? {
             clientCertPair: {
-              crt: fs.readFileSync(`/etc/secrets/${TEMPORAL_NAMESPACE}.crt`),
-              key: fs.readFileSync(`/etc/secrets/${TEMPORAL_NAMESPACE}.key`),
+              crt: fs.readFileSync(TEMPORAL_CERT_PATH),
+              key: fs.readFileSync(TEMPORAL_KEY_PATH),
             },
           }
         : false,
@@ -80,35 +93,37 @@ class TemporalClient {
     scheduleId: string,
     interval: StringValue,
     offset: number,
-    autoStartSync: boolean,
     args: {
       environmentId: string;
       linkedAccountId: string;
       integrationKey: string;
       collectionKey: string;
     }
-  ): Promise<boolean> {
+  ): Promise<ScheduleHandle | null> {
     try {
-      const handle = await this.client.schedule.create({
+      return await this.client.schedule.create({
         scheduleId,
         policies: { overlap: OVERLAP_POLICY },
         spec: { intervals: [{ every: interval, offset }] },
         action: {
           type: 'startWorkflow',
-          workflowType: 'continuousSync',
+          workflowType: 'incrementalSync',
           taskQueue: SYNC_TASK_QUEUE,
           args: [{ ...args }],
         },
       });
-
-      if (!autoStartSync) {
-        await handle.pause();
-      }
-
-      return true;
     } catch (err) {
       await errorService.reportError(err);
-      return false;
+      return null;
+    }
+  }
+
+  public async getSyncSchedule(scheduleId: string) {
+    try {
+      return this.client.schedule.getHandle(scheduleId);
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
     }
   }
 

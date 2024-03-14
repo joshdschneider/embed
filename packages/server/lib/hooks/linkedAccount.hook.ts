@@ -1,4 +1,4 @@
-import type { LinkedAccount } from '@kit/shared';
+import { collectionService, type LinkedAccount } from '@kit/shared';
 import webhookService from '../services/webhook.service';
 
 class LinkedAccountHook {
@@ -17,6 +17,8 @@ class LinkedAccountHook {
       activityId,
       action: 'created',
     });
+
+    const collections = await collectionService.listCollections(linkedAccount.id, environmentId);
 
     // linkedAccountService.initiatePostLinkSyncs({
     //   linkedAccount,
