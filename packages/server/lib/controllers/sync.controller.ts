@@ -182,28 +182,28 @@ class SyncController {
         });
       }
 
-      const sync = await syncService.startSync(linkedAccountId, collectionKey);
+      // const sync = await syncService.startSync(linkedAccountId, collectionKey);
 
-      if (!sync) {
-        return errorService.errorResponse(res, {
-          code: ErrorCode.InternalServerError,
-          message: DEFAULT_ERROR_MESSAGE,
-        });
-      }
+      // if (!sync) {
+      //   return errorService.errorResponse(res, {
+      //     code: ErrorCode.InternalServerError,
+      //     message: DEFAULT_ERROR_MESSAGE,
+      //   });
+      // }
 
-      const syncObject: SyncObject = {
-        object: 'sync',
-        collection: sync.collection_key,
-        integration: sync.integration_key,
-        linked_account: sync.linked_account_id,
-        status: sync.status as SyncStatus,
-        frequency: sync.frequency,
-        last_synced_at: sync.last_synced_at,
-        created_at: sync.created_at,
-        updated_at: sync.updated_at,
-      };
+      // const syncObject: SyncObject = {
+      //   object: 'sync',
+      //   collection: sync.collection_key,
+      //   integration: sync.integration_key,
+      //   linked_account: sync.linked_account_id,
+      //   status: sync.status as SyncStatus,
+      //   frequency: sync.frequency,
+      //   last_synced_at: sync.last_synced_at,
+      //   created_at: sync.created_at,
+      //   updated_at: sync.updated_at,
+      // };
 
-      res.status(200).json(syncObject);
+      res.status(200).json({});
     } catch (err) {
       await errorService.reportError(err);
 
