@@ -1,3 +1,0 @@
-# Kit OpenAPI Specification
-
-TODO

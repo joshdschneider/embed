@@ -3,14 +3,16 @@ import {
   DEFAULT_ERROR_MESSAGE,
   ENVIRONMENT_ID_LOCALS_KEY,
   ErrorCode,
-  KIT_CLOUD_ENVIRONMENT_KEY,
+  KIT_AUTH_TOKEN_KEY,
+  KIT_ENVIRONMENT_KEY,
+  environmentService,
   errorService,
   getAuthTokenSecret,
+  getInternalApiKey,
 } from '@kit/shared';
 import Cookies from 'cookies';
 import { NextFunction, Request, Response } from 'express';
 import { jwtVerify } from 'jose';
-import environmentService from './environment.service';
 
 class AuthService {
   public async verifyApiKey(apiKey: string, req: Request, res: Response, next: NextFunction) {
@@ -38,18 +40,29 @@ class AuthService {
     }
   }
 
-  public async verifyTokenUser(token: string, req: Request, res: Response, next: NextFunction) {
+  public async verifyToken(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+    options?: { verifyEnvironment: boolean }
+  ) {
     try {
       const authTokenSecret = getAuthTokenSecret();
       if (!authTokenSecret) {
-        throw new Error('Auth token secret is not defined');
+        throw new Error('Auth token secret not set');
+      }
+
+      const cookies = Cookies(req, res);
+      const token = cookies.get(KIT_AUTH_TOKEN_KEY);
+      if (!token) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.Forbidden,
+          message: 'Auth token missing',
+        });
       }
 
       const secret = new Uint8Array(Buffer.from(authTokenSecret, 'base64'));
-      const tokenResult = await jwtVerify<{
-        user: { id: string };
-      }>(token, secret);
-
+      const tokenResult = await jwtVerify<{ user: { id: string } }>(token, secret);
       const user = tokenResult.payload['user'];
       if (!user.id) {
         return errorService.errorResponse(res, {
@@ -58,7 +71,30 @@ class AuthService {
         });
       }
 
-      next();
+      if (options && options.verifyEnvironment === true) {
+        const environmentId = cookies.get(KIT_ENVIRONMENT_KEY);
+        if (!environmentId) {
+          return errorService.errorResponse(res, {
+            code: ErrorCode.Forbidden,
+            message: 'Environment ID missing',
+          });
+        }
+
+        const environment = await environmentService.findUserEnvironment(user.id, environmentId);
+        if (!environment) {
+          return errorService.errorResponse(res, {
+            code: ErrorCode.Forbidden,
+            message: 'Environment does not exist',
+          });
+        }
+
+        res.locals[ACCOUNT_ID_LOCALS_KEY] = environment.account_id;
+        res.locals[ENVIRONMENT_ID_LOCALS_KEY] = environment.id;
+
+        next();
+      } else {
+        next();
+      }
     } catch (err) {
       await errorService.reportError(err);
 
@@ -69,58 +105,33 @@ class AuthService {
     }
   }
 
-  public async verifyTokenEnvironment(
-    token: string,
+  public async verifyInternalApiKey(
+    apiKey: string,
     req: Request,
     res: Response,
     next: NextFunction
   ) {
     try {
-      const authTokenSecret = getAuthTokenSecret();
-      if (!authTokenSecret) {
-        throw new Error('Auth token secret is not defined');
+      const internalApiKey = getInternalApiKey();
+
+      if (!internalApiKey) {
+        throw new Error('Internal API key not set');
       }
 
-      const secret = new Uint8Array(Buffer.from(authTokenSecret, 'base64'));
-      const tokenResult = await jwtVerify<{
-        user: { id: string };
-      }>(token, secret);
-
-      const user = tokenResult.payload['user'];
-      if (!user.id) {
+      if (internalApiKey !== apiKey) {
         return errorService.errorResponse(res, {
-          code: ErrorCode.Forbidden,
-          message: 'Invalid token payload',
+          code: ErrorCode.Unauthorized,
+          message: 'Invalid internal API key',
         });
+      } else {
+        next();
       }
-
-      const cookies = Cookies(req, res);
-      const environmentId = cookies.get(KIT_CLOUD_ENVIRONMENT_KEY);
-      if (!environmentId) {
-        return errorService.errorResponse(res, {
-          code: ErrorCode.Forbidden,
-          message: 'Invalid environment ID',
-        });
-      }
-
-      const environment = await environmentService.findUserEnvironment(user.id, environmentId);
-      if (!environment) {
-        return errorService.errorResponse(res, {
-          code: ErrorCode.Forbidden,
-          message: 'Environment does not exist',
-        });
-      }
-
-      res.locals[ACCOUNT_ID_LOCALS_KEY] = environment.account_id;
-      res.locals[ENVIRONMENT_ID_LOCALS_KEY] = environment.id;
-
-      next();
     } catch (err) {
       await errorService.reportError(err);
 
       return errorService.errorResponse(res, {
         code: ErrorCode.InternalServerError,
-        message: 'Something went wrong',
+        message: DEFAULT_ERROR_MESSAGE,
       });
     }
   }

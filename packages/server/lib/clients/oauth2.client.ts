@@ -14,12 +14,13 @@ export function getSimpleOAuth2ClientConfig(
   const tokenUrl = new URL(interpolateString(strippedTokenUrl, configuration));
 
   const headers = { 'User-Agent': 'Kit' };
-  const { client_id, client_secret } = integrationService.loadClientCredentials(integration);
+  const { oauth_client_id, oauth_client_secret } =
+    integrationService.getIntegrationOauthCredentials(integration);
 
   return {
     client: {
-      id: client_id,
-      secret: client_secret,
+      id: oauth_client_id,
+      secret: oauth_client_secret,
     },
     auth: {
       tokenHost: tokenUrl.origin,

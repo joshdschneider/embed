@@ -1,8 +1,10 @@
 import {
+  DEFAULT_BRANDING,
   DEFAULT_ERROR_MESSAGE,
   ErrorCode,
   Resource,
   apiKeyService,
+  environmentService,
   errorService,
   generateId,
   integrationService,
@@ -10,16 +12,14 @@ import {
 } from '@kit/shared';
 import type { Request, Response } from 'express';
 import accountService from '../services/account.service';
-import environmentService from '../services/environment.service';
 import userService from '../services/user.service';
-import { DEFAULT_BRANDING } from '../utils/constants';
 import { generateSecretKey } from '../utils/helpers';
 import { AccountType, EnvironmentType } from '../utils/types';
 
 class UserController {
   public async createUser(req: Request, res: Response) {
     try {
-      const { user, cloud_organization_id } = req.body;
+      const { user, organization_id } = req.body;
       if (!user) {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
@@ -42,7 +42,10 @@ class UserController {
         id: generateId(Resource.Account),
         name: null,
         type: AccountType.Personal,
-        cloud_organization_id: cloud_organization_id || null,
+        organization_id: organization_id || null,
+        created_at: now(),
+        updated_at: now(),
+        deleted_at: null,
       });
 
       if (!account) {
@@ -76,6 +79,8 @@ class UserController {
         type: EnvironmentType.Staging,
         enable_new_integrations: true,
         branding: DEFAULT_BRANDING,
+        default_text_embedding_model: '',
+        default_multimodal_embedding_model: '',
         created_at: now(),
         updated_at: now(),
         deleted_at: null,
@@ -107,7 +112,7 @@ class UserController {
         });
       }
 
-      await integrationService.createInitialIntegrations(stagingEnvironment.id);
+      await integrationService.seedIntegrations(stagingEnvironment.id);
 
       return res.status(200).json({
         object: 'user',
@@ -187,7 +192,7 @@ class UserController {
       return res.status(200).json({
         object: 'account',
         id: account.id,
-        cloud_organization_id: account.cloud_organization_id,
+        cloud_organization_id: account.organization_id,
         environments: account.environments.map((environment) => ({
           object: 'environment',
           ...environment,

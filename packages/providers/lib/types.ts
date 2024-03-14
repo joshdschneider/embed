@@ -77,43 +77,6 @@ export const AuthSchema = z.union([OAuthSchema, ApiAuthSchema, NoAuthSchema]);
 
 export type Auth = z.infer<typeof AuthSchema>;
 
-export const BasePaginationSchema = z.object({
-  type: z.string(),
-  limit: z.number().optional(),
-  response_path: z.string().optional(),
-  limit_name_in_request: z.string(),
-});
-
-export type BasePagination = z.infer<typeof BasePaginationSchema>;
-
-export const CursorPaginationSchema = BasePaginationSchema.extend({
-  cursor_path_in_response: z.string(),
-  cursor_name_in_request: z.string(),
-});
-
-export type CursorPagination = z.infer<typeof CursorPaginationSchema>;
-
-export const LinkPaginationSchema = BasePaginationSchema.extend({
-  link_rel_in_response_header: z.string().optional(),
-  link_path_in_response_body: z.string().optional(),
-});
-
-export type LinkPagination = z.infer<typeof LinkPaginationSchema>;
-
-export const OffsetPaginationSchema = BasePaginationSchema.extend({
-  offset_name_in_request: z.string(),
-});
-
-export type OffsetPagination = z.infer<typeof OffsetPaginationSchema>;
-
-export const PaginationSchema = z.union([
-  LinkPaginationSchema,
-  CursorPaginationSchema,
-  OffsetPaginationSchema,
-]);
-
-export type Pagination = z.infer<typeof PaginationSchema>;
-
 export const RetrySchema = z.object({
   at: z.string().optional(),
   after: z.string().optional(),
@@ -121,44 +84,88 @@ export const RetrySchema = z.object({
 
 export type Retry = z.infer<typeof RetrySchema>;
 
-export const SyncsSchema = z.record(
-  z.object({
-    name: z.string(),
-    description: z.string(),
-    default_enabled: z.boolean().optional(),
-    default_frequency: z.string().optional(),
-    default_auto_start: z.boolean().optional(),
-    schema: z.any(),
-  })
-);
+export const CollectionPropertySchema = z.object({
+  type: z.union([
+    z.literal('string'),
+    z.literal('number'),
+    z.literal('boolean'),
+    z.literal('integer'),
+  ]),
+  format: z.union([z.literal('date'), z.literal('date-time')]).optional(),
+  description: z.string().optional(),
+  index_searchable: z.boolean().optional(),
+  index_filterable: z.boolean().optional(),
+  vector_searchable: z.boolean().optional(),
+  embedding_model: z.union([z.literal('text'), z.literal('multimodal')]).optional(),
+});
 
-export type Syncs = z.infer<typeof SyncsSchema>;
+export type CollectionProperty = z.infer<typeof CollectionPropertySchema>;
 
-export const ActionSchema = z.record(
-  z.object({
-    name: z.string(),
-    description: z.string(),
-    default_enabled: z.boolean().optional(),
-    schema: z.any(),
-  })
-);
-
-export type Actions = z.infer<typeof ActionSchema>;
-
-export const ProviderSpecificationSchema = z.object({
-  slug: z.string(),
+export const CollectionSchemaSchema = z.object({
   name: z.string(),
   description: z.string(),
+  properties: z.record(CollectionPropertySchema),
+  required: z.array(z.string()).optional(),
+});
+
+export type CollectionSchema = z.infer<typeof CollectionSchemaSchema>;
+
+export const CollectionsSchema = z.record(
+  z.object({
+    default_enabled: z.boolean().optional(),
+    default_sync_frequency: z.string().optional(),
+    default_auto_start_sync: z.boolean().optional(),
+    required_scopes: z.array(z.string()).optional(),
+    is_multimodal: z.boolean(),
+    schema: CollectionSchemaSchema,
+  })
+);
+
+export type Collections = z.infer<typeof CollectionsSchema>;
+
+export const ActionPropertySchema = z.object({
+  type: z.string(),
+  enum: z.array(z.string()).optional(),
+  description: z.string().optional(),
+});
+
+export type ActionProperty = z.infer<typeof ActionPropertySchema>;
+
+export const ActionSchemaSchema = z.object({
+  name: z.string(),
+  description: z.string(),
+  parameters: z.object({
+    type: z.literal('object'),
+    properties: z.record(ActionPropertySchema),
+    required: z.array(z.string()).optional(),
+  }),
+  required: z.array(z.string()).optional(),
+});
+
+export type ActionSchema = z.infer<typeof ActionSchemaSchema>;
+
+export const ActionsSchema = z.record(
+  z.object({
+    default_enabled: z.boolean().optional(),
+    required_scopes: z.array(z.string()).optional(),
+    schema: ActionSchemaSchema,
+  })
+);
+
+export type Actions = z.infer<typeof ActionsSchema>;
+
+export const ProviderSpecificationSchema = z.object({
+  unique_key: z.string(),
+  name: z.string(),
   base_url: z.string(),
   auth: AuthSchema,
   headers: z.record(z.string()).optional(),
   retry: RetrySchema.optional(),
-  pagination: PaginationSchema.optional(),
-  logo_url: z.string().optional(),
+  logo_url: z.string(),
   logo_url_dark_mode: z.string().optional(),
   docs_url: z.string().optional(),
-  syncs: SyncsSchema.optional(),
-  actions: ActionSchema.optional(),
+  collections: CollectionsSchema.optional(),
+  actions: ActionsSchema.optional(),
 });
 
 export type ProviderSpecification = z.infer<typeof ProviderSpecificationSchema>;
@@ -172,13 +179,8 @@ export interface BaseContext {
   delete<T = any>(options: Omit<ProxyOptions, 'method'>): Promise<AxiosResponse<T>>;
 }
 
-export type PaginateOptions = Omit<ProxyOptions, 'integration' | 'linkedAccountId'> & {
-  pagination?: Partial<CursorPagination> | Partial<LinkPagination> | Partial<OffsetPagination>;
-};
-
 export interface SyncContext extends BaseContext {
   lastSyncDate: Date | null;
-  paginate<T = any>(paginateOptions: PaginateOptions): AsyncGenerator<T[], undefined, void>;
 }
 
 export interface ActionContext extends BaseContext {}

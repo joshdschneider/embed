@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import ms, { StringValue } from 'ms';
+import { DEFAULT_ERROR_MESSAGE } from './constants';
 import { Resource } from './enums';
 
 export function generateId(prefix: Resource, byteLength = 8): string {
@@ -21,12 +22,10 @@ export function getFrequencyInterval(
   | { interval: StringValue; offset: number; error: null }
   | { interval: null; offset: null; error: string } {
   try {
-    if (ms(frequency) < ms('5m')) {
-      throw new Error('Sync interval is too short');
-    }
-
     if (!ms(frequency)) {
       throw new Error('Invalid sync interval');
+    } else if (ms(frequency) < ms('5m')) {
+      throw new Error('Sync interval is too short');
     }
 
     const intervalMs = ms(frequency);
@@ -39,7 +38,7 @@ export function getFrequencyInterval(
 
     return { interval: frequency, offset: offset, error: null };
   } catch (err) {
-    let error = 'internal server error';
+    let error = DEFAULT_ERROR_MESSAGE;
 
     if (err instanceof Error) {
       error = err.message;

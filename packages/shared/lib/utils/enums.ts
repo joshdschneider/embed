@@ -1,16 +1,19 @@
 export enum Resource {
-  Account = 'acc',
+  Account = 'acct',
   ApiKey = 'key',
   Environment = 'env',
+  Collection = 'coll',
+  Action = 'act',
+  ActionRun = 'act_run',
   Sync = 'sync',
-  SyncJob = 'syncj',
-  Schedule = 'sch',
+  SyncRun = 'sync_run',
+  SyncSchedule = 'sync_sch',
   Activity = 'act',
-  ActivityLog = 'actl',
+  ActivityLog = 'act_log',
   LinkedAccount = 'link',
-  LinkToken = 'tok',
+  LinkToken = 'link_tok',
   Webhook = 'web',
-  WebhookLog = 'webl',
+  WebhookEvent = 'web_ev',
 }
 
 export enum ErrorCode {
@@ -37,21 +40,26 @@ export enum LogAction {
 
 export enum SyncStatus {
   Running = 'running',
-  Paused = 'paused',
   Stopped = 'stopped',
   Success = 'success',
   Error = 'error',
 }
 
-export enum SyncType {
+export enum SyncRunType {
   Initial = 'initial',
   Incremental = 'incremental',
   Full = 'full',
 }
 
-export enum ScheduleStatus {
+export enum SyncRunStatus {
   Running = 'running',
-  Paused = 'paused',
+  Stopped = 'stopped',
+  Succeeded = 'succeeded',
+  Failed = 'failed',
+}
+
+export enum SyncScheduleStatus {
+  Running = 'running',
   Stopped = 'stopped',
 }
 

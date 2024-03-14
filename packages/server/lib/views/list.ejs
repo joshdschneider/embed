@@ -259,21 +259,21 @@
           <div class="viewport">
             <ul id="integration-list">
               <% integrations.forEach((integration) => { %>
-                <li class="integration-item" data-name="<%= integration.display_name %>">
+                <li class="integration-item" data-name="<%= integration.name %>">
                   <% if (is_preview) { %>
-                    <a href="#" onclick="navigate('<%= server_url %>/link-preview/i/<%= integration.provider %>')">
+                    <a href="#" onclick="navigate('<%= server_url %>/web/link-preview/i/<%= integration.unique_key %>')">
                       <div class="integration-item-inner">
                         <div class="details">
-                          <% if (integration.logo_dark_url && (branding.appearance === "dark" || (branding.appearance === "system" && prefers_dark_mode))) { %>
+                          <% if (integration.logo_url_dark_mode && (branding.appearance === "dark" || (branding.appearance === "system" && prefers_dark_mode))) { %>
                             <div class="integration-logo">
-                              <img src="<%= integration.logo_dark_url %>" alt="<%= integration.display_name %>" />
+                              <img src="<%= integration.logo_url_dark_mode %>" alt="<%= integration.name %>" />
                             </div>
                           <% } else if (integration.logo_url) { %>
                             <div class="integration-logo">
-                              <img src="<%= integration.logo_url %>" alt="<%= integration.display_name %>" />
+                              <img src="<%= integration.logo_url %>" alt="<%= integration.name %>" />
                             </div>
                           <% } %>
-                          <p><%= integration.display_name %></p>
+                          <p><%= integration.name %></p>
                         </div>
                         <div class="arrow">
                           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -283,19 +283,19 @@
                       </div>
                     </a>
                   <% } else { %>  
-                    <a href="<%= server_url %>/link/<%= link_token %>/i/<%= integration.provider %>">
+                    <a href="<%= server_url %>/link/<%= link_token %>/i/<%= integration.unique_key %>">
                       <div class="integration-item-inner">
                         <div class="details">
-                          <% if (integration.logo_dark_url && (branding.appearance === "dark" || (branding.appearance === "system" && prefers_dark_mode))) { %>
+                          <% if (integration.logo_url_dark_mode && (branding.appearance === "dark" || (branding.appearance === "system" && prefers_dark_mode))) { %>
                             <div class="integration-logo">
-                              <img src="<%= integration.logo_dark_url %>" alt="<%= integration.display_name %>" />
+                              <img src="<%= integration.logo_url_dark_mode %>" alt="<%= integration.name %>" />
                             </div>
                           <% } else if (integration.logo_url) { %>
                             <div class="integration-logo">
-                              <img src="<%= integration.logo_url %>" alt="<%= integration.display_name %>" />
+                              <img src="<%= integration.logo_url %>" alt="<%= integration.name %>" />
                             </div>
                           <% } %>
-                          <p><%= integration.display_name %></p>
+                          <p><%= integration.name %></p>
                         </div>
                         <div class="arrow">
                           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

@@ -6,6 +6,6 @@ const jobRouter = express.Router();
 
 jobRouter.use(authMiddleware.internalAuth.bind(authMiddleware));
 
-jobRouter.route('/add-new-provider').post(jobsController.addNewProvider.bind(jobsController));
+jobRouter.route('/seed-integrations').post(jobsController.seedIntegrations.bind(jobsController));
 
 export default jobRouter;

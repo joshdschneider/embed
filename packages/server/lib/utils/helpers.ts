@@ -1,5 +1,6 @@
 import { getLocalhostUrl, getServerUrl } from '@kit/shared';
 import crypto from 'crypto';
+import { ZodError } from 'zod';
 import { EnvironmentType } from './types';
 
 export function getOauthCallbackUrl() {
@@ -55,4 +56,8 @@ export function getWebhookSignatureHeader(
 ): { 'X-Kit-Signature': string } {
   const hash = crypto.createHmac('sha256', secret).update(payload).digest('hex');
   return { 'X-Kit-Signature': `sha256=${hash}` };
+}
+
+export function zodError(err: ZodError) {
+  return err.issues.map((i) => `${i.path.join('.')} ${i.message}`).join(', ');
 }

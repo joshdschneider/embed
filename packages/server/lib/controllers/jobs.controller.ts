@@ -3,63 +3,53 @@ import {
   ErrorCode,
   database,
   errorService,
-  now,
-  providerService,
+  integrationService,
 } from '@kit/shared';
 import type { Request, Response } from 'express';
 
 class JobsController {
-  public async addNewProvider(req: Request, res: Response) {
+  public async seedIntegrations(req: Request, res: Response) {
     try {
-      const provider = req.body['provider'];
-
-      if (!provider || typeof provider !== 'string') {
+      const environmentIds = req.body['environment_ids'];
+      if (!environmentIds || !Array.isArray(environmentIds)) {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
-          message: 'Invalid provider',
+          message: 'Invalid environment IDs',
         });
       }
 
-      const existingProvider = await providerService.getProviderSpec(provider);
+      let ids: string[] = environmentIds;
+      let environmentsUpdated = 0;
+      let integrationsAdded = 0;
+      let collectionsAdded = 0;
+      let actionsAdded = 0;
 
-      if (!existingProvider) {
-        return errorService.errorResponse(res, {
-          code: ErrorCode.BadRequest,
-          message: 'Provider does not exist',
-        });
+      if (ids[0] === '*') {
+        const allEnvironments = await database.environment.findMany();
+        const allEnvironmentIds = allEnvironments.map((e) => e.id);
+        ids = allEnvironmentIds;
       }
 
-      const all = await database.environment.findMany({
-        include: { integrations: { select: { provider: true } } },
-      });
-
-      const environments = all.filter((env) => env.enable_new_integrations === true);
-
-      const result = await database.$transaction(
-        environments.map((environment) => {
-          return database.integration.create({
-            data: {
-              provider,
-              environment_id: environment.id,
-              is_enabled: true,
-              use_client_credentials: false,
-              oauth_client_id: null,
-              oauth_client_secret: null,
-              oauth_scopes: null,
-              rank: environment.integrations.length + 1,
-              created_at: now(),
-              updated_at: now(),
-              deleted_at: null,
-            },
-          });
-        })
-      );
+      for (const id of ids) {
+        const result = await integrationService.seedIntegrations(id);
+        if (!result) {
+          throw new Error(`Job failed on ID ${id}`);
+        } else {
+          environmentsUpdated++;
+          integrationsAdded += result.integrations_added;
+          collectionsAdded += result.collections_added;
+          actionsAdded += result.actions_added;
+        }
+      }
 
       res.status(200).json({
         object: 'job',
-        job: 'add-new-provider',
-        success: true,
-        updated: result.length,
+        result: {
+          environments_updated: environmentsUpdated,
+          integrations_added: integrationsAdded,
+          collections_added: collectionsAdded,
+          actions_added: actionsAdded,
+        },
       });
     } catch (err) {
       await errorService.reportError(err);

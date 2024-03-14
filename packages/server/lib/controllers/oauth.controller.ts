@@ -1,10 +1,14 @@
-import { AuthScheme, OAuth, OAuth1, OAuth2 } from '@kit/providers';
+import { AuthScheme, OAuth, OAuth1, OAuth2, ProviderSpecification } from '@kit/providers';
 import type { Integration, LinkToken } from '@kit/shared';
 import {
+  Branding,
   DEFAULT_ERROR_MESSAGE,
   LogLevel,
   Resource,
+  actionService,
   activityService,
+  collectionService,
+  environmentService,
   errorService,
   generateId,
   integrationService,
@@ -19,14 +23,12 @@ import { OAuth1Client } from '../clients/oauth1.client';
 import { getSimpleOAuth2ClientConfig } from '../clients/oauth2.client';
 import publisher from '../clients/publisher.client';
 import linkedAccountHook from '../hooks/linkedAccount.hook';
-import environmentService from '../services/environment.service';
 import linkTokenService from '../services/linkToken.service';
 import {
   extractConfigurationKeys,
   getOauthCallbackUrl,
   missesInterpolationParam,
 } from '../utils/helpers';
-import { Branding } from '../utils/types';
 
 class OAuthController {
   public async authorize(req: Request, res: Response) {
@@ -91,7 +93,7 @@ class OAuthController {
         });
       }
 
-      if (!linkToken.integration_provider) {
+      if (!linkToken.integration_key) {
         const errorMessage = 'No integration selected';
 
         await activityService.createActivityLog(activityId, {
@@ -110,8 +112,8 @@ class OAuthController {
         });
       }
 
-      const integration = await integrationService.getIntegrationByProvider(
-        linkToken.integration_provider,
+      const integration = await integrationService.getIntegrationByKey(
+        linkToken.integration_key,
         linkToken.environment_id
       );
 
@@ -138,10 +140,13 @@ class OAuthController {
         });
       }
 
-      const provider = await providerService.getProviderSpec(integration.provider);
+      const provider = await providerService.getProviderSpec(integration.unique_key);
       if (!provider) {
         throw new Error('Failed to retrieve provider specification');
       }
+
+      const scopesArray = await this.getScopes(integration, provider);
+      const scopes = scopesArray.join((provider.auth as OAuth).scope_separator || ' ');
 
       const updatedLinkToken = await linkTokenService.updateLinkToken(linkToken.id, {
         code_verifier: crypto.randomBytes(24).toString('hex'),
@@ -155,20 +160,22 @@ class OAuthController {
       await activityService.createActivityLog(activityId, {
         timestamp: now(),
         level: LogLevel.Info,
-        message: `Initiating OAuth authorization flow for ${provider.display_name}`,
+        message: `Initiating OAuth authorization flow for ${provider.name}`,
       });
 
-      if (provider.auth.scheme === AuthScheme.OAUTH2) {
+      if (provider.auth.scheme === AuthScheme.OAuth2) {
         return this.oauth2Request(res, {
           authSpec: provider.auth as OAuth2,
+          scopes,
           integration,
           linkToken: updatedLinkToken,
           activityId,
           branding,
         });
-      } else if (provider.auth.scheme === AuthScheme.OAUTH1) {
+      } else if (provider.auth.scheme === AuthScheme.OAuth1) {
         return this.oauth1Request(res, {
           authSpec: provider.auth as OAuth1,
+          scopes,
           integration,
           linkToken: updatedLinkToken,
           activityId,
@@ -202,12 +209,14 @@ class OAuthController {
     {
       linkToken,
       authSpec,
+      scopes,
       integration,
       activityId,
       branding,
     }: {
       linkToken: LinkToken;
       authSpec: OAuth2;
+      scopes: string;
       integration: Integration;
       activityId: string | null;
       branding: Branding;
@@ -219,13 +228,9 @@ class OAuthController {
     const prefersDarkMode = linkToken.prefers_dark_mode || false;
 
     try {
-      if (integration.use_client_credentials) {
-        if (
-          integration.oauth_client_id == null ||
-          integration.oauth_client_secret == null ||
-          integration.oauth_scopes == null
-        ) {
-          const errorMessage = `OAuth credentials missing for ${integration.provider}`;
+      if (integration.use_oauth_credentials) {
+        if (integration.oauth_client_id == null || integration.oauth_client_secret == null) {
+          const errorMessage = `OAuth credentials missing for ${integration.unique_key}`;
 
           await activityService.createActivityLog(activityId, {
             timestamp: now(),
@@ -306,9 +311,6 @@ class OAuthController {
         );
 
         const callbackUrl = getOauthCallbackUrl();
-        const scopes = integration.oauth_scopes
-          ? integration.oauth_scopes.split(',').join(authSpec.scope_separator || ' ')
-          : '';
 
         const simpleOAuth2ClientConfig = getSimpleOAuth2ClientConfig(
           integration,
@@ -361,12 +363,14 @@ class OAuthController {
     {
       linkToken,
       authSpec,
+      scopes,
       integration,
       activityId,
       branding,
     }: {
       linkToken: LinkToken;
       authSpec: OAuth1;
+      scopes: string;
       integration: Integration;
       activityId: string | null;
       branding: Branding;
@@ -385,6 +389,7 @@ class OAuthController {
       const oauth1Client = new OAuth1Client({
         integration,
         specification: authSpec,
+        scopes,
         callbackUrl: oauth1CallbackURL,
       });
 
@@ -404,7 +409,7 @@ class OAuthController {
       await activityService.createActivityLog(activityId, {
         timestamp: now(),
         level: LogLevel.Info,
-        message: `Redirecting to ${integration.provider} OAuth authorization URL`,
+        message: `Redirecting to ${integration.unique_key} OAuth authorization URL`,
         payload: { authorization_url: redirectUrl },
       });
 
@@ -461,12 +466,12 @@ class OAuthController {
     const branding = await environmentService.getEnvironmentBranding(linkToken.environment_id);
 
     try {
-      if (!linkToken.integration_provider) {
+      if (!linkToken.integration_key) {
         throw new Error('Integration provider missing from link token');
       }
 
-      const integration = await integrationService.getIntegrationByProvider(
-        linkToken.integration_provider,
+      const integration = await integrationService.getIntegrationByKey(
+        linkToken.integration_key,
         linkToken.environment_id
       );
 
@@ -474,19 +479,22 @@ class OAuthController {
         throw new Error('Failed to retrieve integration');
       }
 
-      const provider = await providerService.getProviderSpec(linkToken.integration_provider);
+      const provider = await providerService.getProviderSpec(linkToken.integration_key);
       if (!provider) {
         throw new Error('Failed to retrieve provider specification');
       }
 
+      const scopesArray = await this.getScopes(integration, provider);
+      const scopes = scopesArray.join((provider.auth as OAuth).scope_separator || ' ');
+
       await activityService.createActivityLog(activityId, {
         timestamp: now(),
         level: LogLevel.Info,
-        message: `OAuth callback received from ${provider.display_name}`,
+        message: `OAuth callback received from ${provider.name}`,
       });
 
       const authSpec = provider.auth;
-      if (authSpec.scheme === AuthScheme.OAUTH2) {
+      if (authSpec.scheme === AuthScheme.OAuth2) {
         return this.oauth2Callback(req, res, {
           linkToken,
           authSpec: authSpec as OAuth2,
@@ -494,10 +502,11 @@ class OAuthController {
           activityId,
           branding,
         });
-      } else if (authSpec.scheme === AuthScheme.OAUTH1) {
+      } else if (authSpec.scheme === AuthScheme.OAuth1) {
         return this.oauth1Callback(req, res, {
           linkToken,
           authSpec: authSpec as OAuth1,
+          scopes,
           integration,
           activityId,
           branding,
@@ -575,11 +584,12 @@ class OAuthController {
       }
 
       const headers: Record<string, string> = {};
-      const { client_id, client_secret } = integrationService.loadClientCredentials(integration);
+      const { oauth_client_id, oauth_client_secret } =
+        integrationService.getIntegrationOauthCredentials(integration);
 
       if (authSpec.token_request_auth_method === 'basic') {
         headers['Authorization'] =
-          'Basic ' + Buffer.from(client_id + ':' + client_secret).toString('base64');
+          'Basic ' + Buffer.from(oauth_client_id + ':' + oauth_client_secret).toString('base64');
       }
 
       const accessToken = await authorizationCode.getToken(
@@ -588,17 +598,16 @@ class OAuthController {
       );
 
       const rawCredentials = accessToken.token;
-      const parsedCredentials = this.parseRawCredentials(rawCredentials, AuthScheme.OAUTH2);
+      const parsedCredentials = this.parseRawCredentials(rawCredentials, AuthScheme.OAuth2);
       const tokenMetadata = this.getMetadataFromOAuthToken(rawCredentials, authSpec);
       const config = typeof linkToken.configuration === 'object' ? linkToken.configuration : {};
 
       const response = await linkedAccountService.upsertLinkedAccount({
         id: linkToken.linked_account_id || generateId(Resource.LinkedAccount),
         environment_id: linkToken.environment_id,
-        integration_provider: integration.provider,
+        integration_key: integration.unique_key,
         consent_given: linkToken.consent_given,
-        consent_ip: linkToken.consent_ip,
-        consent_date: linkToken.consent_date,
+        consent_timestamp: linkToken.consent_timestamp,
         configuration: { ...config, ...tokenMetadata, ...callbackMetadata },
         credentials: JSON.stringify(parsedCredentials),
         credentials_iv: null,
@@ -675,12 +684,14 @@ class OAuthController {
     {
       linkToken,
       authSpec,
+      scopes,
       integration,
       activityId,
       branding,
     }: {
       linkToken: LinkToken;
       authSpec: OAuth1;
+      scopes: string;
       integration: Integration;
       activityId: string | null;
       branding: Branding;
@@ -709,6 +720,7 @@ class OAuthController {
         integration,
         specification: authSpec,
         callbackUrl: '',
+        scopes,
       });
 
       const accessTokenResult = await oauth1Client.getOAuthAccessToken({
@@ -717,16 +729,15 @@ class OAuthController {
         tokenVerifier: oauth_verifier,
       });
 
-      const parsedCredentials = this.parseRawCredentials(accessTokenResult, AuthScheme.OAUTH1);
+      const parsedCredentials = this.parseRawCredentials(accessTokenResult, AuthScheme.OAuth1);
       const config = typeof linkToken.configuration === 'object' ? linkToken.configuration : {};
 
       const response = await linkedAccountService.upsertLinkedAccount({
         id: linkToken.linked_account_id || generateId(Resource.LinkedAccount),
         environment_id: linkToken.environment_id,
-        integration_provider: integration.provider,
+        integration_key: integration.unique_key,
         consent_given: linkToken.consent_given,
-        consent_ip: linkToken.consent_ip,
-        consent_date: linkToken.consent_date,
+        consent_timestamp: linkToken.consent_timestamp,
         configuration: { ...config, ...callbackMetadata },
         credentials: JSON.stringify(parsedCredentials),
         credentials_iv: null,
@@ -846,7 +857,7 @@ class OAuthController {
   }
 
   private parseRawCredentials(credentials: Record<string, any>, authScheme: AuthScheme) {
-    if (authScheme === AuthScheme.OAUTH2) {
+    if (authScheme === AuthScheme.OAuth2) {
       if (!credentials['access_token']) {
         throw new Error(`Incomplete raw credentials`);
       }
@@ -859,7 +870,7 @@ class OAuthController {
       }
 
       const oauth2Credentials = {
-        type: AuthScheme.OAUTH2,
+        type: AuthScheme.OAuth2,
         access_token: credentials['access_token'],
         refresh_token: credentials['refresh_token'],
         expires_at: expiresAt,
@@ -867,13 +878,13 @@ class OAuthController {
       };
 
       return oauth2Credentials;
-    } else if (authScheme === AuthScheme.OAUTH1) {
+    } else if (authScheme === AuthScheme.OAuth1) {
       if (!credentials['oauth_token'] || !credentials['oauth_token_secret']) {
         throw new Error(`incomplete_raw_credentials`);
       }
 
       const oauth1Credentials = {
-        type: AuthScheme.OAUTH1,
+        type: AuthScheme.OAuth1,
         oauth_token: credentials['oauth_token'],
         oauth_token_secret: credentials['oauth_token_secret'],
         raw: credentials,
@@ -895,6 +906,57 @@ class OAuthController {
     }
 
     return new Date(expirationDate);
+  }
+
+  private async getScopes(
+    integration: Integration,
+    providerSpec: ProviderSpecification
+  ): Promise<string[]> {
+    const scopes = new Set<string>();
+    if (integration.additional_scopes) {
+      integration.additional_scopes.split(',').forEach((scope) => scopes.add(scope));
+    }
+
+    if (providerSpec.collections) {
+      const collections = await collectionService.listCollections(
+        integration.unique_key,
+        integration.environment_id
+      );
+
+      const enabledKeys = collections?.filter((c) => c.is_enabled).map((c) => c.unique_key) || [];
+      const allEnabledCollections = Object.entries(providerSpec.collections)
+        .filter(([k, v]) => enabledKeys.includes(k))
+        .map(([k, v]) => ({ ...v }));
+
+      allEnabledCollections.forEach((c) => {
+        c.required_scopes?.forEach((scope) => scopes.add(scope));
+      });
+    }
+
+    if (providerSpec.actions) {
+      const actions = await actionService.listActions(
+        integration.unique_key,
+        integration.environment_id
+      );
+
+      const enabledKeys = actions?.filter((a) => a.is_enabled).map((a) => a.unique_key) || [];
+      const allEnabledActions = Object.entries(providerSpec.actions)
+        .filter(([k, v]) => enabledKeys.includes(k))
+        .map(([k, v]) => ({ ...v }));
+
+      allEnabledActions.forEach((a) => {
+        a.required_scopes?.forEach((scope) => scopes.add(scope));
+      });
+    }
+
+    if (
+      providerSpec.auth.scheme === AuthScheme.OAuth2 ||
+      providerSpec.auth.scheme === AuthScheme.OAuth1
+    ) {
+      providerSpec.auth.default_scopes?.forEach((scope) => scopes.add(scope));
+    }
+
+    return Array.from(scopes);
   }
 }
 
