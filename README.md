@@ -1,3 +1,3 @@
 # Embed
 
-TODO
+Ship AI integrations—fast.
