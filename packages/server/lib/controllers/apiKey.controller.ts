@@ -8,7 +8,7 @@ import {
   errorService,
   generateId,
   now,
-} from '@kit/shared';
+} from '@embed/shared';
 import type { Request, Response } from 'express';
 import { generateSecretKey } from '../utils/helpers';
 import { EnvironmentType } from '../utils/types';

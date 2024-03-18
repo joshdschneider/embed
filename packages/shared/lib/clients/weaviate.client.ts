@@ -1,4 +1,4 @@
-import { CollectionProperty } from '@kit/providers';
+import { CollectionProperty } from '@embed/providers';
 import { Collection } from '@prisma/client';
 import weaviate, { WeaviateClient as Client } from 'weaviate-ts-client';
 import GraphQLHybrid from '../graphql/hybrid';

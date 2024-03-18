@@ -1,0 +1,68 @@
+unique_key: google-drive
+name: Google Drive
+base_url: https://www.googleapis.com
+docs_url: https://developers.google.com/drive/api/reference/rest/v3
+logo_url: https://embed-integrations.s3.amazonaws.com/google-drive.svg
+
+auth:
+  scheme: oauth2
+  authorization_url: https://accounts.google.com/o/oauth2/v2/auth
+  token_url: https://oauth2.googleapis.com/token
+  authorization_params:
+    response_type: code
+    access_type: offline
+    prompt: consent
+
+schemas:
+  file: &file
+    name: file
+    description: A file in Google Drive.
+    properties:
+      id:
+        type: string
+        description: The unique identifier for the file.
+      url:
+        type: string
+        description: The webview link URL for the file.
+        index_searchable: false
+        index_filterable: false
+        vector_searchable: false
+      name:
+        type: string
+        description: The file name.
+      folder:
+        type: string
+        description: The name of the folder the file is in.
+      mime_type:
+        type: string
+        description: The MIME type of the file.
+        index_searchable: false
+        vector_searchable: false
+      created_at:
+        type: string
+        format: date-time
+        description: The timestamp (RFC 3339 format) for when the file was created.
+        index_searchable: false
+        vector_searchable: false
+      updated_at:
+        type: string
+        format: date-time
+        description: The timestamp (RFC 3339 format) for when the file was updated.
+        index_searchable: false
+        vector_searchable: false
+    required:
+      - id
+      - url
+      - name
+      - mime_type
+      - created_at
+      - updated_at
+
+collections:
+  files:
+    schema: *file
+    default_enabled: true
+    default_sync_frequency: 1d
+    default_sync_auto_start: true
+    is_multimodal: true
+    required_scopes: [https://www.googleapis.com/auth/drive.readonly]

@@ -1,4 +1,4 @@
-import { SYNC_TASK_QUEUE, getTemporalNamespace } from '@kit/shared';
+import { SYNC_TASK_QUEUE, getTemporalNamespace } from '@embed/shared';
 import { NativeConnection, Worker } from '@temporalio/worker';
 import * as activities from './activities';
 

@@ -3,13 +3,13 @@ import {
   DEFAULT_ERROR_MESSAGE,
   ENVIRONMENT_ID_LOCALS_KEY,
   ErrorCode,
-  KIT_AUTH_TOKEN_KEY,
-  KIT_ENVIRONMENT_KEY,
+  EMBED_AUTH_TOKEN_KEY,
+  EMBED_ENVIRONMENT_KEY,
   environmentService,
   errorService,
   getAuthTokenSecret,
   getInternalApiKey,
-} from '@kit/shared';
+} from '@embed/shared';
 import Cookies from 'cookies';
 import { NextFunction, Request, Response } from 'express';
 import { jwtVerify } from 'jose';
@@ -53,7 +53,7 @@ class AuthService {
       }
 
       const cookies = Cookies(req, res);
-      const token = cookies.get(KIT_AUTH_TOKEN_KEY);
+      const token = cookies.get(EMBED_AUTH_TOKEN_KEY);
       if (!token) {
         return errorService.errorResponse(res, {
           code: ErrorCode.Forbidden,
@@ -72,7 +72,7 @@ class AuthService {
       }
 
       if (options && options.verifyEnvironment === true) {
-        const environmentId = cookies.get(KIT_ENVIRONMENT_KEY);
+        const environmentId = cookies.get(EMBED_ENVIRONMENT_KEY);
         if (!environmentId) {
           return errorService.errorResponse(res, {
             code: ErrorCode.Forbidden,

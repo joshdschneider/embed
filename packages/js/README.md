@@ -1,3 +1,3 @@
-## Kit.js
+## Embed.js
 
 TODO

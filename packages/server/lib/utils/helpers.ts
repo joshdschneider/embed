@@ -1,4 +1,4 @@
-import { getLocalhostUrl, getServerUrl } from '@kit/shared';
+import { getLocalhostUrl, getServerUrl } from '@embed/shared';
 import crypto from 'crypto';
 import { ZodError } from 'zod';
 import { EnvironmentType } from './types';
@@ -53,9 +53,9 @@ export function generateWebhookSigningSecret(): string {
 export function getWebhookSignatureHeader(
   payload: string,
   secret: string
-): { 'X-Kit-Signature': string } {
+): { 'X-Embed-Signature': string } {
   const hash = crypto.createHmac('sha256', secret).update(payload).digest('hex');
-  return { 'X-Kit-Signature': `sha256=${hash}` };
+  return { 'X-Embed-Signature': `sha256=${hash}` };
 }
 
 export function zodError(err: ZodError) {

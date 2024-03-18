@@ -1,6 +1,6 @@
 import axios, { AxiosRequestConfig, AxiosResponse } from 'axios';
 
-const DEFAULT_HOST = 'https://api.kit.zip';
+const DEFAULT_HOST = 'https://api.useembed.com';
 
 export type HttpMethod =
   | 'GET'
@@ -14,7 +14,7 @@ export type HttpMethod =
   | 'put'
   | 'delete';
 
-export type KitOptions = {
+export type EmbedOptions = {
   host?: string;
   apiKey: string;
 };
@@ -30,11 +30,11 @@ export interface ProxyOptions {
   retries?: number;
 }
 
-export default class Kit {
+export default class Embed {
   private hostBaseUrl: string;
   private apiKey: string;
 
-  constructor(options: KitOptions) {
+  constructor(options: EmbedOptions) {
     if (!options.apiKey) {
       throw new Error('API Key is required');
     }
@@ -68,14 +68,14 @@ export default class Kit {
     const customHeaders =
       headerOptions && Object.keys(headerOptions).length > 0
         ? Object.keys(headerOptions).reduce((acc: Record<string, string>, key: string) => {
-            acc[`Kit-Proxy-${key}`] = headerOptions[key] as string;
+            acc[`Embed-Proxy-${key}`] = headerOptions[key] as string;
             return acc;
           }, {})
         : {};
 
     const headers: Record<string, string | number | boolean> = {
-      'Kit-Linked-Account-Id': options.linkedAccountId,
-      'Kit-Integration': options.integration,
+      'Embed-Linked-Account-Id': options.linkedAccountId,
+      'Embed-Integration': options.integration,
       ...customHeaders,
     };
 

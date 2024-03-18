@@ -1,5 +1,5 @@
-import { AuthScheme } from '@kit/providers';
-import { Branding, SyncRunStatus, SyncRunType, SyncStatus } from '@kit/shared';
+import { AuthScheme } from '@embed/providers';
+import { Branding, SyncRunStatus, SyncRunType, SyncStatus } from '@embed/shared';
 import { z } from 'zod';
 
 export enum EnvironmentType {

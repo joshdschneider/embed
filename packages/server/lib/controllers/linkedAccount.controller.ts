@@ -4,7 +4,7 @@ import {
   ErrorCode,
   errorService,
   linkedAccountService,
-} from '@kit/shared';
+} from '@embed/shared';
 import type { Request, Response } from 'express';
 import { zodError } from '../utils/helpers';
 import {

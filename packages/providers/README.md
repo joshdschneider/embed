@@ -1,3 +1,3 @@
-## Kit Integration Providers
+## Embed Integration Providers
 
 TODO

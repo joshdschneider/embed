@@ -7,7 +7,7 @@ import {
   errorService,
   now,
   providerService,
-} from '@kit/shared';
+} from '@embed/shared';
 import type { Request, Response } from 'express';
 import { zodError } from '../utils/helpers';
 import { CollectionObject, UpdateCollectionRequestSchema } from '../utils/types';

@@ -1,3 +1,0 @@
-## Kit Documentation
-
-TODO

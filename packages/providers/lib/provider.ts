@@ -7,7 +7,7 @@ export class Provider {
   public specification: ProviderSpecification;
 
   constructor(provider: string) {
-    const file = yaml.load(fs.readFileSync(path.join(__dirname, `${provider}/kit.yaml`), 'utf8'));
+    const file = yaml.load(fs.readFileSync(path.join(__dirname, `${provider}/embed.yaml`), 'utf8'));
     const spec = ProviderSpecificationSchema.safeParse(file);
     if (spec.success) {
       this.specification = spec.data;

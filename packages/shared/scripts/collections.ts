@@ -1,4 +1,4 @@
-import { CollectionProperty, CollectionSchema, Registry } from '@kit/providers';
+import { CollectionProperty, CollectionSchema, Registry } from '@embed/providers';
 import { config } from 'dotenv';
 import weaviate, { WeaviateClass } from 'weaviate-ts-client';
 

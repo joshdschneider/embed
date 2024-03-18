@@ -4,7 +4,7 @@ import {
   database,
   errorService,
   integrationService,
-} from '@kit/shared';
+} from '@embed/shared';
 import type { Request, Response } from 'express';
 
 class JobsController {

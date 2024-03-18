@@ -5,7 +5,7 @@ import {
   actionService,
   errorService,
   providerService,
-} from '@kit/shared';
+} from '@embed/shared';
 import type { Request, Response } from 'express';
 import { ActionObject, ActionRunObject } from '../utils/types';
 

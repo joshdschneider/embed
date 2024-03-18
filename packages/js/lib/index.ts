@@ -1,16 +1,16 @@
-const DEFAULT_HOST = 'https://api.kit.zip';
+const DEFAULT_HOST = 'https://api.useembed.com';
 const DEFAULT_WEBSOCKET_PATH = '/';
 
-export type KitOptions = {
+export type EmbedOptions = {
   host?: string;
   websocketPath?: string;
 };
 
-export default class Kit {
+export default class Embed {
   private hostBaseUrl: string;
   private websocketBaseUrl: string;
 
-  constructor(options?: KitOptions) {
+  constructor(options?: EmbedOptions) {
     const host = options?.host || DEFAULT_HOST;
     const websocketPath = options?.websocketPath || DEFAULT_WEBSOCKET_PATH;
     this.hostBaseUrl = host.endsWith('/') ? host.slice(0, -1) : host;

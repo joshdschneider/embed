@@ -1,4 +1,4 @@
-import { collectionService, type LinkedAccount } from '@kit/shared';
+import { collectionService, type LinkedAccount } from '@embed/shared';
 import webhookService from '../services/webhook.service';
 
 class LinkedAccountHook {

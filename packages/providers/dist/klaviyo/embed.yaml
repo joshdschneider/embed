@@ -2,7 +2,7 @@ unique_key: klaviyo
 name: Klaviyo
 base_url: https://a.klaviyo.com
 docs_url: https://developers.klaviyo.com/en/reference/api_overview
-logo_url: https://kit-integrations.s3.amazonaws.com/klaviyo.svg
+logo_url: https://embed-integrations.s3.amazonaws.com/klaviyo.svg
 
 auth:
   scheme: api_key

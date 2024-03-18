@@ -1,5 +1,5 @@
-import { AuthScheme, ProviderSpecification } from '@kit/providers';
-import type { Integration } from '@kit/shared';
+import { AuthScheme, ProviderSpecification } from '@embed/providers';
+import type { Integration } from '@embed/shared';
 import {
   DEFAULT_ERROR_MESSAGE,
   ENVIRONMENT_ID_LOCALS_KEY,
@@ -8,7 +8,7 @@ import {
   integrationService,
   now,
   providerService,
-} from '@kit/shared';
+} from '@embed/shared';
 import type { Request, Response } from 'express';
 import { zodError } from '../utils/helpers';
 import { IntegrationObject, UpdateIntegrationRequestSchema } from '../utils/types';
