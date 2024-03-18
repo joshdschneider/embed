@@ -5,8 +5,5 @@
   "css.validate": false,
   "[prisma]": {
     "editor.defaultFormatter": "Prisma.prisma"
-  },
-  "yaml.schemas": {
-    "openapi:v3": "file:///Users/joshschneider/Desktop/kit/openapi/openapi.yaml"
   }
 }

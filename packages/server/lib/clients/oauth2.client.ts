@@ -1,6 +1,6 @@
-import { OAuth2, OAuthAuthorizationMethod, OAuthBodyFormat } from '@kit/providers';
-import type { Integration } from '@kit/shared';
-import { integrationService } from '@kit/shared';
+import { OAuth2, OAuthAuthorizationMethod, OAuthBodyFormat } from '@embed/providers';
+import type { Integration } from '@embed/shared';
+import { integrationService } from '@embed/shared';
 import { interpolateString } from '../utils/helpers';
 
 export function getSimpleOAuth2ClientConfig(
@@ -13,7 +13,7 @@ export function getSimpleOAuth2ClientConfig(
   const strippedTokenUrl = specification.token_url.replace(/configuration\./g, '');
   const tokenUrl = new URL(interpolateString(strippedTokenUrl, configuration));
 
-  const headers = { 'User-Agent': 'Kit' };
+  const headers = { 'User-Agent': 'Embed' };
   const { oauth_client_id, oauth_client_secret } =
     integrationService.getIntegrationOauthCredentials(integration);
 

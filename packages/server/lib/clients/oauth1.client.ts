@@ -1,6 +1,6 @@
-import type { OAuth1 as OAuth1Spec } from '@kit/providers';
-import type { Integration } from '@kit/shared';
-import { integrationService } from '@kit/shared';
+import type { OAuth1 as OAuth1Spec } from '@embed/providers';
+import type { Integration } from '@embed/shared';
+import { integrationService } from '@embed/shared';
 import OAuth1 from 'oauth';
 
 export type OAuth1RequestTokenResult = {
@@ -25,7 +25,7 @@ export class OAuth1Client {
     this.specification = specification;
     this.scopes = scopes;
 
-    const headers = { 'User-Agent': 'Kit' };
+    const headers = { 'User-Agent': 'Embed' };
     const { oauth_client_id, oauth_client_secret } =
       integrationService.getIntegrationOauthCredentials(integration);
 

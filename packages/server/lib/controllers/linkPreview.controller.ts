@@ -1,5 +1,5 @@
-import type { ProviderSpecification } from '@kit/providers';
-import type { Integration } from '@kit/shared';
+import type { ProviderSpecification } from '@embed/providers';
+import type { Integration } from '@embed/shared';
 import {
   DEFAULT_BRANDING,
   DEFAULT_ERROR_MESSAGE,
@@ -9,7 +9,7 @@ import {
   getServerUrl,
   integrationService,
   providerService,
-} from '@kit/shared';
+} from '@embed/shared';
 import type { Request, Response } from 'express';
 import type { ConsentTemplateData, ErrorTemplateData, ListTemplateData } from '../utils/types';
 

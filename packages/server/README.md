@@ -1,3 +1,3 @@
-## Kit Server
+## Embed Server
 
 TODO

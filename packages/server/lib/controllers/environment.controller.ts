@@ -1,4 +1,4 @@
-import type { Environment } from '@kit/shared';
+import type { Environment } from '@embed/shared';
 import {
   DEFAULT_ERROR_MESSAGE,
   ENVIRONMENT_ID_LOCALS_KEY,
@@ -6,7 +6,7 @@ import {
   environmentService,
   errorService,
   now,
-} from '@kit/shared';
+} from '@embed/shared';
 import type { Request, Response } from 'express';
 
 class EnvironmentController {

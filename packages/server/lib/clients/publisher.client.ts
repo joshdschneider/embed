@@ -1,5 +1,5 @@
-import type { Branding } from '@kit/shared';
-import { DEFAULT_BRANDING, getRedisUrl } from '@kit/shared';
+import type { Branding } from '@embed/shared';
+import { DEFAULT_BRANDING, getRedisUrl } from '@embed/shared';
 import crypto from 'crypto';
 import type { Response } from 'express';
 import type { RedisClientType } from 'redis';

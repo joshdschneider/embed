@@ -1,5 +1,5 @@
-import { AuthScheme, ProviderSpecification } from '@kit/providers';
-import type { Integration } from '@kit/shared';
+import { AuthScheme, ProviderSpecification } from '@embed/providers';
+import type { Integration } from '@embed/shared';
 import {
   DEFAULT_ERROR_MESSAGE,
   LogLevel,
@@ -13,7 +13,7 @@ import {
   linkedAccountService,
   now,
   providerService,
-} from '@kit/shared';
+} from '@embed/shared';
 import type { Request, Response } from 'express';
 import publisher from '../clients/publisher.client';
 import linkedAccountHook from '../hooks/linkedAccount.hook';

@@ -1,4 +1,4 @@
-import { LogLevel, activityService, errorService, now } from '@kit/shared';
+import { LogLevel, activityService, errorService, now } from '@embed/shared';
 import { Context } from '@temporalio/activity';
 import { ActionArgs, ContinuousSyncArgs, InitialSyncArgs } from './types';
 

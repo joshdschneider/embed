@@ -1,9 +1,9 @@
 import { useCallback } from 'react';
 
-const DEFAULT_HOST = 'https://api.kit.zip';
+const DEFAULT_HOST = 'https://api.useembed.com';
 const DEFAULT_WEBSOCKET_PATH = '/';
 
-export type UseKitLinkProps = {
+export type UseEmbedLinkProps = {
   linkToken: string;
   linkMethod?: 'popup' | 'redirect';
   redirectUrl?: string;
@@ -17,13 +17,13 @@ enum MessageType {
   Success = 'success',
 }
 
-export const useKitLink = ({
+export const useEmbedConnect = ({
   linkToken,
   linkMethod,
   redirectUrl,
   host,
   websocketPath,
-}: UseKitLinkProps) => {
+}: UseEmbedLinkProps) => {
   const appendParamsToUrl = (url: string, params: Record<string, string>) => {
     const baseUrl = new URL(url);
     Object.entries(params).forEach(([key, value]) => {

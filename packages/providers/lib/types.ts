@@ -1,4 +1,4 @@
-import { ProxyOptions } from '@kit/node';
+import { ProxyOptions } from '@embed/node';
 import { AxiosResponse } from 'axios';
 import { z } from 'zod';
 

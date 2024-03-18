@@ -1,5 +1,5 @@
-import type { Account, Environment } from '@kit/shared';
-import { database, errorService } from '@kit/shared';
+import type { Account, Environment } from '@embed/shared';
+import { database, errorService } from '@embed/shared';
 
 class AccountService {
   public async createAccount(account: Account): Promise<Account | null> {

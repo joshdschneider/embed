@@ -1,3 +1,0 @@
-# Kit Python SDK
-
-TODO

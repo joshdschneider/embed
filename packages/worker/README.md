@@ -1,3 +1,3 @@
-## Kit Worker
+## Embed Worker
 
 TODO

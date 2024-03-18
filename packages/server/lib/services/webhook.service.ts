@@ -1,4 +1,4 @@
-import type { LinkedAccount, Webhook, WebhookEvent } from '@kit/shared';
+import type { LinkedAccount, Webhook, WebhookEvent } from '@embed/shared';
 import {
   LogLevel,
   Resource,
@@ -9,7 +9,7 @@ import {
   errorService,
   generateId,
   now,
-} from '@kit/shared';
+} from '@embed/shared';
 import { backOff } from 'exponential-backoff';
 import { getWebhookSignatureHeader } from '../utils/helpers';
 import { LinkedAccountWebhookEvent, Metadata, WebhookBody } from '../utils/types';

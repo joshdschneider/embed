@@ -12,7 +12,7 @@ import {
   getServerUrl,
   linkedAccountService,
   now,
-} from '@kit/shared';
+} from '@embed/shared';
 import { Metadata } from '@temporalio/client';
 import type { Request, Response } from 'express';
 import linkTokenService from '../services/linkToken.service';

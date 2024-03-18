@@ -1,5 +1,5 @@
-import { AuthScheme, OAuth, OAuth1, OAuth2, ProviderSpecification } from '@kit/providers';
-import type { Integration, LinkToken } from '@kit/shared';
+import { AuthScheme, OAuth, OAuth1, OAuth2, ProviderSpecification } from '@embed/providers';
+import type { Integration, LinkToken } from '@embed/shared';
 import {
   Branding,
   DEFAULT_ERROR_MESSAGE,
@@ -15,7 +15,7 @@ import {
   linkedAccountService,
   now,
   providerService,
-} from '@kit/shared';
+} from '@embed/shared';
 import crypto from 'crypto';
 import type { Request, Response } from 'express';
 import SimpleOAuth2 from 'simple-oauth2';

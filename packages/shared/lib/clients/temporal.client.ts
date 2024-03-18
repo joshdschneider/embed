@@ -1,6 +1,6 @@
 import { Client, Connection, ScheduleHandle, ScheduleOverlapPolicy } from '@temporalio/client';
 import fs from 'fs';
-import ms, { StringValue } from 'ms';
+import ms from 'ms';
 import errorService from '../services/error.service';
 import {
   SYNC_TASK_QUEUE,
@@ -91,7 +91,7 @@ class TemporalClient {
 
   public async createSyncSchedule(
     scheduleId: string,
-    interval: StringValue,
+    interval: string,
     offset: number,
     args: {
       environmentId: string;
@@ -104,7 +104,7 @@ class TemporalClient {
       return await this.client.schedule.create({
         scheduleId,
         policies: { overlap: OVERLAP_POLICY },
-        spec: { intervals: [{ every: interval, offset }] },
+        spec: { intervals: [{ every: ms(interval), offset }] },
         action: {
           type: 'startWorkflow',
           workflowType: 'incrementalSync',
@@ -186,7 +186,7 @@ class TemporalClient {
 
   public async updateSyncSchedule(
     scheduleId: string,
-    interval: StringValue,
+    interval: string,
     offset: number
   ): Promise<boolean> {
     try {

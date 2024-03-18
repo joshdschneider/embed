@@ -1,3 +1,3 @@
-## Kit React
+## Embed React
 
 TODO

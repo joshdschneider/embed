@@ -54,7 +54,7 @@ export function getEncryptonKey() {
 }
 
 export function getInternalApiKey() {
-  return process.env['KIT_INTERNAL_API_KEY'];
+  return process.env['EMBED_INTERNAL_API_KEY'];
 }
 
 export function getLogLevel() {
@@ -66,15 +66,15 @@ export function isProd() {
 }
 
 export function isCloud() {
-  return process.env['KIT_CLOUD']?.toLowerCase() === 'true';
+  return process.env['EMBED_CLOUD']?.toLowerCase() === 'true';
 }
 
 export function isEnterprise() {
-  return process.env['KIT_ENTERPRISE']?.toLowerCase() === 'true';
+  return process.env['EMBED_ENTERPRISE']?.toLowerCase() === 'true';
 }
 
 export function getAuthTokenSecret() {
-  return process.env['KIT_AUTH_TOKEN_SECRET'];
+  return process.env['EMBED_AUTH_TOKEN_SECRET'];
 }
 
 export function getOpenai(): OpenAI {
@@ -152,14 +152,14 @@ export function getMistralApiKey() {
   return apiKey;
 }
 
-export const ACCOUNT_ID_LOCALS_KEY = 'kit_account_id';
-export const ENVIRONMENT_ID_LOCALS_KEY = 'kit_environment_id';
+export const ACCOUNT_ID_LOCALS_KEY = 'embed_account_id';
+export const ENVIRONMENT_ID_LOCALS_KEY = 'embed_environment_id';
 
 export const ENCRYPTION_KEY_BYTE_LENGTH = 32;
 export const ENCRYPTION_KEY_SALT = 'X89FHEGqR3yNK0+v7rPWxQ==';
 
-export const KIT_AUTH_TOKEN_KEY = 'kit_token';
-export const KIT_ENVIRONMENT_KEY = 'kit_enviroment';
+export const EMBED_AUTH_TOKEN_KEY = 'embed_token';
+export const EMBED_ENVIRONMENT_KEY = 'embed_enviroment';
 
 export const SYNC_TASK_QUEUE = 'syncs';
 export const ACTIONS_TASK_QUEUE = 'actions';

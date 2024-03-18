@@ -6,7 +6,7 @@ import {
   errorService,
   generateId,
   now,
-} from '@kit/shared';
+} from '@embed/shared';
 import type { Request, Response } from 'express';
 import webhookService from '../services/webhook.service';
 import { generateWebhookSigningSecret, zodError } from '../utils/helpers';

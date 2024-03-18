@@ -1,4 +1,4 @@
-import { DEFAULT_ERROR_MESSAGE, ErrorCode, errorService } from '@kit/shared';
+import { DEFAULT_ERROR_MESSAGE, ErrorCode, errorService } from '@embed/shared';
 import type { Request, Response } from 'express';
 
 class RecordController {

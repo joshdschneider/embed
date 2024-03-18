@@ -9,7 +9,7 @@ import {
   generateId,
   integrationService,
   now,
-} from '@kit/shared';
+} from '@embed/shared';
 import type { Request, Response } from 'express';
 import accountService from '../services/account.service';
 import userService from '../services/user.service';

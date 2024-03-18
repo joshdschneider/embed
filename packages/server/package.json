@@ -1,5 +1,5 @@
 {
-  "name": "@kit/server",
+  "name": "@embed/server",
   "version": "0.1.0",
   "main": "dist/index.js",
   "scripts": {
@@ -11,7 +11,7 @@
     "dev": "node dist/index.js"
   },
   "dependencies": {
-    "@kit/shared": "^0.1.0",
+    "@embed/shared": "^0.1.0",
     "axios": "^1.6.7",
     "cookies": "^0.9.1",
     "cors": "^2.8.5",

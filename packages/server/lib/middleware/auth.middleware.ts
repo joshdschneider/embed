@@ -1,4 +1,4 @@
-import { ErrorCode, errorService, isCloud, isEnterprise } from '@kit/shared';
+import { ErrorCode, errorService, isCloud, isEnterprise } from '@embed/shared';
 import type { NextFunction, Request, Response } from 'express';
 import authService from '../services/auth.service';
 

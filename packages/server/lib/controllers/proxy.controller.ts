@@ -1,5 +1,5 @@
-import { HttpMethod, ProxyOptions } from '@kit/node';
-import { DEFAULT_ERROR_MESSAGE, ErrorCode, errorService, proxyService } from '@kit/shared';
+import { HttpMethod, ProxyOptions } from '@embed/node';
+import { DEFAULT_ERROR_MESSAGE, ErrorCode, errorService, proxyService } from '@embed/shared';
 import { AxiosError } from 'axios';
 import type { Request, Response } from 'express';
 import type { OutgoingHttpHeaders } from 'http';
@@ -10,7 +10,7 @@ import url from 'url';
 class ProxyController {
   public async routeRequest(req: Request, res: Response): Promise<void> {
     try {
-      const linkedAccountId = req.get('Kit-Linked-Account-Id');
+      const linkedAccountId = req.get('Embed-Linked-Account-Id');
 
       if (!linkedAccountId) {
         return errorService.errorResponse(res, {
@@ -19,7 +19,7 @@ class ProxyController {
         });
       }
 
-      const integration = req.get('Kit-Integration');
+      const integration = req.get('Embed-Integration');
 
       if (!integration) {
         return errorService.errorResponse(res, {
@@ -95,7 +95,7 @@ class ProxyController {
       return {};
     }
 
-    const prefix = 'kit-proxy-';
+    const prefix = 'embed-proxy-';
     const headers = req.rawHeaders;
 
     return headers.reduce((acc: Record<string, string>, currentValue, currentIndex, array) => {

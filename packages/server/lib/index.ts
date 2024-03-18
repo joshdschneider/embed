@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-import { getServerPort, getWebsocketsPath, isCloud } from '@kit/shared';
+import { getServerPort, getWebsocketsPath, isCloud } from '@embed/shared';
 import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';

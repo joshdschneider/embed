@@ -1,5 +1,5 @@
-import type { ProviderSpecification } from '@kit/providers';
-import { Registry } from '@kit/providers';
+import type { ProviderSpecification } from '@embed/providers';
+import { Registry } from '@embed/providers';
 import { SyncContext } from '../context/sync.context';
 import errorService from './error.service';
 

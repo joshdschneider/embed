@@ -1,4 +1,4 @@
-import { ErrorCode, errorService, providerService } from '@kit/shared';
+import { ErrorCode, errorService, providerService } from '@embed/shared';
 import type { Request, Response } from 'express';
 
 class ProviderController {
