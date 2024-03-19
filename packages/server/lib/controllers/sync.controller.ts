@@ -1,10 +1,16 @@
 import {
   DEFAULT_ERROR_MESSAGE,
   ErrorCode,
+  LogAction,
+  LogLevel,
+  Resource,
   SyncRunStatus,
   SyncRunType,
   SyncStatus,
+  activityService,
   errorService,
+  generateId,
+  now,
   syncService,
 } from '@embed/shared';
 import type { Request, Response } from 'express';
@@ -166,44 +172,66 @@ class SyncController {
   }
 
   public async startSync(req: Request, res: Response) {
-    try {
-      const linkedAccountId = req.params['linked_account_id'];
-      const collectionKey = req.params['collection_key'];
+    const linkedAccountId = req.params['linked_account_id'];
+    const collectionKey = req.params['collection_key'];
 
-      if (!linkedAccountId) {
+    if (!linkedAccountId) {
+      return errorService.errorResponse(res, {
+        code: ErrorCode.BadRequest,
+        message: 'Linked account ID missing',
+      });
+    } else if (!collectionKey) {
+      return errorService.errorResponse(res, {
+        code: ErrorCode.BadRequest,
+        message: 'Collection unique key missing',
+      });
+    }
+
+    const sync = await syncService.retrieveSync(linkedAccountId, collectionKey);
+
+    if (!sync) {
+      return errorService.errorResponse(res, {
+        code: ErrorCode.NotFound,
+        message: `Sync not found for collection ${collectionKey} on linked account ${linkedAccountId}`,
+      });
+    }
+
+    const activityId = await activityService.createActivity({
+      id: generateId(Resource.Activity),
+      environment_id: sync.environment_id,
+      integration_key: sync.integration_key,
+      linked_account_id: sync.linked_account_id,
+      collection_key: sync.collection_key,
+      link_token_id: null,
+      action_key: null,
+      level: LogLevel.Info,
+      action: LogAction.Sync,
+      timestamp: now(),
+    });
+
+    try {
+      const startedSync = await syncService.startSync(sync, activityId);
+
+      if (!startedSync) {
         return errorService.errorResponse(res, {
-          code: ErrorCode.BadRequest,
-          message: 'Linked account ID missing',
-        });
-      } else if (!collectionKey) {
-        return errorService.errorResponse(res, {
-          code: ErrorCode.BadRequest,
-          message: 'Collection unique key missing',
+          code: ErrorCode.InternalServerError,
+          message: DEFAULT_ERROR_MESSAGE,
         });
       }
 
-      // const sync = await syncService.startSync(linkedAccountId, collectionKey);
+      const syncObject: SyncObject = {
+        object: 'sync',
+        collection: startedSync.collection_key,
+        integration: startedSync.integration_key,
+        linked_account: startedSync.linked_account_id,
+        status: startedSync.status as SyncStatus,
+        frequency: startedSync.frequency,
+        last_synced_at: startedSync.last_synced_at,
+        created_at: startedSync.created_at,
+        updated_at: startedSync.updated_at,
+      };
 
-      // if (!sync) {
-      //   return errorService.errorResponse(res, {
-      //     code: ErrorCode.InternalServerError,
-      //     message: DEFAULT_ERROR_MESSAGE,
-      //   });
-      // }
-
-      // const syncObject: SyncObject = {
-      //   object: 'sync',
-      //   collection: sync.collection_key,
-      //   integration: sync.integration_key,
-      //   linked_account: sync.linked_account_id,
-      //   status: sync.status as SyncStatus,
-      //   frequency: sync.frequency,
-      //   last_synced_at: sync.last_synced_at,
-      //   created_at: sync.created_at,
-      //   updated_at: sync.updated_at,
-      // };
-
-      res.status(200).json({});
+      res.status(200).json(syncObject);
     } catch (err) {
       await errorService.reportError(err);
 
@@ -215,46 +243,87 @@ class SyncController {
   }
 
   public async stopSync(req: Request, res: Response) {
+    const linkedAccountId = req.params['linked_account_id'];
+    const collectionKey = req.params['collection_key'];
+
+    if (!linkedAccountId) {
+      return errorService.errorResponse(res, {
+        code: ErrorCode.BadRequest,
+        message: 'Linked account ID missing',
+      });
+    } else if (!collectionKey) {
+      return errorService.errorResponse(res, {
+        code: ErrorCode.BadRequest,
+        message: 'Collection unique key missing',
+      });
+    }
+
+    const sync = await syncService.retrieveSync(linkedAccountId, collectionKey);
+
+    if (!sync) {
+      return errorService.errorResponse(res, {
+        code: ErrorCode.NotFound,
+        message: `Sync not found for collection ${collectionKey} on linked account ${linkedAccountId}`,
+      });
+    }
+
+    const activityId = await activityService.createActivity({
+      id: generateId(Resource.Activity),
+      environment_id: sync.environment_id,
+      integration_key: sync.integration_key,
+      linked_account_id: sync.linked_account_id,
+      collection_key: sync.collection_key,
+      link_token_id: null,
+      action_key: null,
+      level: LogLevel.Info,
+      action: LogAction.Sync,
+      timestamp: now(),
+    });
+
     try {
-      const linkedAccountId = req.params['linked_account_id'];
-      const collectionKey = req.params['collection_key'];
+      const stoppedSync = await syncService.stopSync(sync);
 
-      if (!linkedAccountId) {
-        return errorService.errorResponse(res, {
-          code: ErrorCode.BadRequest,
-          message: 'Linked account ID missing',
-        });
-      } else if (!collectionKey) {
-        return errorService.errorResponse(res, {
-          code: ErrorCode.BadRequest,
-          message: 'Collection unique key missing',
-        });
+      if (!stoppedSync) {
+        throw new Error('Failed to stop sync');
       }
 
-      const sync = await syncService.stopSync(linkedAccountId, collectionKey);
-
-      if (!sync) {
-        return errorService.errorResponse(res, {
-          code: ErrorCode.InternalServerError,
-          message: DEFAULT_ERROR_MESSAGE,
-        });
-      }
+      await activityService.createActivityLog(activityId, {
+        level: LogLevel.Info,
+        timestamp: now(),
+        message: 'Sync stopped',
+        payload: {
+          integration: sync.integration_key,
+          linked_account: sync.linked_account_id,
+          collection: sync.collection_key,
+        },
+      });
 
       const syncObject: SyncObject = {
         object: 'sync',
-        collection: sync.collection_key,
-        integration: sync.integration_key,
-        linked_account: sync.linked_account_id,
-        status: sync.status as SyncStatus,
-        frequency: sync.frequency,
-        last_synced_at: sync.last_synced_at,
-        created_at: sync.created_at,
-        updated_at: sync.updated_at,
+        collection: stoppedSync.collection_key,
+        integration: stoppedSync.integration_key,
+        linked_account: stoppedSync.linked_account_id,
+        status: stoppedSync.status as SyncStatus,
+        frequency: stoppedSync.frequency,
+        last_synced_at: stoppedSync.last_synced_at,
+        created_at: stoppedSync.created_at,
+        updated_at: stoppedSync.updated_at,
       };
 
       res.status(200).json(syncObject);
     } catch (err) {
       await errorService.reportError(err);
+
+      await activityService.createActivityLog(activityId, {
+        level: LogLevel.Error,
+        timestamp: now(),
+        message: 'Failed to stop sync',
+        payload: {
+          integration: sync.integration_key,
+          linked_account: sync.linked_account_id,
+          collection: sync.collection_key,
+        },
+      });
 
       return errorService.errorResponse(res, {
         code: ErrorCode.InternalServerError,
@@ -264,29 +333,48 @@ class SyncController {
   }
 
   public async triggerSync(req: Request, res: Response) {
+    const linkedAccountId = req.params['linked_account_id'];
+    const collectionKey = req.params['collection_key'];
+
+    if (!linkedAccountId) {
+      return errorService.errorResponse(res, {
+        code: ErrorCode.BadRequest,
+        message: 'Linked account ID missing',
+      });
+    } else if (!collectionKey) {
+      return errorService.errorResponse(res, {
+        code: ErrorCode.BadRequest,
+        message: 'Collection unique key missing',
+      });
+    }
+
+    const sync = await syncService.retrieveSync(linkedAccountId, collectionKey);
+
+    if (!sync) {
+      return errorService.errorResponse(res, {
+        code: ErrorCode.NotFound,
+        message: `Sync not found for collection ${collectionKey} on linked account ${linkedAccountId}`,
+      });
+    }
+
+    const activityId = await activityService.createActivity({
+      id: generateId(Resource.Activity),
+      environment_id: sync.environment_id,
+      integration_key: sync.integration_key,
+      linked_account_id: sync.linked_account_id,
+      collection_key: sync.collection_key,
+      link_token_id: null,
+      action_key: null,
+      level: LogLevel.Info,
+      action: LogAction.Sync,
+      timestamp: now(),
+    });
+
     try {
-      const linkedAccountId = req.params['linked_account_id'];
-      const collectionKey = req.params['collection_key'];
+      const triggeredSync = await syncService.triggerSync(sync, activityId);
 
-      if (!linkedAccountId) {
-        return errorService.errorResponse(res, {
-          code: ErrorCode.BadRequest,
-          message: 'Linked account ID missing',
-        });
-      } else if (!collectionKey) {
-        return errorService.errorResponse(res, {
-          code: ErrorCode.BadRequest,
-          message: 'Collection unique key missing',
-        });
-      }
-
-      const sync = await syncService.triggerSync(linkedAccountId, collectionKey);
-
-      if (!sync) {
-        return errorService.errorResponse(res, {
-          code: ErrorCode.InternalServerError,
-          message: DEFAULT_ERROR_MESSAGE,
-        });
+      if (!triggeredSync) {
+        throw new Error('Failed to trigger sync');
       }
 
       const syncObject: SyncObject = {
@@ -304,6 +392,17 @@ class SyncController {
       res.status(200).json(syncObject);
     } catch (err) {
       await errorService.reportError(err);
+
+      await activityService.createActivityLog(activityId, {
+        level: LogLevel.Error,
+        timestamp: now(),
+        message: 'Failed to trigger sync',
+        payload: {
+          integration: sync.integration_key,
+          linked_account: sync.linked_account_id,
+          collection: sync.collection_key,
+        },
+      });
 
       return errorService.errorResponse(res, {
         code: ErrorCode.InternalServerError,

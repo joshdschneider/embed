@@ -1,24 +1,27 @@
 export interface InitialSyncArgs {
   environmentId: string;
+  integrationKey: string;
   linkedAccountId: string;
-  integration: string;
-  syncId: string;
-  jobId: string;
+  collectionKey: string;
+  syncRunId: string;
+  lastSyncedAt: number | null;
   activityId: string | null;
 }
 
-export interface ContinuousSyncArgs {
+export interface IncrementalSyncArgs {
   environmentId: string;
+  integrationKey: string;
   linkedAccountId: string;
-  integration: string;
-  syncId: string;
+  collectionKey: string;
+  syncRunId: string;
+  lastSyncedAt: number | null;
   activityId: string | null;
 }
 
 export interface ActionArgs {
   environmentId: string;
+  integrationKey: string;
   linkedAccountId: string;
-  integration: string;
-  action: string;
+  actionKey: string;
   activityId: string | null;
 }

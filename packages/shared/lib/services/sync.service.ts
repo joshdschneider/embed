@@ -7,6 +7,7 @@ import {
   Resource,
   SyncRunStatus,
   SyncRunType,
+  SyncScheduleStatus,
   SyncStatus,
 } from '../utils/enums';
 import { generateId, getFrequencyInterval, now } from '../utils/helpers';
@@ -21,7 +22,7 @@ class SyncService {
   }: {
     linkedAccountId: string;
     collection: Collection;
-    activityId: string;
+    activityId: string | null;
   }): Promise<void> {
     try {
       const sync = await this.createSync({
@@ -41,19 +42,30 @@ class SyncService {
         throw new Error('Failed to create sync in database');
       }
 
-      if (!collection.is_enabled) {
+      if (!collection.is_enabled || !collection.auto_start_sync) {
         return;
       }
 
-      if (collection.auto_start_sync) {
-        await this.startSync(sync);
-      }
+      const newActivityId = await activityService.createActivity({
+        id: generateId(Resource.Activity),
+        environment_id: sync.environment_id,
+        integration_key: sync.integration_key,
+        linked_account_id: sync.linked_account_id,
+        collection_key: sync.collection_key,
+        link_token_id: null,
+        action_key: null,
+        level: LogLevel.Info,
+        action: LogAction.Sync,
+        timestamp: now(),
+      });
+
+      await this.startSync(sync, newActivityId);
     } catch (err) {
       await errorService.reportError(err);
 
       await activityService.createActivityLog(activityId, {
         level: LogLevel.Error,
-        message: 'Failed to initialize sync',
+        message: 'Failed to initialize sync for linked account',
         timestamp: now(),
         payload: {
           linked_account: linkedAccountId,
@@ -64,26 +76,15 @@ class SyncService {
     }
   }
 
-  public async startSync(sync: Sync) {
-    const activityId = await activityService.createActivity({
-      id: generateId(Resource.Activity),
-      environment_id: sync.environment_id,
-      integration_key: sync.integration_key,
-      linked_account_id: sync.linked_account_id,
-      collection_key: sync.collection_key,
-      link_token_id: null,
-      action_key: null,
-      level: LogLevel.Info,
-      action: LogAction.Sync,
-      timestamp: now(),
-    });
+  public async startSync(sync: Sync, activityId: string | null): Promise<Sync | null> {
+    const temporal = await TemporalClient.getInstance();
+
+    if (!temporal) {
+      await errorService.reportError(new Error('Failed to get Temporal client instance'));
+      return null;
+    }
 
     try {
-      const temporal = await TemporalClient.getInstance();
-      if (!temporal) {
-        throw new Error('Failed to get Temporal client instance');
-      }
-
       const syncRuns = await this.listSyncRuns(sync.linked_account_id, sync.collection_key);
       if (!syncRuns) {
         throw new Error('Failed to retrieve sync runs from database');
@@ -120,6 +121,7 @@ class SyncService {
           linkedAccountId: sync.linked_account_id,
           collectionKey: sync.collection_key,
           syncRunId: newSyncRun.id,
+          lastSyncedAt: sync.last_synced_at,
           activityId,
         });
 
@@ -129,29 +131,18 @@ class SyncService {
         } else {
           await this.updateSyncRun(newSyncRun.id, { temporal_run_id: temporalRunId });
         }
-
-        await activityService.createActivityLog(activityId, {
-          level: LogLevel.Info,
-          message: 'Running initial sync',
-          timestamp: now(),
-          payload: {
-            integration: sync.integration_key,
-            linked_account: sync.linked_account_id,
-            collection: sync.collection_key,
-          },
-        });
       } else if (initialSyncRun.status === SyncRunStatus.Running) {
         throw new Error('Initial sync is still running');
       }
 
       const syncSchedule = await this.getSyncSchedule(sync.linked_account_id, sync.collection_key);
+      const { interval, offset, error } = getFrequencyInterval(sync.frequency, new Date());
+
+      if (error !== null) {
+        throw new Error(error);
+      }
+
       if (!syncSchedule) {
-        const { interval, offset, error } = getFrequencyInterval(sync.frequency, new Date());
-
-        if (error !== null) {
-          throw new Error(error);
-        }
-
         const scheduleHandle = await temporal.createSyncSchedule(
           generateId(Resource.SyncSchedule),
           interval,
@@ -180,16 +171,26 @@ class SyncService {
           },
         });
       } else {
-        const scheduleHandle = await temporal.getSyncSchedule(syncSchedule.id);
+        let scheduleHandle = await temporal.getSyncSchedule(syncSchedule.id);
+
         if (!scheduleHandle) {
-          throw new Error('Failed to get sync schedule in Temporal');
+          scheduleHandle = await temporal.createSyncSchedule(syncSchedule.id, interval, offset, {
+            environmentId: sync.environment_id,
+            linkedAccountId: sync.environment_id,
+            integrationKey: sync.integration_key,
+            collectionKey: sync.collection_key,
+          });
+
+          if (!scheduleHandle) {
+            throw new Error('Failed to create sync schedule in Temporal');
+          }
         }
 
         const description = await scheduleHandle.describe();
         const schedulePaused = description.state.paused;
+
         if (schedulePaused) {
           await scheduleHandle.unpause();
-
           await activityService.createActivityLog(activityId, {
             level: LogLevel.Info,
             message: 'Sync schedule started',
@@ -202,19 +203,123 @@ class SyncService {
           });
         }
       }
+
+      return await this.updateSync(sync.linked_account_id, sync.collection_key, {
+        status: SyncStatus.Running,
+      });
     } catch (err) {
       await errorService.reportError(err);
+      return null;
+    }
+  }
 
-      await activityService.createActivityLog(activityId, {
-        level: LogLevel.Error,
-        message: 'Failed to start sync',
-        timestamp: now(),
-        payload: {
-          integration: sync.integration_key,
-          linked_account: sync.linked_account_id,
-          collection: sync.collection_key,
-        },
+  public async stopSync(sync: Sync): Promise<Sync | null> {
+    try {
+      const temporal = await TemporalClient.getInstance();
+      if (!temporal) {
+        throw new Error('Failed to get Temporal client instance');
+      }
+
+      const syncSchedule = await this.getSyncSchedule(sync.linked_account_id, sync.collection_key);
+      if (syncSchedule) {
+        const scheduleDidPause = await temporal.pauseSyncSchedule(syncSchedule.id);
+        if (scheduleDidPause) {
+          await this.updateSyncSchedule(syncSchedule.id, {
+            status: SyncScheduleStatus.Stopped,
+          });
+        }
+      }
+
+      const syncRuns = await this.listSyncRuns(sync.linked_account_id, sync.collection_key);
+      if (!syncRuns) {
+        throw new Error('Failed to get sync runs');
+      }
+
+      const runningSyncRuns = syncRuns.filter((run) => run.status === SyncRunStatus.Running);
+      if (runningSyncRuns.length > 0) {
+        for (const run of runningSyncRuns) {
+          if (run.temporal_run_id) {
+            await temporal.terminateSyncRun(run.temporal_run_id);
+          }
+
+          await this.updateSyncRun(run.id, { status: SyncRunStatus.Stopped });
+        }
+      }
+
+      return await this.updateSync(sync.linked_account_id, sync.collection_key, {
+        status: SyncStatus.Stopped,
       });
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
+    }
+  }
+
+  public async triggerSync(sync: Sync, activityId: string | null): Promise<Sync | null> {
+    try {
+      const syncRuns = await this.listSyncRuns(sync.linked_account_id, sync.collection_key);
+      if (!syncRuns) {
+        throw new Error('Failed to get sync runs');
+      }
+
+      const stillRunning = syncRuns.find((run) => run.status === SyncRunStatus.Running);
+      if (stillRunning) {
+        throw new Error('Sync still running');
+      }
+
+      const temporal = await TemporalClient.getInstance();
+      if (!temporal) {
+        throw new Error('Failed to get Temporal client instance');
+      }
+
+      const initialSuccessfulRuns = syncRuns.filter(
+        (run) => run.type === SyncRunType.Initial && run.status === SyncRunStatus.Succeeded
+      );
+
+      if (initialSuccessfulRuns.length === 0) {
+        const initialSyncRunId = generateId(Resource.SyncRun);
+        const didStart = await temporal.startInitialSync(initialSyncRunId, {
+          activityId,
+          collectionKey: sync.collection_key,
+          environmentId: sync.environment_id,
+          integrationKey: sync.integration_key,
+          linkedAccountId: sync.linked_account_id,
+          syncRunId: initialSyncRunId,
+          lastSyncedAt: sync.last_synced_at,
+        });
+
+        return didStart ? sync : null;
+      } else {
+        const syncSchedule = await this.getSyncSchedule(
+          sync.linked_account_id,
+          sync.collection_key
+        );
+
+        if (!syncSchedule) {
+          throw new Error('Failed to get sync schedule');
+        }
+
+        if (syncSchedule.status === SyncScheduleStatus.Stopped) {
+          const incrementalSyncRunId = generateId(Resource.SyncRun);
+          const didTrigger = await temporal.triggerIncrementalSync(incrementalSyncRunId, {
+            activityId,
+            collectionKey: sync.collection_key,
+            environmentId: sync.environment_id,
+            integrationKey: sync.integration_key,
+            linkedAccountId: sync.linked_account_id,
+            syncRunId: incrementalSyncRunId,
+            lastSyncedAt: sync.last_synced_at,
+          });
+
+          return didTrigger ? sync : null;
+        } else {
+          const didTrigger = await temporal.triggerSyncSchedule(syncSchedule.id);
+          return didTrigger ? sync : null;
+        }
+      }
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
     }
   }
 
@@ -270,43 +375,20 @@ class SyncService {
 
   public async createSync(sync: Sync): Promise<Sync | null> {
     try {
+      const existingSync = await database.sync.findUnique({
+        where: {
+          collection_key_linked_account_id: {
+            collection_key: sync.collection_key,
+            linked_account_id: sync.linked_account_id,
+          },
+        },
+      });
+
+      if (existingSync) {
+        return existingSync;
+      }
+
       return await database.sync.create({ data: sync });
-    } catch (err) {
-      await errorService.reportError(err);
-      return null;
-    }
-  }
-
-  public async stopSync(linkedAccountId: string, collectionKey: string): Promise<Sync | null> {
-    try {
-      return await database.sync.update({
-        where: {
-          collection_key_linked_account_id: {
-            linked_account_id: linkedAccountId,
-            collection_key: collectionKey,
-          },
-          deleted_at: null,
-        },
-        data: { status: SyncStatus.Stopped, updated_at: now() },
-      });
-    } catch (err) {
-      await errorService.reportError(err);
-      return null;
-    }
-  }
-
-  public async triggerSync(linkedAccountId: string, collectionKey: string): Promise<Sync | null> {
-    try {
-      return await database.sync.update({
-        where: {
-          collection_key_linked_account_id: {
-            linked_account_id: linkedAccountId,
-            collection_key: collectionKey,
-          },
-          deleted_at: null,
-        },
-        data: { last_synced_at: now(), updated_at: now() },
-      });
     } catch (err) {
       await errorService.reportError(err);
       return null;

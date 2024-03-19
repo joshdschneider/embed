@@ -1,36 +1,124 @@
-import { LogLevel, activityService, errorService, now } from '@embed/shared';
+import { Registry } from '@embed/providers';
+import { LogLevel, SyncContext, activityService, errorService, now } from '@embed/shared';
 import { Context } from '@temporalio/activity';
-import { ActionArgs, ContinuousSyncArgs, InitialSyncArgs } from './types';
+import { ActionArgs, IncrementalSyncArgs, InitialSyncArgs } from './types';
 
 export async function runInitialSync(args: InitialSyncArgs): Promise<boolean | object | null> {
-  const { environmentId, activityId, ...rest } = args;
-
-  await activityService.createActivityLog(activityId, {
-    message: `Starting initial sync for ${rest.linkedAccountId}`,
+  await activityService.createActivityLog(args.activityId, {
+    message: `Starting initial sync`,
     level: LogLevel.Info,
     timestamp: now(),
+    payload: {
+      integration: args.integrationKey,
+      linked_account: args.linkedAccountId,
+      collection: args.collectionKey,
+    },
   });
 
   try {
-    const context: Context = Context.current();
-    // run initial sync
+    const temporalContext: Context = Context.current();
+
+    const syncContext = new SyncContext({
+      linkedAccountId: args.linkedAccountId,
+      integrationKey: args.integrationKey,
+      collectionKey: args.collectionKey,
+      syncRunId: args.syncRunId,
+      lastSyncedAt: args.lastSyncedAt,
+      activityId: args.activityId,
+      syncType: 'initial',
+      temporalContext,
+    });
+
+    const registry = new Registry();
+    await registry.syncProviderCollection(args.integrationKey, args.collectionKey, syncContext);
+
+    const results = await syncContext.reportResults();
+    await syncContext.finish();
+
+    await activityService.createActivityLog(args.activityId, {
+      message: `Initial sync finished successfully`,
+      level: LogLevel.Info,
+      timestamp: now(),
+      payload: { ...results },
+    });
+
+    return true;
   } catch (err) {
     await errorService.reportError(err);
 
-    await activityService.createActivityLog(activityId, {
-      message: `Sync ${rest.syncId} failed to run`,
+    await activityService.createActivityLog(args.activityId, {
+      message: `Initial sync failed`,
       level: LogLevel.Error,
       timestamp: now(),
+      payload: {
+        integration: args.integrationKey,
+        linked_account: args.linkedAccountId,
+        collection: args.collectionKey,
+      },
     });
-  }
 
-  return false;
+    return false;
+  }
 }
 
-export async function runContinuousSync(
-  args: ContinuousSyncArgs
+export async function runIncrementalSync(
+  args: IncrementalSyncArgs
 ): Promise<boolean | object | null> {
-  return false;
+  await activityService.createActivityLog(args.activityId, {
+    message: `Starting incremental sync`,
+    level: LogLevel.Info,
+    timestamp: now(),
+    payload: {
+      integration: args.integrationKey,
+      linked_account: args.linkedAccountId,
+      collection: args.collectionKey,
+    },
+  });
+
+  try {
+    const temporalContext: Context = Context.current();
+
+    const syncContext = new SyncContext({
+      linkedAccountId: args.linkedAccountId,
+      integrationKey: args.integrationKey,
+      collectionKey: args.collectionKey,
+      syncRunId: args.syncRunId,
+      lastSyncedAt: args.lastSyncedAt,
+      activityId: args.activityId,
+      syncType: 'incremental',
+      temporalContext,
+    });
+
+    const registry = new Registry();
+    await registry.syncProviderCollection(args.integrationKey, args.collectionKey, syncContext);
+
+    const results = await syncContext.reportResults();
+    await syncContext.finish();
+
+    await activityService.createActivityLog(args.activityId, {
+      message: `Initial sync finished successfully`,
+      level: LogLevel.Info,
+      timestamp: now(),
+      payload: { ...results },
+    });
+
+    return true;
+  } catch (err) {
+    await errorService.reportError(err);
+
+    await activityService.createActivityLog(args.activityId, {
+      message: `Incremental sync failed`,
+      level: LogLevel.Error,
+      timestamp: now(),
+      payload: {
+        integration: args.integrationKey,
+        linked_account: args.linkedAccountId,
+        collection: args.collectionKey,
+      },
+    });
+
+    return false;
+  }
 }
 
 export async function executeAction(args: ActionArgs): Promise<boolean | object | null> {
@@ -39,7 +127,7 @@ export async function executeAction(args: ActionArgs): Promise<boolean | object 
 
 export async function reportFailure(
   err: unknown,
-  args: InitialSyncArgs | ContinuousSyncArgs | ActionArgs,
+  args: InitialSyncArgs | IncrementalSyncArgs | ActionArgs,
   defaultTimeout: string,
   maxAttempts: number
 ): Promise<false> {

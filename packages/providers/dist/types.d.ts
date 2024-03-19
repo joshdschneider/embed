@@ -1031,7 +1031,7 @@ export interface BaseContext {
     delete<T = any>(options: Omit<ProxyOptions, 'method'>): Promise<AxiosResponse<T>>;
 }
 export interface SyncContext extends BaseContext {
-    lastSyncDate: Date | null;
+    lastSyncedAt: number | null;
 }
 export interface ActionContext extends BaseContext {
 }

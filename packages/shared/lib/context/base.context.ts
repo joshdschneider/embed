@@ -3,16 +3,16 @@ import { AxiosResponse } from 'axios';
 import proxyService from '../services/proxy.service';
 
 export interface BaseContextOptions {
-  integration: string;
+  integrationKey: string;
   linkedAccountId: string;
 }
 
 export class BaseContext {
-  protected integration: string;
+  protected integrationKey: string;
   protected linkedAccountId: string;
 
   constructor(options: BaseContextOptions) {
-    this.integration = options.integration;
+    this.integrationKey = options.integrationKey;
     this.linkedAccountId = options.linkedAccountId;
   }
 
