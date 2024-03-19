@@ -20,28 +20,28 @@ class Registry {
     constructor() {
         this.providers = {};
     }
-    load(uniqueKey) {
+    load(providerKey) {
         return __awaiter(this, void 0, void 0, function* () {
-            this.providers[uniqueKey] = new provider_1.Provider(uniqueKey);
+            this.providers[providerKey] = new provider_1.Provider(providerKey);
         });
     }
     loadAll() {
         return __awaiter(this, void 0, void 0, function* () {
             const dir = path_1.default.join(__dirname);
             const keys = yield fs_1.promises.readdir(dir);
-            for (const uniqueKey of keys) {
-                const providerPath = path_1.default.join(dir, uniqueKey);
+            for (const providerKey of keys) {
+                const providerPath = path_1.default.join(dir, providerKey);
                 const stats = yield fs_1.promises.lstat(providerPath);
                 if (stats.isDirectory()) {
-                    this.providers[uniqueKey] = new provider_1.Provider(uniqueKey);
+                    this.providers[providerKey] = new provider_1.Provider(providerKey);
                 }
             }
         });
     }
-    getProviderSpecification(uniqueKey) {
+    getProviderSpecification(providerKey) {
         return __awaiter(this, void 0, void 0, function* () {
-            yield this.load(uniqueKey);
-            const provider = this.providers[uniqueKey];
+            yield this.load(providerKey);
+            const provider = this.providers[providerKey];
             return provider ? provider.getSpecification() : null;
         });
     }
@@ -51,14 +51,14 @@ class Registry {
             return Object.values(this.providers).map((provider) => provider.getSpecification());
         });
     }
-    syncProviderModel(uniqueKey, model, context) {
+    syncProviderCollection(providerKey, collectionKey, context) {
         return __awaiter(this, void 0, void 0, function* () {
-            yield this.load(uniqueKey);
-            const provider = this.providers[uniqueKey];
+            yield this.load(providerKey);
+            const provider = this.providers[providerKey];
             if (!provider) {
-                throw new Error(`Failed to load provider ${uniqueKey}`);
+                throw new Error(`Failed to load provider ${providerKey}`);
             }
-            return provider.syncCollection(model, context);
+            return provider.syncCollection(collectionKey, context);
         });
     }
 }

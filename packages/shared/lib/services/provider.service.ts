@@ -28,12 +28,12 @@ class ProviderService {
     }
   }
 
-  public async syncProviderModel(
-    provider: string,
-    model: string,
-    context: SyncContext
+  public async syncProviderCollection(
+    providerKey: string,
+    collectionKey: string,
+    syncContext: SyncContext
   ): Promise<void> {
-    return await this.registry.syncProviderModel(provider, model, context);
+    return this.registry.syncProviderCollection(providerKey, collectionKey, syncContext);
   }
 }
 

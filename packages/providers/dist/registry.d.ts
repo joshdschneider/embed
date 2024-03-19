@@ -3,7 +3,7 @@ export declare class Registry {
     private providers;
     private load;
     private loadAll;
-    getProviderSpecification(uniqueKey: string): Promise<ProviderSpecification | null>;
+    getProviderSpecification(providerKey: string): Promise<ProviderSpecification | null>;
     getAllProviderSpecifications(): Promise<ProviderSpecification[]>;
-    syncProviderModel(uniqueKey: string, model: string, context: SyncContext): Promise<void>;
+    syncProviderCollection(providerKey: string, collectionKey: string, context: SyncContext): Promise<void>;
 }

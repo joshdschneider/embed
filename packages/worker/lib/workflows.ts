@@ -1,11 +1,11 @@
 import { proxyActivities } from '@temporalio/workflow';
 import type * as activities from './activities.js';
-import { ActionArgs, ContinuousSyncArgs, InitialSyncArgs } from './types.js';
+import { ActionArgs, IncrementalSyncArgs, InitialSyncArgs } from './types.js';
 
 const DEFAULT_TIMEOUT = '24 hours';
 const MAXIMUM_ATTEMPTS = 3;
 
-const { runInitialSync, runContinuousSync, executeAction, reportFailure } = proxyActivities<
+const { runInitialSync, runIncrementalSync, executeAction, reportFailure } = proxyActivities<
   typeof activities
 >({
   startToCloseTimeout: DEFAULT_TIMEOUT,
@@ -25,9 +25,9 @@ export async function initialSync(args: InitialSyncArgs): Promise<boolean | obje
   }
 }
 
-export async function continuousSync(args: ContinuousSyncArgs): Promise<boolean | object | null> {
+export async function incrementalSync(args: IncrementalSyncArgs): Promise<boolean | object | null> {
   try {
-    return await runContinuousSync(args);
+    return await runIncrementalSync(args);
   } catch (e: any) {
     return await reportFailure(e, args, DEFAULT_TIMEOUT, MAXIMUM_ATTEMPTS);
   }

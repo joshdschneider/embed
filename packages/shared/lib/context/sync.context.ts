@@ -1,19 +1,23 @@
 import { Context } from '@temporalio/activity';
+import syncService from '../services/sync.service';
+import { now } from '../utils/helpers';
 import { BaseContext, BaseContextOptions } from './base.context';
 
 export type SyncContextOptions = BaseContextOptions & {
-  syncId: string;
-  jobId: string;
+  collectionKey: string;
+  syncRunId: string;
   activityId: string | null;
-  lastSyncDate: Date | null;
-  context: Context;
+  lastSyncedAt: number | null;
+  syncType: 'initial' | 'incremental';
+  temporalContext: Context;
 };
 
 export class SyncContext extends BaseContext {
-  public syncId: string;
-  public jobId: string;
+  public collectionKey: string;
+  public syncRunId: string;
   public activityId: string | null;
-  public lastSyncDate: Date | null;
+  public lastSyncedAt: number | null;
+  public syncType: 'initial' | 'incremental';
 
   private batchSize = 1000;
   private addedKeys: string[];
@@ -23,23 +27,20 @@ export class SyncContext extends BaseContext {
 
   constructor(options: SyncContextOptions) {
     super(options);
-    this.syncId = options.syncId;
-    this.jobId = options.jobId;
+    this.collectionKey = options.collectionKey;
+    this.syncRunId = options.syncRunId;
     this.activityId = options.activityId;
-    this.lastSyncDate = options.lastSyncDate;
+    this.lastSyncedAt = options.lastSyncedAt;
+    this.syncType = options.syncType;
     this.addedKeys = [];
     this.updatedKeys = [];
     this.deletedKeys = [];
 
-    const temporal = options.context;
+    const temporal = options.temporalContext;
     const heartbeat = 1000 * 60 * 5;
     this.interval = setInterval(() => {
       temporal.heartbeat();
     }, heartbeat);
-  }
-
-  public async processFile() {
-    //..
   }
 
   public async batchSave<T = any>(results: T[], model: string): Promise<boolean | null> {
@@ -54,8 +55,23 @@ export class SyncContext extends BaseContext {
     return true;
   }
 
+  public async reportResults() {
+    const results = {
+      records_added: this.addedKeys.length,
+      records_updated: this.updatedKeys.length,
+      records_deleted: this.deletedKeys.length,
+    };
+
+    await syncService.updateSyncRun(this.syncRunId, { ...results });
+    return results;
+  }
+
   public async finish() {
     clearInterval(this.interval);
     this.interval = undefined;
+
+    await syncService.updateSync(this.linkedAccountId, this.collectionKey, {
+      last_synced_at: now(),
+    });
   }
 }

@@ -1,4 +1,4 @@
-import { collectionService, type LinkedAccount } from '@embed/shared';
+import { collectionService, syncService, type LinkedAccount } from '@embed/shared';
 import webhookService from '../services/webhook.service';
 
 class LinkedAccountHook {
@@ -19,12 +19,17 @@ class LinkedAccountHook {
     });
 
     const collections = await collectionService.listCollections(linkedAccount.id, environmentId);
+    if (!collections) {
+      throw new Error('Failed to retrieve collections from database');
+    }
 
-    // linkedAccountService.initiatePostLinkSyncs({
-    //   linkedAccount,
-    //   activityId,
-    //   action: 'created',
-    // });
+    collections.map((collection) => {
+      return syncService.initializeSync({
+        linkedAccountId: linkedAccount.id,
+        collection,
+        activityId,
+      });
+    });
   }
 
   public async linkedAccountUpdated({
@@ -43,11 +48,18 @@ class LinkedAccountHook {
       action: 'updated',
     });
 
-    // linkedAccountService.initiatePostLinkSyncs({
-    //   linkedAccount,
-    //   activityId,
-    //   action: 'updated',
-    // });
+    const collections = await collectionService.listCollections(linkedAccount.id, environmentId);
+    if (!collections) {
+      throw new Error('Failed to retrieve collections from database');
+    }
+
+    collections.map((collection) => {
+      return syncService.initializeSync({
+        linkedAccountId: linkedAccount.id,
+        collection,
+        activityId,
+      });
+    });
   }
 }
 
