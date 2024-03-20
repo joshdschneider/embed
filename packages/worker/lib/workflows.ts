@@ -5,7 +5,7 @@ import { ActionArgs, IncrementalSyncArgs, InitialSyncArgs } from './types.js';
 const DEFAULT_TIMEOUT = '24 hours';
 const MAXIMUM_ATTEMPTS = 3;
 
-const { runInitialSync, runIncrementalSync, executeAction, reportFailure } = proxyActivities<
+const { runInitialSync, runIncrementalSync, triggerAction, reportFailure } = proxyActivities<
   typeof activities
 >({
   startToCloseTimeout: DEFAULT_TIMEOUT,
@@ -17,7 +17,7 @@ const { runInitialSync, runIncrementalSync, executeAction, reportFailure } = pro
   },
 });
 
-export async function initialSync(args: InitialSyncArgs): Promise<boolean | object | null> {
+export async function initialSync(args: InitialSyncArgs): Promise<void> {
   try {
     return await runInitialSync(args);
   } catch (err: any) {
@@ -25,7 +25,7 @@ export async function initialSync(args: InitialSyncArgs): Promise<boolean | obje
   }
 }
 
-export async function incrementalSync(args: IncrementalSyncArgs): Promise<boolean | object | null> {
+export async function incrementalSync(args: IncrementalSyncArgs): Promise<void> {
   try {
     return await runIncrementalSync(args);
   } catch (e: any) {
@@ -33,9 +33,9 @@ export async function incrementalSync(args: IncrementalSyncArgs): Promise<boolea
   }
 }
 
-export async function action(args: ActionArgs): Promise<boolean | object | null> {
+export async function action(args: ActionArgs): Promise<void> {
   try {
-    return await executeAction(args);
+    return await triggerAction(args);
   } catch (e: any) {
     return await reportFailure(e, args, DEFAULT_TIMEOUT, MAXIMUM_ATTEMPTS);
   }

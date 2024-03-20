@@ -19,15 +19,15 @@ import { SyncObject, SyncRunObject, UpdateSyncRequestSchema } from '../utils/typ
 
 class SyncController {
   public async listSyncs(req: Request, res: Response) {
-    try {
-      const linkedAccountId = req.params['linked_account_id'];
-      if (!linkedAccountId) {
-        return errorService.errorResponse(res, {
-          code: ErrorCode.BadRequest,
-          message: 'Linked account ID missing',
-        });
-      }
+    const linkedAccountId = req.params['linked_account_id'];
+    if (!linkedAccountId) {
+      return errorService.errorResponse(res, {
+        code: ErrorCode.BadRequest,
+        message: 'Linked account ID missing',
+      });
+    }
 
+    try {
       const syncs = await syncService.listSyncs(linkedAccountId);
       if (!syncs) {
         return errorService.errorResponse(res, {
@@ -62,22 +62,22 @@ class SyncController {
   }
 
   public async retrieveSync(req: Request, res: Response) {
+    const linkedAccountId = req.params['linked_account_id'];
+    const collectionKey = req.params['collection_key'];
+
+    if (!linkedAccountId) {
+      return errorService.errorResponse(res, {
+        code: ErrorCode.BadRequest,
+        message: 'Linked account ID missing',
+      });
+    } else if (!collectionKey) {
+      return errorService.errorResponse(res, {
+        code: ErrorCode.BadRequest,
+        message: 'Collection unique key missing',
+      });
+    }
+
     try {
-      const linkedAccountId = req.params['linked_account_id'];
-      const collectionKey = req.params['collection_key'];
-
-      if (!linkedAccountId) {
-        return errorService.errorResponse(res, {
-          code: ErrorCode.BadRequest,
-          message: 'Linked account ID missing',
-        });
-      } else if (!collectionKey) {
-        return errorService.errorResponse(res, {
-          code: ErrorCode.BadRequest,
-          message: 'Collection unique key missing',
-        });
-      }
-
       const sync = await syncService.retrieveSync(linkedAccountId, collectionKey);
 
       if (!sync) {
@@ -111,22 +111,22 @@ class SyncController {
   }
 
   public async updateSync(req: Request, res: Response) {
+    const linkedAccountId = req.params['linked_account_id'];
+    const collectionKey = req.params['collection_key'];
+
+    if (!linkedAccountId) {
+      return errorService.errorResponse(res, {
+        code: ErrorCode.BadRequest,
+        message: 'Linked account ID missing',
+      });
+    } else if (!collectionKey) {
+      return errorService.errorResponse(res, {
+        code: ErrorCode.BadRequest,
+        message: 'Collection unique key missing',
+      });
+    }
+
     try {
-      const linkedAccountId = req.params['linked_account_id'];
-      const collectionKey = req.params['collection_key'];
-
-      if (!linkedAccountId) {
-        return errorService.errorResponse(res, {
-          code: ErrorCode.BadRequest,
-          message: 'Linked account ID missing',
-        });
-      } else if (!collectionKey) {
-        return errorService.errorResponse(res, {
-          code: ErrorCode.BadRequest,
-          message: 'Collection unique key missing',
-        });
-      }
-
       const parsedBody = UpdateSyncRequestSchema.safeParse(req.body);
 
       if (!parsedBody.success) {
@@ -137,9 +137,11 @@ class SyncController {
       }
 
       const { frequency } = parsedBody.data;
-      const updatedSync = await syncService.updateSync(linkedAccountId, collectionKey, {
-        frequency,
-      });
+      const updatedSync = await syncService.updateSyncFrequency(
+        linkedAccountId,
+        collectionKey,
+        frequency
+      );
 
       if (!updatedSync) {
         return errorService.errorResponse(res, {
@@ -291,11 +293,6 @@ class SyncController {
         level: LogLevel.Info,
         timestamp: now(),
         message: 'Sync stopped',
-        payload: {
-          integration: sync.integration_key,
-          linked_account: sync.linked_account_id,
-          collection: sync.collection_key,
-        },
       });
 
       const syncObject: SyncObject = {
@@ -318,11 +315,6 @@ class SyncController {
         level: LogLevel.Error,
         timestamp: now(),
         message: 'Failed to stop sync',
-        payload: {
-          integration: sync.integration_key,
-          linked_account: sync.linked_account_id,
-          collection: sync.collection_key,
-        },
       });
 
       return errorService.errorResponse(res, {
@@ -397,11 +389,6 @@ class SyncController {
         level: LogLevel.Error,
         timestamp: now(),
         message: 'Failed to trigger sync',
-        payload: {
-          integration: sync.integration_key,
-          linked_account: sync.linked_account_id,
-          collection: sync.collection_key,
-        },
       });
 
       return errorService.errorResponse(res, {
@@ -412,22 +399,22 @@ class SyncController {
   }
 
   public async listSyncRuns(req: Request, res: Response) {
+    const linkedAccountId = req.params['linked_account_id'];
+    const collectionKey = req.params['collection_key'];
+
+    if (!linkedAccountId) {
+      return errorService.errorResponse(res, {
+        code: ErrorCode.BadRequest,
+        message: 'Linked account ID missing',
+      });
+    } else if (!collectionKey) {
+      return errorService.errorResponse(res, {
+        code: ErrorCode.BadRequest,
+        message: 'Collection unique key missing',
+      });
+    }
+
     try {
-      const linkedAccountId = req.params['linked_account_id'];
-      const collectionKey = req.params['collection_key'];
-
-      if (!linkedAccountId) {
-        return errorService.errorResponse(res, {
-          code: ErrorCode.BadRequest,
-          message: 'Linked account ID missing',
-        });
-      } else if (!collectionKey) {
-        return errorService.errorResponse(res, {
-          code: ErrorCode.BadRequest,
-          message: 'Collection unique key missing',
-        });
-      }
-
       const syncRuns = await syncService.listSyncRuns(linkedAccountId, collectionKey);
 
       if (!syncRuns) {
@@ -465,15 +452,15 @@ class SyncController {
   }
 
   public async retrieveSyncRun(req: Request, res: Response) {
-    try {
-      const syncRunId = req.params['run_id'];
-      if (!syncRunId) {
-        return errorService.errorResponse(res, {
-          code: ErrorCode.BadRequest,
-          message: 'Sync run ID missing',
-        });
-      }
+    const syncRunId = req.params['run_id'];
+    if (!syncRunId) {
+      return errorService.errorResponse(res, {
+        code: ErrorCode.BadRequest,
+        message: 'Sync run ID missing',
+      });
+    }
 
+    try {
       const syncRun = await syncService.retrieveSyncRun(syncRunId);
       if (!syncRun) {
         return errorService.errorResponse(res, {

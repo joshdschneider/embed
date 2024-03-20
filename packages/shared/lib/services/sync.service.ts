@@ -67,26 +67,19 @@ class SyncService {
         level: LogLevel.Error,
         message: 'Failed to initialize sync for linked account',
         timestamp: now(),
-        payload: {
-          linked_account: linkedAccountId,
-          integration: collection.integration_key,
-          collection: collection.unique_key,
-        },
       });
     }
   }
 
   public async startSync(sync: Sync, activityId: string | null): Promise<Sync | null> {
-    const temporal = await TemporalClient.getInstance();
-
-    if (!temporal) {
-      await errorService.reportError(new Error('Failed to get Temporal client instance'));
-      return null;
-    }
-
     try {
+      const temporal = await TemporalClient.getInstance();
+      if (!temporal) {
+        throw new Error('Failed to get Temporal client instance');
+      }
+
       const syncRuns = await this.listSyncRuns(sync.linked_account_id, sync.collection_key);
-      if (!syncRuns) {
+      if (syncRuns == null) {
         throw new Error('Failed to retrieve sync runs from database');
       }
 
@@ -102,7 +95,7 @@ class SyncService {
           linked_account_id: sync.linked_account_id,
           collection_key: sync.collection_key,
           temporal_run_id: null,
-          status: SyncRunStatus.Running,
+          status: SyncRunStatus.Stopped,
           type: SyncRunType.Initial,
           records_added: null,
           records_updated: null,
@@ -126,13 +119,17 @@ class SyncService {
         });
 
         if (!temporalRunId) {
-          await this.updateSyncRun(newSyncRun.id, { status: SyncRunStatus.Failed });
+          await this.updateSyncRun(newSyncRun.id, {
+            status: SyncRunStatus.Failed,
+          });
+
           throw new Error('Failed to start initial sync in Temporal');
         } else {
-          await this.updateSyncRun(newSyncRun.id, { temporal_run_id: temporalRunId });
+          await this.updateSyncRun(newSyncRun.id, {
+            status: SyncRunStatus.Running,
+            temporal_run_id: temporalRunId,
+          });
         }
-      } else if (initialSyncRun.status === SyncRunStatus.Running) {
-        throw new Error('Initial sync is still running');
       }
 
       const syncSchedule = await this.getSyncSchedule(sync.linked_account_id, sync.collection_key);
@@ -195,11 +192,6 @@ class SyncService {
             level: LogLevel.Info,
             message: 'Sync schedule started',
             timestamp: now(),
-            payload: {
-              integration: sync.integration_key,
-              linked_account: sync.linked_account_id,
-              collection: sync.collection_key,
-            },
           });
         }
       }
@@ -323,10 +315,43 @@ class SyncService {
     }
   }
 
-  public async listSyncs(linkedAccountId: string): Promise<Sync[] | null> {
+  public async updateSyncFrequency(
+    linkedAccountId: string,
+    collectionKey: string,
+    frequency: string
+  ): Promise<Sync | null> {
     try {
-      return await database.sync.findMany({
-        where: { linked_account_id: linkedAccountId, deleted_at: null },
+      const syncSchedule = await this.getSyncSchedule(linkedAccountId, collectionKey);
+      if (!syncSchedule) {
+        throw new Error('Sync schedule not found');
+      }
+
+      const { interval, offset, error } = getFrequencyInterval(frequency, new Date());
+      if (error !== null) {
+        throw new Error(error);
+      }
+
+      const temporal = await TemporalClient.getInstance();
+      if (!temporal) {
+        throw new Error('Failed to get Temporal client instance');
+      }
+
+      const didUpdate = temporal.updateSyncSchedule(syncSchedule.id, interval, offset);
+      if (!didUpdate) {
+        throw new Error('Failed to update sync schedule in Temporal');
+      }
+
+      const updatedSyncSchedule = this.updateSyncSchedule(syncSchedule.id, {
+        frequency: interval,
+        offset,
+      });
+
+      if (!updatedSyncSchedule) {
+        throw new Error('Failed to update sync schedule in database');
+      }
+
+      return await this.updateSync(linkedAccountId, collectionKey, {
+        frequency: interval,
       });
     } catch (err) {
       await errorService.reportError(err);
@@ -334,16 +359,54 @@ class SyncService {
     }
   }
 
-  public async retrieveSync(linkedAccountId: string, collectionKey: string): Promise<Sync | null> {
+  public async isInitialSyncRunning(
+    linkedAccountId: string,
+    collectionKey: string
+  ): Promise<boolean | null> {
     try {
-      return await database.sync.findUnique({
-        where: {
-          collection_key_linked_account_id: {
-            linked_account_id: linkedAccountId,
-            collection_key: collectionKey,
-          },
-          deleted_at: null,
-        },
+      const syncRuns = await this.listSyncRuns(linkedAccountId, collectionKey);
+      if (syncRuns == null) {
+        throw new Error('Failed to list sync runs');
+      }
+
+      const stillRunning = syncRuns.find(
+        (run) => run.type === SyncRunType.Initial && run.status === SyncRunStatus.Running
+      );
+
+      return !!stillRunning;
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
+    }
+  }
+
+  public async handleSyncFailure(
+    linkedAccountId: string,
+    collectionKey: string,
+    syncRunId: string
+  ): Promise<Sync | null> {
+    try {
+      const temporal = await TemporalClient.getInstance();
+      if (!temporal) {
+        throw new Error('Failed to get Temporal client instance');
+      }
+
+      await this.updateSyncRun(syncRunId, {
+        status: SyncRunStatus.Failed,
+      });
+
+      const syncSchedule = await this.getSyncSchedule(linkedAccountId, collectionKey);
+      if (syncSchedule) {
+        const scheduleDidPause = await temporal.pauseSyncSchedule(syncSchedule.id);
+        if (scheduleDidPause) {
+          await this.updateSyncSchedule(syncSchedule.id, {
+            status: SyncScheduleStatus.Stopped,
+          });
+        }
+      }
+
+      return await this.updateSync(linkedAccountId, collectionKey, {
+        status: SyncStatus.Error,
       });
     } catch (err) {
       await errorService.reportError(err);
@@ -373,6 +436,34 @@ class SyncService {
     }
   }
 
+  public async listSyncs(linkedAccountId: string): Promise<Sync[] | null> {
+    try {
+      return await database.sync.findMany({
+        where: { linked_account_id: linkedAccountId, deleted_at: null },
+      });
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
+    }
+  }
+
+  public async retrieveSync(linkedAccountId: string, collectionKey: string): Promise<Sync | null> {
+    try {
+      return await database.sync.findUnique({
+        where: {
+          collection_key_linked_account_id: {
+            linked_account_id: linkedAccountId,
+            collection_key: collectionKey,
+          },
+          deleted_at: null,
+        },
+      });
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
+    }
+  }
+
   public async createSync(sync: Sync): Promise<Sync | null> {
     try {
       const existingSync = await database.sync.findUnique({
@@ -385,7 +476,11 @@ class SyncService {
       });
 
       if (existingSync) {
-        return existingSync;
+        if (existingSync.deleted_at) {
+          return await this.updateSync(sync.linked_account_id, sync.collection_key, { ...sync });
+        } else {
+          return existingSync;
+        }
       }
 
       return await database.sync.create({ data: sync });
@@ -511,6 +606,41 @@ class SyncService {
     try {
       return await database.syncSchedule.findUnique({
         where: { id: syncScheduleId, deleted_at: null },
+      });
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
+    }
+  }
+
+  public async deleteSync(linkedAccountId: string, collectionKey: string): Promise<Sync | null> {
+    try {
+      const temporal = await TemporalClient.getInstance();
+      if (!temporal) {
+        throw new Error('Failed to get Temporal client instance');
+      }
+
+      const syncSchedule = await this.getSyncSchedule(linkedAccountId, collectionKey);
+      if (syncSchedule) {
+        await temporal.deleteSyncSchedule(syncSchedule.id);
+        await this.updateSyncSchedule(syncSchedule.id, {
+          deleted_at: now(),
+        });
+      }
+
+      const syncRuns = await this.listSyncRuns(linkedAccountId, collectionKey);
+      if (!syncRuns) {
+        throw new Error('Failed to get sync runs');
+      }
+
+      for (const syncRun of syncRuns) {
+        if (syncRun.status === SyncRunStatus.Running && syncRun.temporal_run_id) {
+          await temporal.terminateSyncRun(syncRun.temporal_run_id);
+        }
+      }
+
+      return await this.updateSync(linkedAccountId, collectionKey, {
+        deleted_at: now(),
       });
     } catch (err) {
       await errorService.reportError(err);
