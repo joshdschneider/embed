@@ -11,7 +11,6 @@ class ProxyController {
   public async routeRequest(req: Request, res: Response): Promise<void> {
     try {
       const linkedAccountId = req.get('Embed-Linked-Account-Id');
-
       if (!linkedAccountId) {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
@@ -19,27 +18,19 @@ class ProxyController {
         });
       }
 
-      const integration = req.get('Embed-Integration');
-
-      if (!integration) {
-        return errorService.errorResponse(res, {
-          code: ErrorCode.BadRequest,
-          message: 'Integration is missing',
-        });
-      }
-
       const method = req.method.toUpperCase() as HttpMethod;
       const retries = req.get('Retries') ? Number(req.get('Retries')) : 0;
       const headers = this.parseHeaders(req);
       const endpoint = this.buildEndpoint(req);
+      const data = req.body;
 
       const options: ProxyOptions = {
         linkedAccountId,
-        integration,
-        method,
-        retries,
-        headers,
         endpoint,
+        method,
+        headers,
+        data,
+        retries,
       };
 
       try {
@@ -95,7 +86,7 @@ class ProxyController {
       return {};
     }
 
-    const prefix = 'embed-proxy-';
+    const prefix = 'Embed-Proxy-';
     const headers = req.rawHeaders;
 
     return headers.reduce((acc: Record<string, string>, currentValue, currentIndex, array) => {

@@ -20,7 +20,6 @@ export type EmbedOptions = {
 };
 
 export interface ProxyOptions {
-  integration: string;
   linkedAccountId: string;
   endpoint: string;
   method?: HttpMethod;
@@ -51,11 +50,7 @@ export default class Embed {
   }
 
   public async proxy<T = any>(options: ProxyOptions): Promise<AxiosResponse<T>> {
-    const requiredParams: Array<keyof ProxyOptions> = [
-      'endpoint',
-      'integration',
-      'linkedAccountId',
-    ];
+    const requiredParams: Array<keyof ProxyOptions> = ['endpoint', 'linkedAccountId'];
 
     requiredParams.forEach((param) => {
       if (typeof options[param] === 'undefined') {
@@ -75,7 +70,6 @@ export default class Embed {
 
     const headers: Record<string, string | number | boolean> = {
       'Embed-Linked-Account-Id': options.linkedAccountId,
-      'Embed-Integration': options.integration,
       ...customHeaders,
     };
 

@@ -47,3 +47,18 @@ export function getFrequencyInterval(
     return { interval: null, offset: null, error };
   }
 }
+
+export function interpolateIfNeeded(str: string, replacers: Record<string, any>) {
+  if (str.includes('${')) {
+    return interpolateStringFromObject(str, replacers);
+  } else {
+    return str;
+  }
+}
+
+export function interpolateStringFromObject(str: string, replacers: Record<string, any>) {
+  return str.replace(/\${([^{}]*)}/g, (a, b) => {
+    const r = b.split('.').reduce((o: Record<string, any>, i: string) => o[i], replacers);
+    return typeof r === 'string' || typeof r === 'number' ? (r as string) : a;
+  });
+}

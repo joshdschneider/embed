@@ -55,13 +55,14 @@ export async function runInitialSync(args: InitialSyncArgs): Promise<void> {
     });
   } catch (err) {
     await errorService.reportError(err);
-    await syncService.handleSyncFailure(args.linkedAccountId, args.collectionKey, args.syncRunId);
 
     await activityService.createActivityLog(args.activityId, {
       message: `Initial sync failed`,
       level: LogLevel.Error,
       timestamp: now(),
     });
+
+    await syncService.handleSyncFailure(args.linkedAccountId, args.collectionKey, args.syncRunId);
   }
 }
 
@@ -130,13 +131,14 @@ export async function runIncrementalSync(args: IncrementalSyncArgs): Promise<voi
     });
   } catch (err) {
     await errorService.reportError(err);
-    await syncService.handleSyncFailure(args.linkedAccountId, args.collectionKey, args.syncRunId);
 
     await activityService.createActivityLog(args.activityId, {
       message: `Incremental sync failed`,
       level: LogLevel.Error,
       timestamp: now(),
     });
+
+    await syncService.handleSyncFailure(args.linkedAccountId, args.collectionKey, args.syncRunId);
   }
 }
 
