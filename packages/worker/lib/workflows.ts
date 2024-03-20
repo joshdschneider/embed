@@ -28,15 +28,15 @@ export async function initialSync(args: InitialSyncArgs): Promise<void> {
 export async function incrementalSync(args: IncrementalSyncArgs): Promise<void> {
   try {
     return await runIncrementalSync(args);
-  } catch (e: any) {
-    return await reportFailure(e, args, DEFAULT_TIMEOUT, MAXIMUM_ATTEMPTS);
+  } catch (err: any) {
+    return await reportFailure(err, args, DEFAULT_TIMEOUT, MAXIMUM_ATTEMPTS);
   }
 }
 
 export async function action(args: ActionArgs): Promise<void> {
   try {
     return await triggerAction(args);
-  } catch (e: any) {
-    return await reportFailure(e, args, DEFAULT_TIMEOUT, MAXIMUM_ATTEMPTS);
+  } catch (err: any) {
+    return await reportFailure(err, args, DEFAULT_TIMEOUT, MAXIMUM_ATTEMPTS);
   }
 }

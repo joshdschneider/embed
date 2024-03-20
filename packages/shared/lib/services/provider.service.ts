@@ -19,9 +19,9 @@ class ProviderService {
     }
   }
 
-  public async getProviderSpec(providerSlug: string): Promise<ProviderSpecification | null> {
+  public async getProviderSpec(providerKey: string): Promise<ProviderSpecification | null> {
     try {
-      return await this.registry.getProviderSpecification(providerSlug);
+      return await this.registry.getProviderSpecification(providerKey);
     } catch (err) {
       errorService.reportError(err);
       return null;

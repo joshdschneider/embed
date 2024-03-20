@@ -8,4 +8,4 @@ auth:
   scheme: api_key
 
 headers:
-  Authorization: Klaviyo-API-Key ${apiKey}
+  Authorization: Klaviyo-API-Key ${api_key}
