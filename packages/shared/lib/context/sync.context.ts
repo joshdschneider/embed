@@ -1,6 +1,4 @@
 import { Context } from '@temporalio/activity';
-import syncService from '../services/sync.service';
-import { now } from '../utils/helpers';
 import { BaseContext, BaseContextOptions } from './base.context';
 
 export type SyncContextOptions = BaseContextOptions & {
@@ -56,22 +54,15 @@ export class SyncContext extends BaseContext {
   }
 
   public async reportResults() {
-    const results = {
+    return {
       records_added: this.addedKeys.length,
       records_updated: this.updatedKeys.length,
       records_deleted: this.deletedKeys.length,
     };
-
-    await syncService.updateSyncRun(this.syncRunId, { ...results });
-    return results;
   }
 
   public async finish() {
     clearInterval(this.interval);
     this.interval = undefined;
-
-    await syncService.updateSync(this.linkedAccountId, this.collectionKey, {
-      last_synced_at: now(),
-    });
   }
 }
