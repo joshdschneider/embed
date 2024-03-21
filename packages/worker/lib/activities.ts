@@ -48,7 +48,7 @@ export async function runInitialSync(args: InitialSyncArgs): Promise<void> {
     });
 
     await activityService.createActivityLog(args.activityId, {
-      message: `Initial sync finished successfully`,
+      message: `Initial sync complete`,
       level: LogLevel.Info,
       timestamp: now(),
       payload: { ...results },
@@ -124,7 +124,7 @@ export async function runIncrementalSync(args: IncrementalSyncArgs): Promise<voi
     });
 
     await activityService.createActivityLog(args.activityId, {
-      message: `Incremental sync finished successfully`,
+      message: `Incremental sync complete`,
       level: LogLevel.Info,
       timestamp: now(),
       payload: { ...results },

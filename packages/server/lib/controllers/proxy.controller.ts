@@ -47,15 +47,15 @@ class ProxyController {
             const errorObject = { message, stack, code, status, url, method: config?.method };
             const responseStatus = error.response?.status || 500;
             const responseHeaders = error.response?.headers || {};
-
             res.writeHead(responseStatus, responseHeaders as OutgoingHttpHeaders);
+
             const stream = new Readable();
             stream.push(JSON.stringify(errorObject));
             stream.push(null);
             stream.pipe(res);
           } else {
             const errorData = error.response.data as Readable;
-            const stringify = new Transform({
+            const stream = new Transform({
               transform(chunk: Buffer, _encoding, callback) {
                 callback(null, chunk);
               },
@@ -64,7 +64,7 @@ class ProxyController {
               res.writeHead(error.response.status, error.response.headers as OutgoingHttpHeaders);
             }
             if (errorData) {
-              errorData.pipe(stringify).pipe(res);
+              errorData.pipe(stream).pipe(res);
             }
           }
         } else {

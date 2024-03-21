@@ -21,6 +21,7 @@ schemas:
       id:
         type: string
         description: The unique identifier for the file.
+        vector_searchable: false
       url:
         type: string
         description: The webview link URL for the file.
