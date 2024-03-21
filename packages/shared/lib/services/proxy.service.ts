@@ -160,7 +160,10 @@ class ProxyService {
         return [k, val];
       });
 
-      headers = { ...headers, ...Object.fromEntries(interpolatedEntries) };
+      headers = {
+        ...headers,
+        ...Object.fromEntries(interpolatedEntries),
+      };
     }
 
     if (options.headers) {
