@@ -128,7 +128,7 @@ class ProxyService {
 
     const interpolatedEndpoint = interpolateIfNeeded(
       `${baseUrl}${endpoint ? '/' : ''}${endpoint}`,
-      configuration as Record<string, string>
+      { configuration }
     );
 
     return interpolatedEndpoint;

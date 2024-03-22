@@ -11,7 +11,14 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 function syncFiles(context) {
     return __awaiter(this, void 0, void 0, function* () {
-        //..
+        // paginate through files
+        // save all ids
+        // process files created or edited after last_synced_at
+        // for each file to process
+        //    break up into chunks
+        //
+        //    save file with chunks in weaviate
+        //    save unique file in postgres
     });
 }
 exports.default = syncFiles;

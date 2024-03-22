@@ -18,7 +18,11 @@ class LinkedAccountHook {
       action: 'created',
     });
 
-    const collections = await collectionService.listCollections(linkedAccount.id, environmentId);
+    const collections = await collectionService.listCollections(
+      linkedAccount.integration_key,
+      environmentId
+    );
+
     if (!collections) {
       throw new Error('Failed to retrieve collections from database');
     }
@@ -48,7 +52,11 @@ class LinkedAccountHook {
       action: 'updated',
     });
 
-    const collections = await collectionService.listCollections(linkedAccount.id, environmentId);
+    const collections = await collectionService.listCollections(
+      linkedAccount.integration_key,
+      environmentId
+    );
+
     if (!collections) {
       throw new Error('Failed to retrieve collections from database');
     }

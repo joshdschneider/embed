@@ -80,12 +80,17 @@ class EncryptionService {
     return decryptedIntegration;
   }
 
+  public hashApiKey(key: string): string {
+    return crypto.createHash('sha256').update(key).digest('hex');
+  }
+
   public encryptApiKey(apiKey: ApiKey): ApiKey {
     if (!this.shouldEncrypt()) {
       return apiKey;
     }
 
     const [encryptedKey, iv, tag] = this.encrypt(apiKey.key);
+
     const encryptedApiKey: ApiKey = {
       ...apiKey,
       key: encryptedKey,

@@ -58,7 +58,7 @@ export default class Embed {
       }
     });
 
-    const url = `${this.hostBaseUrl}/proxy${options.endpoint[0] === '/' ? '' : '/'}${options.endpoint}`;
+    const url = `${this.hostBaseUrl}/v1/proxy${options.endpoint[0] === '/' ? '' : '/'}${options.endpoint}`;
     const headerOptions = options.headers;
     const customHeaders =
       headerOptions && Object.keys(headerOptions).length > 0

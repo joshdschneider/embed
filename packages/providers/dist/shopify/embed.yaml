@@ -10,4 +10,4 @@ auth:
   token_url: https://${configuration.subdomain}.myshopify.com/admin/oauth/access_token
 
 headers:
-  X-Shopify-Access-Token: ${accessToken}
+  X-Shopify-Access-Token: ${access_token}
