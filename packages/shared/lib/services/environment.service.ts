@@ -1,4 +1,4 @@
-import { ApiKey, Environment } from '@prisma/client';
+import { Environment } from '@prisma/client';
 import { DEFAULT_BRANDING } from '../utils/constants';
 import { database } from '../utils/database';
 import { now } from '../utils/helpers';
@@ -34,9 +34,10 @@ class EnvironmentService {
 
   public async getEnvironmentByApiKey(key: string): Promise<Environment | null> {
     try {
-      const { key: encryptedApiKey } = encryptionService.encryptApiKey({ key } as ApiKey);
+      const keyHash = encryptionService.hashApiKey(key);
+
       const apiKey = await database.apiKey.findUnique({
-        where: { key: encryptedApiKey },
+        where: { key_hash: keyHash },
         include: { environment: true },
       });
 

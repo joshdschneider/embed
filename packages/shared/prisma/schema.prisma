@@ -58,7 +58,8 @@ model Environment {
 model ApiKey {
   id             String  @id
   environment_id String
-  key            String  @unique
+  key            String
+  key_hash       String  @unique
   key_iv         String?
   key_tag        String?
   name           String?

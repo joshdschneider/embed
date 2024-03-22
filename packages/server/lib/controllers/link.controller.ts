@@ -535,13 +535,13 @@ class LinkController {
           await linkTokenService.deleteLinkToken(linkToken.id);
 
           if (response.action === 'created') {
-            await linkedAccountHook.linkedAccountCreated({
+            linkedAccountHook.linkedAccountCreated({
               environmentId: linkToken.environment_id,
               linkedAccount: response.linkedAccount,
               activityId,
             });
           } else if (response.action === 'updated') {
-            await linkedAccountHook.linkedAccountUpdated({
+            linkedAccountHook.linkedAccountUpdated({
               environmentId: linkToken.environment_id,
               linkedAccount: response.linkedAccount,
               activityId,
@@ -1153,13 +1153,13 @@ class LinkController {
       await linkTokenService.deleteLinkToken(linkToken.id);
 
       if (response.action === 'created') {
-        await linkedAccountHook.linkedAccountCreated({
+        linkedAccountHook.linkedAccountCreated({
           environmentId: linkToken.environment_id,
           linkedAccount: response.linkedAccount,
           activityId,
         });
       } else if (response.action === 'updated') {
-        await linkedAccountHook.linkedAccountUpdated({
+        linkedAccountHook.linkedAccountUpdated({
           environmentId: linkToken.environment_id,
           linkedAccount: response.linkedAccount,
           activityId,
@@ -1482,13 +1482,13 @@ class LinkController {
       await linkTokenService.deleteLinkToken(linkToken.id);
 
       if (response.action === 'created') {
-        await linkedAccountHook.linkedAccountCreated({
+        linkedAccountHook.linkedAccountCreated({
           environmentId: linkToken.environment_id,
           linkedAccount: response.linkedAccount,
           activityId,
         });
       } else if (response.action === 'updated') {
-        await linkedAccountHook.linkedAccountUpdated({
+        linkedAccountHook.linkedAccountUpdated({
           environmentId: linkToken.environment_id,
           linkedAccount: response.linkedAccount,
           activityId,

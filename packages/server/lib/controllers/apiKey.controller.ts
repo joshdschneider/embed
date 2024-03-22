@@ -4,6 +4,7 @@ import {
   ErrorCode,
   Resource,
   apiKeyService,
+  encryptionService,
   environmentService,
   errorService,
   generateId,
@@ -28,10 +29,14 @@ class ApiKeyController {
       }
 
       const type = environment.type as EnvironmentType;
+      const key = generateSecretKey(type);
+      const hash = encryptionService.hashApiKey(key);
+
       const apiKey = await apiKeyService.createApiKey({
         id: generateId(Resource.ApiKey),
         environment_id: environmentId,
-        key: generateSecretKey(type),
+        key,
+        key_hash: hash,
         key_iv: null,
         key_tag: null,
         name: name || null,

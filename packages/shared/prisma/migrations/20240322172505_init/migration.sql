@@ -48,6 +48,7 @@ CREATE TABLE "ApiKey" (
     "key" TEXT NOT NULL,
     "key_iv" TEXT,
     "key_tag" TEXT,
+    "key_hash" TEXT,
     "name" TEXT,
     "created_at" INTEGER NOT NULL,
     "updated_at" INTEGER NOT NULL,
