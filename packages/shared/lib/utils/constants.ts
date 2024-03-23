@@ -170,6 +170,7 @@ export const DEFAULT_LIMIT = 20;
 
 export const DEFAULT_SYNC_FREQUENCY = '1d';
 export const DEFAULT_AUTO_START_SYNC = false;
+export const DEFAULT_PROXY_ATTEMPTS = 3;
 
 export const SUPPORTED_LANGUAGES = ['en'];
 

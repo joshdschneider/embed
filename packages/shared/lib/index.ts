@@ -1,3 +1,11 @@
+import { OAuth1Client, OAuth1RequestTokenResult } from './clients/oauth1.client';
+import {
+  OAuth1Credentials,
+  OAuth2Credentials,
+  getFreshOAuth2Credentials,
+  getSimpleOAuth2ClientConfig,
+  parseRawCredentials,
+} from './clients/oauth2.client';
 import { ActionContext } from './context/action.context';
 import { BaseContext } from './context/base.context';
 import { SyncContext } from './context/sync.context';
@@ -36,6 +44,10 @@ export {
 export {
   ActionContext,
   BaseContext,
+  OAuth1Client,
+  OAuth1Credentials,
+  OAuth1RequestTokenResult,
+  OAuth2Credentials,
   SyncContext,
   actionService,
   activityService,
@@ -44,8 +56,11 @@ export {
   encryptionService,
   environmentService,
   errorService,
+  getFreshOAuth2Credentials,
+  getSimpleOAuth2ClientConfig,
   integrationService,
   linkedAccountService,
+  parseRawCredentials,
   providerService,
   proxyService,
   syncService,

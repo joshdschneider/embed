@@ -20,19 +20,6 @@ export function formatKeyToReadableText(key: string): string {
   return words.map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
 }
 
-export function interpolateString(str: string, replacers: Record<string, any>) {
-  return str.replace(/\${([^{}]*)}/g, (a, b) => {
-    const r = replacers[b];
-    return typeof r === 'string' || typeof r === 'number' ? (r as string) : a;
-  });
-}
-
-export function missesInterpolationParam(str: string, replacers: Record<string, any>) {
-  const strWithoutConfig = str.replace(/configuration\./g, '');
-  const interpolatedStr = interpolateString(strWithoutConfig, replacers);
-  return /\${([^{}]*)}/g.test(interpolatedStr);
-}
-
 export function appendParamsToUrl(url: string, params: Record<string, string>) {
   const baseUrl = new URL(url);
   Object.entries(params).forEach(([key, value]) => {

@@ -62,3 +62,16 @@ export function interpolateStringFromObject(str: string, replacers: Record<strin
     return typeof r === 'string' || typeof r === 'number' ? (r as string) : a;
   });
 }
+
+export function interpolateString(str: string, replacers: Record<string, any>) {
+  return str.replace(/\${([^{}]*)}/g, (a, b) => {
+    const r = replacers[b];
+    return typeof r === 'string' || typeof r === 'number' ? (r as string) : a;
+  });
+}
+
+export function missesInterpolationParam(str: string, replacers: Record<string, any>) {
+  const strWithoutConfig = str.replace(/configuration\./g, '');
+  const interpolatedStr = interpolateString(strWithoutConfig, replacers);
+  return /\${([^{}]*)}/g.test(interpolatedStr);
+}
