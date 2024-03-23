@@ -22,9 +22,15 @@ schemas:
         type: string
         description: The unique identifier for the file.
         vector_searchable: false
-      url:
+      webview_link:
         type: string
         description: The webview link URL for the file.
+        index_searchable: false
+        index_filterable: false
+        vector_searchable: false
+      download_link:
+        type: string
+        description: The download link URL for the file.
         index_searchable: false
         index_filterable: false
         vector_searchable: false

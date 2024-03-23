@@ -1,9 +1,12 @@
+import { AuthScheme, OAuth2, ProviderSpecification } from '@embed/providers';
 import { LinkedAccount } from '@prisma/client';
+import { getFreshOAuth2Credentials } from '../clients/oauth2.client';
 import { DEFAULT_LIMIT, MAX_LIMIT, MIN_LIMIT } from '../utils/constants';
 import { database } from '../utils/database';
 import { now } from '../utils/helpers';
 import encryptionService from './encryption.service';
 import errorService from './error.service';
+import integrationService from './integration.service';
 
 class LinkedAccountService {
   public async upsertLinkedAccount(linkedAccount: LinkedAccount): Promise<{
@@ -156,6 +159,19 @@ class LinkedAccountService {
     data: Partial<LinkedAccount>
   ): Promise<LinkedAccount | null> {
     try {
+      if (data.credentials) {
+        const encryptedLinkedAccount = encryptionService.encryptLinkedAccount({
+          ...(data as LinkedAccount),
+          credentials: data.credentials,
+          credentials_iv: null,
+          credentials_tag: null,
+        });
+
+        data.credentials = encryptedLinkedAccount.credentials;
+        data.credentials_iv = encryptedLinkedAccount.credentials_iv;
+        data.credentials_tag = encryptedLinkedAccount.credentials_tag;
+      }
+
       const linkedAccount = await database.linkedAccount.update({
         where: { id: linkedAccountId, deleted_at: null },
         data: {
@@ -196,6 +212,41 @@ class LinkedAccountService {
       });
 
       return encryptionService.decryptLinkedAccount(deletedLinkedAccount);
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
+    }
+  }
+
+  public async attemptTokenRefresh(
+    linkedAccount: LinkedAccount,
+    providerSpec: ProviderSpecification
+  ): Promise<string | null> {
+    try {
+      if (providerSpec.auth.scheme !== AuthScheme.OAuth2) {
+        return null;
+      }
+
+      const integration = await integrationService.getIntegrationByKey(
+        linkedAccount.integration_key,
+        linkedAccount.environment_id
+      );
+
+      if (!integration) {
+        throw new Error('Failed to get integration during token refresh');
+      }
+
+      const freshOAuth2Credentials = await getFreshOAuth2Credentials(
+        integration,
+        providerSpec.auth as OAuth2,
+        linkedAccount
+      );
+
+      await this.updateLinkedAccount(linkedAccount.id, {
+        credentials: JSON.stringify(freshOAuth2Credentials),
+      });
+
+      return freshOAuth2Credentials.access_token;
     } catch (err) {
       await errorService.reportError(err);
       return null;

@@ -3,6 +3,7 @@ import { AuthScheme, ProviderSpecification } from '@embed/providers';
 import { LinkedAccount } from '@prisma/client';
 import axios, { AxiosError, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { backOff } from 'exponential-backoff';
+import { DEFAULT_PROXY_ATTEMPTS } from '../utils/constants';
 import { interpolateIfNeeded } from '../utils/helpers';
 import linkedAccountService from './linkedAccount.service';
 import providerService from './provider.service';
@@ -34,16 +35,33 @@ class ProxyService {
       config.data = data || {};
     }
 
-    const retry = providerSpec.retry;
-    const attempts = Number(options.retries) || 0;
+    let tokenRefreshAttempted = false;
 
     const responseStream: AxiosResponse = await backOff(
-      () => {
-        return axios(config);
+      async () => {
+        try {
+          return await axios(config);
+        } catch (err) {
+          if (err instanceof AxiosError && this.isTokenError(err) && !tokenRefreshAttempted) {
+            const newToken = await linkedAccountService.attemptTokenRefresh(
+              linkedAccount,
+              providerSpec
+            );
+
+            tokenRefreshAttempted = true;
+
+            if (newToken) {
+              config.headers = { ...config.headers, Authorization: `Bearer ${newToken}` };
+              return await axios(config);
+            }
+          }
+
+          throw err;
+        }
       },
       {
-        numOfAttempts: attempts,
-        retry: (error, attempt) => this.retryRequest(error, retry),
+        numOfAttempts: Number(options.retries) || DEFAULT_PROXY_ATTEMPTS,
+        retry: (error, attempt) => this.retryRequest(error, providerSpec.retry),
       }
     );
 
@@ -54,14 +72,7 @@ class ProxyService {
     error: AxiosError,
     retry?: { at?: string; after?: string }
   ): Promise<boolean> {
-    if (
-      error.response?.status.toString().startsWith('5') ||
-      (error.response?.status === 403 &&
-        error.response?.headers['x-ratelimit-remaining'] &&
-        error.response?.headers['x-ratelimit-remaining'] === '0') ||
-      error.response?.status === 429 ||
-      ['ECONNRESET', 'ETIMEDOUT', 'ECONNABORTED'].includes(error.code as string)
-    ) {
+    if (this.isRateLimitError(error)) {
       if (retry && (retry.at || retry.after)) {
         const type = retry.at ? 'at' : 'after';
         const retryHeader = retry.at ? retry.at : retry.after;
@@ -186,6 +197,21 @@ class ProxyService {
     } else {
       return options.data;
     }
+  }
+
+  private isTokenError(error: AxiosError): boolean {
+    return error.response?.status === 401 || error.response?.status === 403;
+  }
+
+  private isRateLimitError(error: AxiosError): boolean {
+    return (
+      error.response?.status.toString().startsWith('5') ||
+      (error.response?.status === 403 &&
+        error.response?.headers['x-ratelimit-remaining'] &&
+        error.response?.headers['x-ratelimit-remaining'] === '0') ||
+      error.response?.status === 429 ||
+      (error.code && ['ECONNRESET', 'ETIMEDOUT', 'ECONNABORTED'].includes(error.code))
+    );
   }
 }
 

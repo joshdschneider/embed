@@ -1,7 +1,7 @@
 import type { OAuth1 as OAuth1Spec } from '@embed/providers';
-import type { Integration } from '@embed/shared';
-import { integrationService } from '@embed/shared';
+import type { Integration } from '@prisma/client';
 import OAuth1 from 'oauth';
+import integrationService from '../services/integration.service';
 
 export type OAuth1RequestTokenResult = {
   request_token: string;

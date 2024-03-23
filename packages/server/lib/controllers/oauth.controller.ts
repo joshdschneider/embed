@@ -4,6 +4,7 @@ import {
   Branding,
   DEFAULT_ERROR_MESSAGE,
   LogLevel,
+  OAuth1Client,
   Resource,
   actionService,
   activityService,
@@ -11,24 +12,21 @@ import {
   environmentService,
   errorService,
   generateId,
+  getSimpleOAuth2ClientConfig,
   integrationService,
   linkedAccountService,
+  missesInterpolationParam,
   now,
+  parseRawCredentials,
   providerService,
 } from '@embed/shared';
 import crypto from 'crypto';
 import type { Request, Response } from 'express';
 import SimpleOAuth2 from 'simple-oauth2';
-import { OAuth1Client } from '../clients/oauth1.client';
-import { getSimpleOAuth2ClientConfig } from '../clients/oauth2.client';
 import publisher from '../clients/publisher.client';
 import linkedAccountHook from '../hooks/linkedAccount.hook';
 import linkTokenService from '../services/linkToken.service';
-import {
-  extractConfigurationKeys,
-  getOauthCallbackUrl,
-  missesInterpolationParam,
-} from '../utils/helpers';
+import { extractConfigurationKeys, getOauthCallbackUrl } from '../utils/helpers';
 
 class OAuthController {
   public async authorize(req: Request, res: Response) {
@@ -598,7 +596,7 @@ class OAuthController {
       );
 
       const rawCredentials = accessToken.token;
-      const parsedCredentials = this.parseRawCredentials(rawCredentials, AuthScheme.OAuth2);
+      const parsedCredentials = parseRawCredentials(rawCredentials, AuthScheme.OAuth2);
       const tokenMetadata = this.getMetadataFromOAuthToken(rawCredentials, authSpec);
       const config = typeof linkToken.configuration === 'object' ? linkToken.configuration : {};
 
@@ -729,7 +727,7 @@ class OAuthController {
         tokenVerifier: oauth_verifier,
       });
 
-      const parsedCredentials = this.parseRawCredentials(accessTokenResult, AuthScheme.OAuth1);
+      const parsedCredentials = parseRawCredentials(accessTokenResult, AuthScheme.OAuth1);
       const config = typeof linkToken.configuration === 'object' ? linkToken.configuration : {};
 
       const response = await linkedAccountService.upsertLinkedAccount({
@@ -854,58 +852,6 @@ class OAuthController {
     ) as [string, any][];
 
     return combinedArr.length > 0 ? (Object.fromEntries(combinedArr) as Record<string, any>) : {};
-  }
-
-  private parseRawCredentials(credentials: Record<string, any>, authScheme: AuthScheme) {
-    if (authScheme === AuthScheme.OAuth2) {
-      if (!credentials['access_token']) {
-        throw new Error(`Incomplete raw credentials`);
-      }
-
-      let expiresAt: Date | undefined;
-      if (credentials['expires_at']) {
-        expiresAt = this.parseTokenExpiration(credentials['expires_at']);
-      } else if (credentials['expires_in']) {
-        expiresAt = new Date(Date.now() + Number.parseInt(credentials['expires_in'], 10) * 1000);
-      }
-
-      const oauth2Credentials = {
-        type: AuthScheme.OAuth2,
-        access_token: credentials['access_token'],
-        refresh_token: credentials['refresh_token'],
-        expires_at: expiresAt,
-        raw: credentials,
-      };
-
-      return oauth2Credentials;
-    } else if (authScheme === AuthScheme.OAuth1) {
-      if (!credentials['oauth_token'] || !credentials['oauth_token_secret']) {
-        throw new Error(`incomplete_raw_credentials`);
-      }
-
-      const oauth1Credentials = {
-        type: AuthScheme.OAuth1,
-        oauth_token: credentials['oauth_token'],
-        oauth_token_secret: credentials['oauth_token_secret'],
-        raw: credentials,
-      };
-
-      return oauth1Credentials;
-    } else {
-      throw new Error('Failed to parse OAuth credentials');
-    }
-  }
-
-  private parseTokenExpiration(expirationDate: any): Date {
-    if (expirationDate instanceof Date) {
-      return expirationDate;
-    }
-
-    if (typeof expirationDate === 'number') {
-      return new Date(expirationDate * 1000);
-    }
-
-    return new Date(expirationDate);
   }
 
   private async getScopes(
