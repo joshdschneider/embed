@@ -12,6 +12,7 @@
     "@embed/shared": "^0.1.0",
     "axios": "^1.6.7",
     "copyfiles": "^2.4.1",
+    "langchain": "^0.1.28",
     "zod": "^3.22.4"
   },
   "devDependencies": {

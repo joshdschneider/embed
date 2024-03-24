@@ -1,4 +1,4 @@
-import { ProxyOptions } from '@embed/node';
+import { InternalProxyOptions, MethodProxyOptions } from '@embed/providers';
 import { AxiosResponse } from 'axios';
 import proxyService from '../services/proxy.service';
 
@@ -16,27 +16,27 @@ export class BaseContext {
     this.linkedAccountId = options.linkedAccountId;
   }
 
-  public async proxy<T = any>(options: ProxyOptions): Promise<AxiosResponse<T>> {
-    return await proxyService.proxy<T>(options);
+  public async proxy<T = any>(options: InternalProxyOptions): Promise<AxiosResponse<T>> {
+    return await proxyService.proxy<T>({ ...options, linkedAccountId: this.linkedAccountId });
   }
 
-  public async get<T = any>(options: Omit<ProxyOptions, 'method'>): Promise<AxiosResponse<T>> {
+  public async get<T = any>(options: MethodProxyOptions): Promise<AxiosResponse<T>> {
     return await this.proxy<T>({ ...options, method: 'GET' });
   }
 
-  public async post<T = any>(options: Omit<ProxyOptions, 'method'>): Promise<AxiosResponse<T>> {
+  public async post<T = any>(options: MethodProxyOptions): Promise<AxiosResponse<T>> {
     return await this.proxy<T>({ ...options, method: 'POST' });
   }
 
-  public async patch<T = any>(options: Omit<ProxyOptions, 'method'>): Promise<AxiosResponse<T>> {
+  public async patch<T = any>(options: MethodProxyOptions): Promise<AxiosResponse<T>> {
     return await this.proxy<T>({ ...options, method: 'PATCH' });
   }
 
-  public async put<T = any>(options: Omit<ProxyOptions, 'method'>): Promise<AxiosResponse<T>> {
+  public async put<T = any>(options: MethodProxyOptions): Promise<AxiosResponse<T>> {
     return await this.proxy<T>({ ...options, method: 'PUT' });
   }
 
-  public async delete<T = any>(options: Omit<ProxyOptions, 'method'>): Promise<AxiosResponse<T>> {
+  public async delete<T = any>(options: MethodProxyOptions): Promise<AxiosResponse<T>> {
     return await this.proxy<T>({ ...options, method: 'DELETE' });
   }
 }

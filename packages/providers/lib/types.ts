@@ -116,7 +116,8 @@ export const CollectionsSchema = z.record(
     default_sync_frequency: z.string().optional(),
     default_auto_start_sync: z.boolean().optional(),
     required_scopes: z.array(z.string()).optional(),
-    is_multimodal: z.boolean(),
+    has_multimodal_properties: z.boolean(),
+    has_references: z.boolean(),
     schema: CollectionSchemaSchema,
   })
 );
@@ -170,13 +171,17 @@ export const ProviderSpecificationSchema = z.object({
 
 export type ProviderSpecification = z.infer<typeof ProviderSpecificationSchema>;
 
+export type InternalProxyOptions = Omit<ProxyOptions, 'linkedAccountId'>;
+
+export type MethodProxyOptions = Omit<InternalProxyOptions, 'method'>;
+
 export interface BaseContext {
-  proxy<T = any>(options: ProxyOptions): Promise<AxiosResponse<T>>;
-  get<T = any>(options: Omit<ProxyOptions, 'method'>): Promise<AxiosResponse<T>>;
-  post<T = any>(options: Omit<ProxyOptions, 'method'>): Promise<AxiosResponse<T>>;
-  patch<T = any>(options: Omit<ProxyOptions, 'method'>): Promise<AxiosResponse<T>>;
-  put<T = any>(options: Omit<ProxyOptions, 'method'>): Promise<AxiosResponse<T>>;
-  delete<T = any>(options: Omit<ProxyOptions, 'method'>): Promise<AxiosResponse<T>>;
+  proxy<T = any>(options: InternalProxyOptions): Promise<AxiosResponse<T>>;
+  get<T = any>(options: MethodProxyOptions): Promise<AxiosResponse<T>>;
+  post<T = any>(options: MethodProxyOptions): Promise<AxiosResponse<T>>;
+  patch<T = any>(options: MethodProxyOptions): Promise<AxiosResponse<T>>;
+  put<T = any>(options: MethodProxyOptions): Promise<AxiosResponse<T>>;
+  delete<T = any>(options: MethodProxyOptions): Promise<AxiosResponse<T>>;
 }
 
 export interface SyncContext extends BaseContext {

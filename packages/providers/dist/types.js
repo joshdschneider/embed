@@ -88,7 +88,8 @@ exports.CollectionsSchema = zod_1.z.record(zod_1.z.object({
     default_sync_frequency: zod_1.z.string().optional(),
     default_auto_start_sync: zod_1.z.boolean().optional(),
     required_scopes: zod_1.z.array(zod_1.z.string()).optional(),
-    is_multimodal: zod_1.z.boolean(),
+    has_multimodal_properties: zod_1.z.boolean(),
+    has_references: zod_1.z.boolean(),
     schema: exports.CollectionSchemaSchema,
 }));
 exports.ActionPropertySchema = zod_1.z.object({

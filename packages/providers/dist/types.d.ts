@@ -336,7 +336,8 @@ export declare const CollectionsSchema: z.ZodRecord<z.ZodString, z.ZodObject<{
     default_sync_frequency: z.ZodOptional<z.ZodString>;
     default_auto_start_sync: z.ZodOptional<z.ZodBoolean>;
     required_scopes: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
-    is_multimodal: z.ZodBoolean;
+    has_multimodal_properties: z.ZodBoolean;
+    has_references: z.ZodBoolean;
     schema: z.ZodObject<{
         name: z.ZodString;
         description: z.ZodString;
@@ -394,7 +395,8 @@ export declare const CollectionsSchema: z.ZodRecord<z.ZodString, z.ZodObject<{
         required?: string[] | undefined;
     }>;
 }, "strip", z.ZodTypeAny, {
-    is_multimodal: boolean;
+    has_multimodal_properties: boolean;
+    has_references: boolean;
     schema: {
         description: string;
         name: string;
@@ -414,7 +416,8 @@ export declare const CollectionsSchema: z.ZodRecord<z.ZodString, z.ZodObject<{
     default_auto_start_sync?: boolean | undefined;
     required_scopes?: string[] | undefined;
 }, {
-    is_multimodal: boolean;
+    has_multimodal_properties: boolean;
+    has_references: boolean;
     schema: {
         description: string;
         name: string;
@@ -686,7 +689,8 @@ export declare const ProviderSpecificationSchema: z.ZodObject<{
         default_sync_frequency: z.ZodOptional<z.ZodString>;
         default_auto_start_sync: z.ZodOptional<z.ZodBoolean>;
         required_scopes: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
-        is_multimodal: z.ZodBoolean;
+        has_multimodal_properties: z.ZodBoolean;
+        has_references: z.ZodBoolean;
         schema: z.ZodObject<{
             name: z.ZodString;
             description: z.ZodString;
@@ -744,7 +748,8 @@ export declare const ProviderSpecificationSchema: z.ZodObject<{
             required?: string[] | undefined;
         }>;
     }, "strip", z.ZodTypeAny, {
-        is_multimodal: boolean;
+        has_multimodal_properties: boolean;
+        has_references: boolean;
         schema: {
             description: string;
             name: string;
@@ -764,7 +769,8 @@ export declare const ProviderSpecificationSchema: z.ZodObject<{
         default_auto_start_sync?: boolean | undefined;
         required_scopes?: string[] | undefined;
     }, {
-        is_multimodal: boolean;
+        has_multimodal_properties: boolean;
+        has_references: boolean;
         schema: {
             description: string;
             name: string;
@@ -915,7 +921,8 @@ export declare const ProviderSpecificationSchema: z.ZodObject<{
     logo_url_dark_mode?: string | undefined;
     docs_url?: string | undefined;
     collections?: Record<string, {
-        is_multimodal: boolean;
+        has_multimodal_properties: boolean;
+        has_references: boolean;
         schema: {
             description: string;
             name: string;
@@ -982,7 +989,8 @@ export declare const ProviderSpecificationSchema: z.ZodObject<{
     logo_url_dark_mode?: string | undefined;
     docs_url?: string | undefined;
     collections?: Record<string, {
-        is_multimodal: boolean;
+        has_multimodal_properties: boolean;
+        has_references: boolean;
         schema: {
             description: string;
             name: string;
@@ -1022,13 +1030,15 @@ export declare const ProviderSpecificationSchema: z.ZodObject<{
     }> | undefined;
 }>;
 export type ProviderSpecification = z.infer<typeof ProviderSpecificationSchema>;
+export type InternalProxyOptions = Omit<ProxyOptions, 'linkedAccountId'>;
+export type MethodProxyOptions = Omit<InternalProxyOptions, 'method'>;
 export interface BaseContext {
-    proxy<T = any>(options: ProxyOptions): Promise<AxiosResponse<T>>;
-    get<T = any>(options: Omit<ProxyOptions, 'method'>): Promise<AxiosResponse<T>>;
-    post<T = any>(options: Omit<ProxyOptions, 'method'>): Promise<AxiosResponse<T>>;
-    patch<T = any>(options: Omit<ProxyOptions, 'method'>): Promise<AxiosResponse<T>>;
-    put<T = any>(options: Omit<ProxyOptions, 'method'>): Promise<AxiosResponse<T>>;
-    delete<T = any>(options: Omit<ProxyOptions, 'method'>): Promise<AxiosResponse<T>>;
+    proxy<T = any>(options: InternalProxyOptions): Promise<AxiosResponse<T>>;
+    get<T = any>(options: MethodProxyOptions): Promise<AxiosResponse<T>>;
+    post<T = any>(options: MethodProxyOptions): Promise<AxiosResponse<T>>;
+    patch<T = any>(options: MethodProxyOptions): Promise<AxiosResponse<T>>;
+    put<T = any>(options: MethodProxyOptions): Promise<AxiosResponse<T>>;
+    delete<T = any>(options: MethodProxyOptions): Promise<AxiosResponse<T>>;
 }
 export interface SyncContext extends BaseContext {
     lastSyncedAt: number | null;
