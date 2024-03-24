@@ -46,9 +46,9 @@ CREATE TABLE "ApiKey" (
     "id" TEXT NOT NULL,
     "environment_id" TEXT NOT NULL,
     "key" TEXT NOT NULL,
+    "key_hash" TEXT NOT NULL,
     "key_iv" TEXT,
     "key_tag" TEXT,
-    "key_hash" TEXT,
     "name" TEXT,
     "created_at" INTEGER NOT NULL,
     "updated_at" INTEGER NOT NULL,
@@ -131,7 +131,7 @@ CREATE TABLE "Collection" (
     "exclude_properties_from_sync" TEXT[],
     "text_embedding_model" TEXT NOT NULL,
     "multimodal_embedding_model" TEXT NOT NULL,
-    "is_multimodal" BOOLEAN NOT NULL,
+    "has_multimodal_properties" BOOLEAN NOT NULL,
     "created_at" INTEGER NOT NULL,
     "updated_at" INTEGER NOT NULL,
     "deleted_at" INTEGER
@@ -284,7 +284,7 @@ CREATE TABLE "ActivityLog" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "ApiKey_key_key" ON "ApiKey"("key");
+CREATE UNIQUE INDEX "ApiKey_key_hash_key" ON "ApiKey"("key_hash");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Integration_unique_key_environment_id_key" ON "Integration"("unique_key", "environment_id");
