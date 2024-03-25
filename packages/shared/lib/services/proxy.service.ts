@@ -126,9 +126,13 @@ class ProxyService {
   ): string {
     const { configuration } = linkedAccount;
 
-    const baseUrl = providerSpec.base_url.endsWith('/')
-      ? providerSpec.base_url.slice(0, -1)
-      : providerSpec.base_url;
+    const baseUrl = options.baseUrlOverride
+      ? options.baseUrlOverride.endsWith('/')
+        ? options.baseUrlOverride.slice(0, -1)
+        : options.baseUrlOverride
+      : providerSpec.base_url.endsWith('/')
+        ? providerSpec.base_url.slice(0, -1)
+        : providerSpec.base_url;
 
     let endpoint =
       options.endpoint.charAt(0) === '/' ? options.endpoint.slice(1) : options.endpoint;

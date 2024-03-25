@@ -9,7 +9,7 @@ import linkedAccountService from '../services/linkedAccount.service';
 import providerService from '../services/provider.service';
 import { getWeaviateUrl, isProd } from '../utils/constants';
 import { Filter } from '../utils/types';
-import { EmbeddingClient, EmbeddingModel } from './embedding.client';
+import { EmbeddingClient, MultimodalEmbeddingModel, TextEmbeddingModel } from './embedding.client';
 
 const WEAVIATE_URL = getWeaviateUrl();
 
@@ -206,7 +206,7 @@ class WeaviateClient {
           collection: collectionName,
           query,
           targetVectors: textProperties,
-          embeddingModel: collection.text_embedding_model as EmbeddingModel,
+          embeddingModel: collection.text_embedding_model as TextEmbeddingModel,
           isMultimodal: false,
           alpha: options?.alpha,
           limit: options?.limit,
@@ -221,7 +221,7 @@ class WeaviateClient {
           collection: collectionName,
           query,
           targetVectors: multimodalProperties,
-          embeddingModel: collection.multimodal_embedding_model as EmbeddingModel,
+          embeddingModel: collection.multimodal_embedding_model as MultimodalEmbeddingModel,
           isMultimodal: true,
           alpha: options?.alpha,
           limit: options?.limit,
@@ -355,7 +355,7 @@ class WeaviateClient {
         collection: collectionName,
         imageBase64,
         targetVectors: multimodalProperties,
-        embeddingModel: collection.multimodal_embedding_model as EmbeddingModel,
+        embeddingModel: collection.multimodal_embedding_model as MultimodalEmbeddingModel,
         limit: options?.limit,
         fields,
       });
@@ -382,7 +382,7 @@ class WeaviateClient {
     where,
     fields,
   }: {
-    embeddingModel: EmbeddingModel;
+    embeddingModel: TextEmbeddingModel | MultimodalEmbeddingModel;
     isMultimodal: boolean;
     query: string;
     collection: string;
@@ -400,14 +400,14 @@ class WeaviateClient {
     let vector;
     if (isMultimodal) {
       const textVectors = await this.embeddingClient.embedText({
-        model: embeddingModel,
+        model: embeddingModel as TextEmbeddingModel,
         purpose: 'query',
         text: [query],
       });
       vector = textVectors[0]!;
     } else {
       const multimodalVectors = await this.embeddingClient.embedMultimodal({
-        model: embeddingModel,
+        model: embeddingModel as MultimodalEmbeddingModel,
         content: [query],
         type: 'text',
       });
@@ -436,7 +436,7 @@ class WeaviateClient {
     limit,
     fields,
   }: {
-    embeddingModel: EmbeddingModel;
+    embeddingModel: MultimodalEmbeddingModel;
     imageBase64: string;
     collection: string;
     tenant: string;
@@ -527,7 +527,7 @@ class WeaviateClient {
         .map(([k, v]) => v) as string[];
 
       textVectorsPromise = this.embeddingClient.embedText({
-        model: collection.text_embedding_model as EmbeddingModel,
+        model: collection.text_embedding_model as TextEmbeddingModel,
         text: textChunks,
         purpose: 'object',
       });
@@ -539,7 +539,7 @@ class WeaviateClient {
         .map(([k, v]) => v) as string[];
 
       multimodalVectorsPromise = this.embeddingClient.embedMultimodal({
-        model: collection.multimodal_embedding_model as EmbeddingModel,
+        model: collection.multimodal_embedding_model as MultimodalEmbeddingModel,
         content: multimodalChunks,
         type: 'images',
       });

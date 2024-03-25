@@ -9,7 +9,7 @@ import {
   getOpenai,
 } from '../utils/constants';
 
-export enum EmbeddingModel {
+export enum TextEmbeddingModel {
   OpenaiTextEmbeddingAda = 'openai-text-embedding-ada-002',
   OpenaiTextEmbedding3Small = 'openai-text-embedding-3-small',
   OpenaiTextEmbedding3Large = 'openai-text-embedding-3-large',
@@ -18,10 +18,13 @@ export enum EmbeddingModel {
   CohereEmbedMultilingual3 = 'cohere-embed-multilingual-v3.0',
   CohereEmbedMultilingualLight3 = 'cohere-embed-multilingual-light-v3.0',
   AmazonTitanTextG1 = 'amazon.titan-embed-text-v1',
-  AmazonTitanMultimodalG1 = 'amazon.titan-embed-image-v1',
   GoogleVertexTextEmbeddingGecko003 = 'textembedding-gecko@003',
-  GoogleVertexMultimodalEmbedding001 = 'multimodalembedding@001',
   MistralEmbed = 'mistral-embed',
+}
+
+export enum MultimodalEmbeddingModel {
+  AmazonTitanMultimodalG1 = 'amazon.titan-embed-image-v1',
+  GoogleVertexMultimodalEmbedding001 = 'multimodalembedding@001',
 }
 
 export type EmbeddingPurpose = 'query' | 'object';
@@ -34,29 +37,29 @@ export class EmbeddingClient {
     purpose,
     text,
   }: {
-    model: EmbeddingModel;
+    model: TextEmbeddingModel;
     purpose: EmbeddingPurpose;
     text: string[];
   }): Promise<number[][]> {
     switch (model) {
-      case EmbeddingModel.OpenaiTextEmbedding3Small:
-      case EmbeddingModel.OpenaiTextEmbedding3Large:
-      case EmbeddingModel.OpenaiTextEmbeddingAda:
+      case TextEmbeddingModel.OpenaiTextEmbedding3Small:
+      case TextEmbeddingModel.OpenaiTextEmbedding3Large:
+      case TextEmbeddingModel.OpenaiTextEmbeddingAda:
         return this.withOpenai(model, text);
 
-      case EmbeddingModel.CohereEmbedEnglish3:
-      case EmbeddingModel.CohereEmbedEnglishLight3:
-      case EmbeddingModel.CohereEmbedMultilingual3:
-      case EmbeddingModel.CohereEmbedMultilingualLight3:
+      case TextEmbeddingModel.CohereEmbedEnglish3:
+      case TextEmbeddingModel.CohereEmbedEnglishLight3:
+      case TextEmbeddingModel.CohereEmbedMultilingual3:
+      case TextEmbeddingModel.CohereEmbedMultilingualLight3:
         return this.withCohere(model, purpose, text);
 
-      case EmbeddingModel.AmazonTitanTextG1:
+      case TextEmbeddingModel.AmazonTitanTextG1:
         return this.withBedrockText(model, text);
 
-      case EmbeddingModel.GoogleVertexTextEmbeddingGecko003:
+      case TextEmbeddingModel.GoogleVertexTextEmbeddingGecko003:
         return this.withVertexText(model, purpose, text);
 
-      case EmbeddingModel.MistralEmbed:
+      case TextEmbeddingModel.MistralEmbed:
         return this.withMistral(model, text);
 
       default:
@@ -69,15 +72,15 @@ export class EmbeddingClient {
     content,
     type,
   }: {
-    model: EmbeddingModel;
+    model: MultimodalEmbeddingModel;
     content: string[];
     type: ContentType;
   }): Promise<number[][]> {
     switch (model) {
-      case EmbeddingModel.AmazonTitanMultimodalG1:
+      case MultimodalEmbeddingModel.AmazonTitanMultimodalG1:
         return this.withBedrockMultimodal(model, content, type);
 
-      case EmbeddingModel.GoogleVertexMultimodalEmbedding001:
+      case MultimodalEmbeddingModel.GoogleVertexMultimodalEmbedding001:
         return this.withVertexMultimodal(model, content, type);
 
       default:
@@ -85,7 +88,7 @@ export class EmbeddingClient {
     }
   }
 
-  private async withOpenai(model: EmbeddingModel, text: string[]): Promise<number[][]> {
+  private async withOpenai(model: TextEmbeddingModel, text: string[]): Promise<number[][]> {
     const openai = getOpenai();
 
     const requestWithBackoff = async () => {
@@ -100,7 +103,7 @@ export class EmbeddingClient {
     return backOff(requestWithBackoff, { numOfAttempts: 5 });
   }
 
-  private async withCohere(model: EmbeddingModel, purpose: EmbeddingPurpose, text: string[]) {
+  private async withCohere(model: TextEmbeddingModel, purpose: EmbeddingPurpose, text: string[]) {
     const cohere = getCohere();
 
     const requestWithBackoff = async () => {
@@ -120,7 +123,7 @@ export class EmbeddingClient {
     return backOff(requestWithBackoff, { numOfAttempts: 5 });
   }
 
-  private async withMistral(model: EmbeddingModel, text: string[]) {
+  private async withMistral(model: TextEmbeddingModel, text: string[]) {
     const url = 'https://api.mistral.ai/v1/embeddings';
     const apiKey = getMistralApiKey();
 
@@ -151,7 +154,7 @@ export class EmbeddingClient {
     return backOff(requestWithBackoff, { numOfAttempts: 5 });
   }
 
-  private async withBedrockText(model: EmbeddingModel, text: string[]): Promise<number[][]> {
+  private async withBedrockText(model: TextEmbeddingModel, text: string[]): Promise<number[][]> {
     const bedrock = getBedrock();
 
     const embeddingPromises = text.map(async (chunk) => {
@@ -178,7 +181,7 @@ export class EmbeddingClient {
   }
 
   private async withBedrockMultimodal(
-    model: EmbeddingModel,
+    model: MultimodalEmbeddingModel,
     content: string[],
     type: ContentType
   ): Promise<number[][]> {
@@ -213,7 +216,7 @@ export class EmbeddingClient {
   }
 
   private async withVertexText(
-    model: EmbeddingModel,
+    model: TextEmbeddingModel,
     purpose: EmbeddingPurpose,
     text: string[]
   ): Promise<number[][]> {
@@ -253,7 +256,7 @@ export class EmbeddingClient {
   }
 
   private async withVertexMultimodal(
-    model: EmbeddingModel,
+    model: MultimodalEmbeddingModel,
     content: string[],
     type: ContentType
   ): Promise<number[][]> {

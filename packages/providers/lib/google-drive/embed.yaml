@@ -84,9 +84,9 @@ schemas:
         description: The file chunk.
         index_searchable: false
         index_filterable: false
-      required:
-        - file_id
-        - chunk
+    required:
+      - file_id
+      - chunk
   FileImage: &FileImage
     name: FileImage
     description: The base64-encoded string of the image file.
@@ -103,6 +103,9 @@ schemas:
         index_searchable: false
         index_filterable: false
         embedding_model: multimodal
+    required:
+      - file_id
+      - image
 
 collections:
   files:

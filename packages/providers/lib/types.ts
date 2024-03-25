@@ -90,7 +90,18 @@ export const CollectionPropertySchema = z.object({
     z.literal('number'),
     z.literal('boolean'),
     z.literal('integer'),
+    z.literal('array'),
   ]),
+  items: z
+    .object({
+      type: z.union([
+        z.literal('string'),
+        z.literal('number'),
+        z.literal('boolean'),
+        z.literal('integer'),
+      ]),
+    })
+    .optional(),
   format: z.union([z.literal('date'), z.literal('date-time')]).optional(),
   description: z.string().optional(),
   index_searchable: z.boolean().optional(),
@@ -119,6 +130,7 @@ export const CollectionsSchema = z.record(
     has_multimodal_properties: z.boolean(),
     has_references: z.boolean(),
     schema: CollectionSchemaSchema,
+    reference_schemas: z.array(CollectionSchemaSchema).optional(),
   })
 );
 
@@ -175,6 +187,14 @@ export type InternalProxyOptions = Omit<ProxyOptions, 'linkedAccountId'>;
 
 export type MethodProxyOptions = Omit<InternalProxyOptions, 'method'>;
 
+enum LogLevel {
+  Info = 'info',
+  Debug = 'debug',
+  Error = 'error',
+  Warn = 'warn',
+  Verbose = 'verbose',
+}
+
 export interface BaseContext {
   proxy<T = any>(options: InternalProxyOptions): Promise<AxiosResponse<T>>;
   get<T = any>(options: MethodProxyOptions): Promise<AxiosResponse<T>>;
@@ -182,10 +202,22 @@ export interface BaseContext {
   patch<T = any>(options: MethodProxyOptions): Promise<AxiosResponse<T>>;
   put<T = any>(options: MethodProxyOptions): Promise<AxiosResponse<T>>;
   delete<T = any>(options: MethodProxyOptions): Promise<AxiosResponse<T>>;
+  log(activityLog: {
+    level: LogLevel;
+    message: string;
+    payload?: object | undefined;
+    timestamp: number;
+  }): Promise<void>;
+  reportError(err: unknown): Promise<void>;
 }
 
 export interface SyncContext extends BaseContext {
+  collectionKey: string;
+  multimodalEnabled: boolean;
+  syncRunId: string;
+  activityId: string | null;
   lastSyncedAt: number | null;
+  syncType: 'initial' | 'incremental';
 }
 
 export interface ActionContext extends BaseContext {}

@@ -8,10 +8,12 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
+    "@deepgram/sdk": "^3.2.0",
     "@embed/node": "^0.1.0",
     "@embed/shared": "^0.1.0",
     "axios": "^1.6.7",
     "copyfiles": "^2.4.1",
+    "dotenv": "^16.4.5",
     "langchain": "^0.1.28",
     "zod": "^3.22.4"
   },

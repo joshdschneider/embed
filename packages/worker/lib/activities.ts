@@ -5,6 +5,7 @@ import {
   SyncRunStatus,
   activityService,
   errorService,
+  linkedAccountService,
   now,
   syncService,
 } from '@embed/shared';
@@ -21,12 +22,14 @@ export async function runInitialSync(args: InitialSyncArgs): Promise<void> {
     });
 
     const temporalContext: Context = Context.current();
+    const multimodalEnabled = await linkedAccountService.isMultimodalEnabled(args.linkedAccountId);
 
     const syncContext = new SyncContext({
       linkedAccountId: args.linkedAccountId,
       integrationKey: args.integrationKey,
       collectionKey: args.collectionKey,
       syncRunId: args.syncRunId,
+      multimodalEnabled: multimodalEnabled,
       lastSyncedAt: args.lastSyncedAt,
       activityId: args.activityId,
       syncType: 'initial',
@@ -97,11 +100,13 @@ export async function runIncrementalSync(args: IncrementalSyncArgs): Promise<voi
     });
 
     const temporalContext: Context = Context.current();
+    const multimodalEnabled = await linkedAccountService.isMultimodalEnabled(args.linkedAccountId);
 
     const syncContext = new SyncContext({
       linkedAccountId: args.linkedAccountId,
       integrationKey: args.integrationKey,
       collectionKey: args.collectionKey,
+      multimodalEnabled: multimodalEnabled,
       syncRunId: args.syncRunId,
       lastSyncedAt: args.lastSyncedAt,
       activityId: args.activityId,

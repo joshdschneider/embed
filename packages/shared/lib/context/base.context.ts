@@ -1,19 +1,26 @@
 import { InternalProxyOptions, MethodProxyOptions } from '@embed/providers';
+import { ActivityLog } from '@prisma/client';
 import { AxiosResponse } from 'axios';
+import activityService from '../services/activity.service';
+import errorService from '../services/error.service';
 import proxyService from '../services/proxy.service';
+import { LogLevel } from '../utils/enums';
 
 export interface BaseContextOptions {
   integrationKey: string;
   linkedAccountId: string;
+  activityId: string | null;
 }
 
 export class BaseContext {
   protected integrationKey: string;
   protected linkedAccountId: string;
+  public activityId: string | null;
 
   constructor(options: BaseContextOptions) {
     this.integrationKey = options.integrationKey;
     this.linkedAccountId = options.linkedAccountId;
+    this.activityId = options.activityId;
   }
 
   public async proxy<T = any>(options: InternalProxyOptions): Promise<AxiosResponse<T>> {
@@ -38,5 +45,18 @@ export class BaseContext {
 
   public async delete<T = any>(options: MethodProxyOptions): Promise<AxiosResponse<T>> {
     return await this.proxy<T>({ ...options, method: 'DELETE' });
+  }
+
+  public async reportError(err: unknown): Promise<void> {
+    return await errorService.reportError(err);
+  }
+
+  public async log(activityLog: {
+    level: LogLevel;
+    message: string;
+    payload?: object | undefined;
+    timestamp: number;
+  }): Promise<ActivityLog | null> {
+    return await activityService.createActivityLog(this.activityId, activityLog);
   }
 }

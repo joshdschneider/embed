@@ -1,3 +1,4 @@
+import { MultimodalEmbeddingModel, TextEmbeddingModel } from './clients/embedding.client';
 import { OAuth1Client, OAuth1RequestTokenResult } from './clients/oauth1.client';
 import {
   OAuth1Credentials,
@@ -44,11 +45,13 @@ export {
 export {
   ActionContext,
   BaseContext,
+  MultimodalEmbeddingModel,
   OAuth1Client,
   OAuth1Credentials,
   OAuth1RequestTokenResult,
   OAuth2Credentials,
   SyncContext,
+  TextEmbeddingModel,
   actionService,
   activityService,
   apiKeyService,
