@@ -252,6 +252,20 @@ class LinkedAccountService {
       return null;
     }
   }
+
+  public async isMultimodalEnabled(linkedAccountId: string): Promise<boolean> {
+    try {
+      const linkedAccount = await database.linkedAccount.findUnique({
+        where: { id: linkedAccountId, deleted_at: null },
+        select: { environment: { select: { multimodal_enabled: true } } },
+      });
+
+      return linkedAccount ? linkedAccount.environment.multimodal_enabled : false;
+    } catch (err) {
+      await errorService.reportError(err);
+      return false;
+    }
+  }
 }
 
 export default new LinkedAccountService();

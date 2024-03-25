@@ -20,6 +20,7 @@ class ProxyController {
 
       const method = req.method.toUpperCase() as HttpMethod;
       const retries = req.get('Retries') ? Number(req.get('Retries')) : 0;
+      const baseUrlOverride = req.get('Base-Url-Override');
       const headers = this.parseHeaders(req);
       const endpoint = this.buildEndpoint(req);
       const data = req.body;
@@ -27,6 +28,7 @@ class ProxyController {
       const options: ProxyOptions = {
         linkedAccountId,
         endpoint,
+        baseUrlOverride,
         method,
         headers,
         data,

@@ -22,6 +22,7 @@ export type EmbedOptions = {
 export interface ProxyOptions {
   linkedAccountId: string;
   endpoint: string;
+  baseUrlOverride?: string;
   method?: HttpMethod;
   headers?: Record<string, string>;
   params?: string | Record<string, string | number>;
@@ -60,6 +61,7 @@ export default class Embed {
 
     const url = `${this.hostBaseUrl}/v1/proxy${options.endpoint[0] === '/' ? '' : '/'}${options.endpoint}`;
     const headerOptions = options.headers;
+
     const customHeaders =
       headerOptions && Object.keys(headerOptions).length > 0
         ? Object.keys(headerOptions).reduce((acc: Record<string, string>, key: string) => {
@@ -70,6 +72,7 @@ export default class Embed {
 
     const headers: Record<string, string | number | boolean> = {
       'Embed-Linked-Account-Id': options.linkedAccountId,
+      'Base-Url-Override': options.baseUrlOverride || '',
       ...customHeaders,
     };
 

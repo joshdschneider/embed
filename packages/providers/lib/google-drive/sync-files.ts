@@ -1,3 +1,5 @@
+import axios from 'axios';
+import { PDFLoader } from 'langchain/document_loaders/fs/pdf';
 import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
 import { z } from 'zod';
 import { InternalProxyOptions, SyncContext } from '../types';
@@ -148,12 +150,12 @@ async function processFile(
       return { file: fileObj, chunks: docChunks, image: null };
 
     case 'application/pdf':
-      const pdfChunks = await processPdf(file);
+      const pdfChunks = await processPdf(file, context);
       return { file: fileObj, chunks: pdfChunks, image: null };
 
     case 'image/jpeg':
     case 'image/png':
-      const img = await processImage(file);
+      const img = await processImage(file, context);
       return { file: fileObj, chunks: null, image: img };
 
     default:
@@ -179,21 +181,86 @@ async function processGoogleDoc(
 
     const output = await splitter.createDocuments([res.data]);
 
-    return output.map((doc) => ({ file_id: file.id, chunk: doc.pageContent }));
+    return output.map((doc) => ({
+      file_id: file.id,
+      chunk: doc.pageContent,
+    }));
   } catch (err) {
-    // log error
+    await context.reportError(err);
     return null;
   }
 }
 
-async function processPdf(file: GoogleDriveFile): Promise<FileChunk[] | null> {
-  return null;
+async function processPdf(
+  file: GoogleDriveFile,
+  context: SyncContext
+): Promise<FileChunk[] | null> {
+  try {
+    const response = await context.get({
+      endpoint: `drive/v3/files/${file.id}`,
+      params: { alt: 'media' },
+      retries: 3,
+    });
+
+    const blob = new Blob([response.data]);
+    const loader = new PDFLoader(blob, { splitPages: false });
+    const docs = await loader.load();
+    const content = docs[0]?.pageContent;
+
+    if (content) {
+      const splitter = new RecursiveCharacterTextSplitter({
+        chunkSize: 1000,
+        chunkOverlap: 200,
+      });
+
+      const output = await splitter.createDocuments([content]);
+      return output.map((doc) => ({
+        file_id: file.id,
+        chunk: doc.pageContent,
+      }));
+    }
+
+    return null;
+  } catch (err) {
+    await context.reportError(err);
+    return null;
+  }
 }
 
-async function processImage(file: GoogleDriveFile): Promise<FileImage | null> {
-  return null;
+async function processImage(
+  file: GoogleDriveFile,
+  context: SyncContext
+): Promise<FileImage | null> {
+  try {
+    if (!context.multimodalEnabled || !file.webContentLink) {
+      return null;
+    }
+
+    const response = await axios.get(file.webContentLink, {
+      responseType: 'arraybuffer',
+    });
+
+    const base64 = Buffer.from(response.data, 'binary').toString('base64');
+
+    return { file_id: file.id, image: base64 };
+  } catch (err) {
+    await context.reportError(err);
+    return null;
+  }
 }
 
-export function validateSchema() {
-  //..
+async function processAudio(
+  file: GoogleDriveFile,
+  context: SyncContext
+): Promise<FileChunk[] | null> {
+  try {
+    if (!context.multimodalEnabled || !file.webContentLink) {
+      return null;
+    }
+
+    return null;
+  } catch (err) {
+    await context.reportError(err);
+    return null;
+  }
 }

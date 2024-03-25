@@ -3,8 +3,8 @@ import { BaseContext, BaseContextOptions } from './base.context';
 
 export type SyncContextOptions = BaseContextOptions & {
   collectionKey: string;
+  multimodalEnabled: boolean;
   syncRunId: string;
-  activityId: string | null;
   lastSyncedAt: number | null;
   syncType: 'initial' | 'incremental';
   temporalContext: Context;
@@ -12,8 +12,8 @@ export type SyncContextOptions = BaseContextOptions & {
 
 export class SyncContext extends BaseContext {
   public collectionKey: string;
+  public multimodalEnabled: boolean;
   public syncRunId: string;
-  public activityId: string | null;
   public lastSyncedAt: number | null;
   public syncType: 'initial' | 'incremental';
 
@@ -26,6 +26,7 @@ export class SyncContext extends BaseContext {
   constructor(options: SyncContextOptions) {
     super(options);
     this.collectionKey = options.collectionKey;
+    this.multimodalEnabled = options.multimodalEnabled;
     this.syncRunId = options.syncRunId;
     this.activityId = options.activityId;
     this.lastSyncedAt = options.lastSyncedAt;
