@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import ms from 'ms';
+import ms, { StringValue } from 'ms';
 import { DEFAULT_ERROR_MESSAGE } from './constants';
 import { Resource } from './enums';
 
@@ -16,10 +16,10 @@ export function unixToDate(unixTimestamp: number): Date {
 }
 
 export function getFrequencyInterval(
-  frequency: string,
+  frequency: StringValue,
   date: Date
 ):
-  | { interval: string; offset: number; error: null }
+  | { interval: StringValue; offset: number; error: null }
   | { interval: null; offset: null; error: string } {
   try {
     if (!ms(frequency)) {
