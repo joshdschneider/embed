@@ -195,29 +195,45 @@ enum LogLevel {
   Verbose = 'verbose',
 }
 
-export interface BaseContext {
+type ActivityLog = {
+  id: string;
+  activity_id: string;
+  level: string;
+  message: string;
+  payload: any;
+  timestamp: number;
+};
+
+export declare class BaseContext {
+  activityId: string | null;
   proxy<T = any>(options: InternalProxyOptions): Promise<AxiosResponse<T>>;
   get<T = any>(options: MethodProxyOptions): Promise<AxiosResponse<T>>;
   post<T = any>(options: MethodProxyOptions): Promise<AxiosResponse<T>>;
   patch<T = any>(options: MethodProxyOptions): Promise<AxiosResponse<T>>;
   put<T = any>(options: MethodProxyOptions): Promise<AxiosResponse<T>>;
   delete<T = any>(options: MethodProxyOptions): Promise<AxiosResponse<T>>;
+  reportError(err: unknown): Promise<void>;
   log(activityLog: {
     level: LogLevel;
     message: string;
     payload?: object | undefined;
     timestamp: number;
-  }): Promise<void>;
-  reportError(err: unknown): Promise<void>;
+  }): Promise<ActivityLog | null>;
 }
 
 export interface SyncContext extends BaseContext {
   collectionKey: string;
   multimodalEnabled: boolean;
   syncRunId: string;
-  activityId: string | null;
   lastSyncedAt: number | null;
   syncType: 'initial' | 'incremental';
+  batchSave<T = any>(results: T[], model: string): Promise<boolean | null>;
+  reportResults(): Promise<{
+    records_added: number;
+    records_updated: number;
+    records_deleted: number;
+  }>;
+  finish(): Promise<void>;
 }
 
 export interface ActionContext extends BaseContext {}
