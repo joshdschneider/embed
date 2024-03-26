@@ -19,11 +19,14 @@ export type EmbedOptions = {
   apiKey: string;
 };
 
+export type ResponseType = 'arraybuffer' | 'json' | 'text' | 'stream';
+
 export interface ProxyOptions {
   linkedAccountId: string;
   endpoint: string;
   baseUrlOverride?: string;
   method?: HttpMethod;
+  responseType?: ResponseType;
   headers?: Record<string, string>;
   params?: string | Record<string, string | number>;
   data?: unknown;
@@ -73,6 +76,7 @@ export default class Embed {
     const headers: Record<string, string | number | boolean> = {
       'Embed-Linked-Account-Id': options.linkedAccountId,
       'Base-Url-Override': options.baseUrlOverride || '',
+      'Response-Type': options.responseType || '',
       ...customHeaders,
     };
 
@@ -82,6 +86,7 @@ export default class Embed {
 
     const config: AxiosRequestConfig = {
       headers: this.attachAuthorization(headers),
+      responseType: options.responseType,
     };
 
     if (options.params) {

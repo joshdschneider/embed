@@ -27,7 +27,7 @@ class ProxyService {
     const config: AxiosRequestConfig = {
       url,
       method: options.method,
-      responseType: 'stream',
+      responseType: options.responseType || 'stream',
       headers,
     };
 

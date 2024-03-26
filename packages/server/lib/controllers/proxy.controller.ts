@@ -1,10 +1,10 @@
-import { HttpMethod, ProxyOptions } from '@embed/node';
+import { HttpMethod, ProxyOptions, ResponseType } from '@embed/node';
 import { DEFAULT_ERROR_MESSAGE, ErrorCode, errorService, proxyService } from '@embed/shared';
-import { AxiosError } from 'axios';
+import axios, { AxiosError } from 'axios';
 import type { Request, Response } from 'express';
 import type { OutgoingHttpHeaders } from 'http';
 import querystring from 'querystring';
-import { PassThrough, Readable, Transform } from 'stream';
+import { PassThrough } from 'stream';
 import url from 'url';
 
 class ProxyController {
@@ -21,6 +21,7 @@ class ProxyController {
       const method = req.method.toUpperCase() as HttpMethod;
       const retries = req.get('Retries') ? Number(req.get('Retries')) : 0;
       const baseUrlOverride = req.get('Base-Url-Override');
+      const responseType = req.get('Response-Type');
       const headers = this.parseHeaders(req);
       const endpoint = this.buildEndpoint(req);
       const data = req.body;
@@ -30,6 +31,7 @@ class ProxyController {
         endpoint,
         baseUrlOverride,
         method,
+        responseType: responseType as ResponseType,
         headers,
         data,
         retries,
@@ -37,37 +39,35 @@ class ProxyController {
 
       try {
         const axiosResponse = await proxyService.proxy(options);
-        const passThroughStream = new PassThrough();
-        axiosResponse.data.pipe(passThroughStream);
-        passThroughStream.pipe(res);
-        res.writeHead(axiosResponse.status, axiosResponse.headers as OutgoingHttpHeaders);
+        if (axiosResponse.data instanceof Buffer) {
+          res.writeHead(axiosResponse.status, axiosResponse.headers as OutgoingHttpHeaders);
+          res.end(axiosResponse.data);
+        } else if (axiosResponse.data.pipe) {
+          const passThroughStream = new PassThrough();
+          axiosResponse.data.pipe(passThroughStream);
+          passThroughStream.pipe(res);
+          res.writeHead(axiosResponse.status, axiosResponse.headers as OutgoingHttpHeaders);
+        } else {
+          res.writeHead(axiosResponse.status, axiosResponse.headers as OutgoingHttpHeaders);
+          res.end(JSON.stringify(axiosResponse.data));
+        }
       } catch (err) {
-        if (err instanceof AxiosError) {
-          const error = err;
-          if (!error.response?.data) {
-            const { message, stack, config, code, status } = error;
-            const errorObject = { message, stack, code, status, url, method: config?.method };
-            const responseStatus = error.response?.status || 500;
-            const responseHeaders = error.response?.headers || {};
-            res.writeHead(responseStatus, responseHeaders as OutgoingHttpHeaders);
-
-            const stream = new Readable();
-            stream.push(JSON.stringify(errorObject));
-            stream.push(null);
-            stream.pipe(res);
+        if (axios.isAxiosError(err)) {
+          const axiosError = err as AxiosError;
+          const statusCode = axiosError.response?.status || 500;
+          const headers = axiosError.response?.headers || {};
+          res.writeHead(statusCode, headers as OutgoingHttpHeaders);
+          if (axiosError.response && axiosError.response.data) {
+            if (
+              typeof axiosError.response.data === 'object' &&
+              !(axiosError.response.data instanceof Buffer)
+            ) {
+              res.end(JSON.stringify(axiosError.response.data));
+            } else {
+              res.end(axiosError.response.data);
+            }
           } else {
-            const errorData = error.response.data as Readable;
-            const stream = new Transform({
-              transform(chunk: Buffer, _encoding, callback) {
-                callback(null, chunk);
-              },
-            });
-            if (error.response.status) {
-              res.writeHead(error.response.status, error.response.headers as OutgoingHttpHeaders);
-            }
-            if (errorData) {
-              errorData.pipe(stream).pipe(res);
-            }
+            res.end('An error occurred');
           }
         } else {
           throw err;
