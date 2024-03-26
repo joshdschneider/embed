@@ -1,4 +1,5 @@
 import { Collection, Sync, SyncRun, SyncSchedule } from '@prisma/client';
+import { StringValue } from 'ms';
 import TemporalClient from '../clients/temporal.client';
 import { database } from '../utils/database';
 import {
@@ -133,7 +134,10 @@ class SyncService {
       }
 
       const syncSchedule = await this.getSyncSchedule(sync.linked_account_id, sync.collection_key);
-      const { interval, offset, error } = getFrequencyInterval(sync.frequency, new Date());
+      const { interval, offset, error } = getFrequencyInterval(
+        sync.frequency as StringValue,
+        new Date()
+      );
 
       if (error !== null) {
         throw new Error(error);
@@ -318,7 +322,7 @@ class SyncService {
   public async updateSyncFrequency(
     linkedAccountId: string,
     collectionKey: string,
-    frequency: string
+    frequency: StringValue
   ): Promise<Sync | null> {
     try {
       const syncSchedule = await this.getSyncSchedule(linkedAccountId, collectionKey);

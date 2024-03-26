@@ -1,6 +1,6 @@
 import { Client, Connection, ScheduleHandle, ScheduleOverlapPolicy } from '@temporalio/client';
 import fs from 'fs';
-import ms from 'ms';
+import ms, { StringValue } from 'ms';
 import errorService from '../services/error.service';
 import {
   SYNC_TASK_QUEUE,
@@ -118,7 +118,7 @@ class TemporalClient {
 
   public async createSyncSchedule(
     scheduleId: string,
-    interval: string,
+    interval: StringValue,
     offset: number,
     args: {
       environmentId: string;
@@ -213,7 +213,7 @@ class TemporalClient {
 
   public async updateSyncSchedule(
     scheduleId: string,
-    interval: string,
+    interval: StringValue,
     offset: number
   ): Promise<boolean> {
     try {
