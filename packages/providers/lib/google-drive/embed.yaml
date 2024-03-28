@@ -14,7 +14,7 @@ auth:
     prompt: consent
 
 schemas:
-  File: &File
+  file: &file
     name: File
     description: A file in Google Drive.
     properties:
@@ -69,7 +69,7 @@ schemas:
       - mime_type
       - created_at
       - updated_at
-  FileChunk: &FileChunk
+  file_chunk: &file_chunk
     name: FileChunk
     description: A chunk of content from a Google Drive file.
     properties:
@@ -82,14 +82,13 @@ schemas:
       chunk:
         type: string
         description: The file chunk.
-        index_searchable: false
         index_filterable: false
     required:
       - file_id
       - chunk
-  FileImage: &FileImage
-    name: FileImage
-    description: The base64-encoded string of the image file.
+  file_image_base64: &file_image_base64
+    name: FileImageBase64
+    description: The base64-encoded string of the file.
     properties:
       file_id:
         type: string
@@ -97,25 +96,30 @@ schemas:
         vector_searchable: false
         index_searchable: false
         index_filterable: false
-      image:
+      image_base64:
         type: string
         description: The base64-encoded string of the image file.
         index_searchable: false
         index_filterable: false
-        embedding_model: multimodal
+        is_multimodal: true
     required:
       - file_id
       - image
 
 collections:
   files:
-    schema: *File
+    schema: *file
     default_enabled: true
     default_sync_frequency: 1d
     default_sync_auto_start: true
     required_scopes: [https://www.googleapis.com/auth/drive.readonly]
     has_multimodal_properties: true
-    has_references: true
-    reference_schemas:
-      - *FileChunk
-      - *FileImage
+    has_meta_collections: true
+    meta_collections:
+      file_chunk:
+        schema: *file_chunk
+        foreign_key: file_id
+      file_image_base64:
+        schema: *file_image_base64
+        foreign_key: file_id
+        visible_in_results: false
