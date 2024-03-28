@@ -1,5 +1,5 @@
 import { CollectionProperty, CollectionSchema } from '@embed/providers';
-import { Collection } from '@prisma/client';
+import { Collection, LinkedAccount } from '@prisma/client';
 import weaviate, { WeaviateClient as Client } from 'weaviate-ts-client';
 import GraphQLHybrid from '../graphql/hybrid';
 import GraphQLWhere from '../graphql/where';
@@ -133,7 +133,6 @@ class WeaviateClient {
 
       for (const obj of objects) {
         const vectors = await this.vectorizeProperties(obj, collection, collectionProperties);
-
         batcher = batcher.withObject({
           class: collectionName,
           tenant: linkedAccountId,
@@ -151,7 +150,7 @@ class WeaviateClient {
   }
 
   public async nearText<T = any>(
-    linkedAccountId: string,
+    linkedAccount: LinkedAccount,
     collectionKey: string,
     query: string,
     options?: {
@@ -167,11 +166,6 @@ class WeaviateClient {
     }
 
     try {
-      const linkedAccount = await linkedAccountService.getLinkedAccountById(linkedAccountId);
-      if (!linkedAccount) {
-        throw new Error(`Linked account not found with ID ${linkedAccountId}`);
-      }
-
       const collection = await collectionService.retrieveCollection(
         collectionKey,
         linkedAccount.integration_key,
@@ -218,7 +212,7 @@ class WeaviateClient {
 
       if (textProperties.length > 0) {
         textQueryPromise = this.hybridQuery({
-          tenant: linkedAccountId,
+          tenant: linkedAccount.id,
           collection: collectionName,
           query,
           targetVectors: textProperties,
@@ -233,7 +227,7 @@ class WeaviateClient {
 
       if (multimodalProperties.length > 0) {
         multimodalQueryPromise = this.hybridQuery({
-          tenant: linkedAccountId,
+          tenant: linkedAccount.id,
           collection: collectionName,
           query,
           targetVectors: multimodalProperties,

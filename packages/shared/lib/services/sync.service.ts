@@ -205,6 +205,13 @@ class SyncService {
       });
     } catch (err) {
       await errorService.reportError(err);
+
+      await activityService.createActivityLog(activityId, {
+        level: LogLevel.Error,
+        message: 'Failed to start sync',
+        timestamp: now(),
+      });
+
       return null;
     }
   }

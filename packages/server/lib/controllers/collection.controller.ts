@@ -395,6 +395,45 @@ class CollectionController {
       });
     }
   }
+
+  public async queryCollection(req: Request, res: Response) {
+    try {
+      // TODO
+    } catch (err) {
+      await errorService.reportError(err);
+
+      return errorService.errorResponse(res, {
+        code: ErrorCode.InternalServerError,
+        message: DEFAULT_ERROR_MESSAGE,
+      });
+    }
+  }
+
+  public async listCollectionRecords(req: Request, res: Response) {
+    try {
+      // TODO
+    } catch (err) {
+      await errorService.reportError(err);
+
+      return errorService.errorResponse(res, {
+        code: ErrorCode.InternalServerError,
+        message: DEFAULT_ERROR_MESSAGE,
+      });
+    }
+  }
+
+  public async retrieveCollectionRecord(req: Request, res: Response) {
+    try {
+      // TODO
+    } catch (err) {
+      await errorService.reportError(err);
+
+      return errorService.errorResponse(res, {
+        code: ErrorCode.InternalServerError,
+        message: DEFAULT_ERROR_MESSAGE,
+      });
+    }
+  }
 }
 
 export default new CollectionController();

@@ -33,6 +33,7 @@ CREATE TABLE "Environment" (
     "enable_new_integrations" BOOLEAN NOT NULL,
     "default_text_embedding_model" TEXT NOT NULL,
     "default_multimodal_embedding_model" TEXT NOT NULL,
+    "multimodal_enabled" BOOLEAN NOT NULL DEFAULT false,
     "branding" JSONB NOT NULL,
     "created_at" INTEGER NOT NULL,
     "updated_at" INTEGER NOT NULL,
@@ -300,6 +301,12 @@ CREATE UNIQUE INDEX "Sync_collection_key_linked_account_id_key" ON "Sync"("colle
 
 -- CreateIndex
 CREATE UNIQUE INDEX "ActionRun_action_key_linked_account_id_key" ON "ActionRun"("action_key", "linked_account_id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Record_external_id_linked_account_id_collection_key_key" ON "Record"("external_id", "linked_account_id", "collection_key");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Record_hash_linked_account_id_collection_key_key" ON "Record"("hash", "linked_account_id", "collection_key");
 
 -- AddForeignKey
 ALTER TABLE "User" ADD CONSTRAINT "User_account_id_fkey" FOREIGN KEY ("account_id") REFERENCES "Account"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
