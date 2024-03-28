@@ -252,7 +252,7 @@ export interface SyncContext extends BaseContext {
     records_updated: number;
     records_deleted: number;
   }>;
-  updateDeleted(allIds: string[]): Promise<boolean>;
+  pruneDeleted(allIds: string[]): Promise<boolean>;
   finish(): boolean;
 }
 

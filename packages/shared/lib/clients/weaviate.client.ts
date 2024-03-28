@@ -1,4 +1,4 @@
-import { CollectionProperty } from '@embed/providers';
+import { CollectionProperty, CollectionSchema } from '@embed/providers';
 import { Collection } from '@prisma/client';
 import weaviate, { WeaviateClient as Client } from 'weaviate-ts-client';
 import GraphQLHybrid from '../graphql/hybrid';
@@ -76,7 +76,8 @@ class WeaviateClient {
   public async batchSave<T extends { [key: string]: unknown }>(
     linkedAccountId: string,
     collectionKey: string,
-    objects: T[]
+    objects: T[],
+    options?: { metadataCollectionKey?: string }
   ): Promise<boolean> {
     if (!this.weaviateClient) {
       await errorService.reportError(new Error('Weaviate client not initialized'));
@@ -106,7 +107,22 @@ class WeaviateClient {
         throw new Error(`Collection not found for provider ${linkedAccount.integration_key}`);
       }
 
-      const collectionSchema = providerCollection[1].schema;
+      let collectionSchema: CollectionSchema;
+      let metadataCollectionKey = options?.metadataCollectionKey;
+
+      if (metadataCollectionKey) {
+        const metadataCollection = providerCollection[1].metadata_collections
+          ? providerCollection[1].metadata_collections[metadataCollectionKey]
+          : undefined;
+        if (!metadataCollection) {
+          throw new Error(`Metadata collection not found on collection ${collectionKey}`);
+        } else {
+          collectionSchema = metadataCollection.schema;
+        }
+      } else {
+        collectionSchema = providerCollection[1].schema;
+      }
+
       const collectionProperties = Object.entries(collectionSchema.properties);
       const collectionName = this.formatCollectionName(
         linkedAccount.integration_key,

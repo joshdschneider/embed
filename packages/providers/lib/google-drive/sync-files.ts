@@ -115,7 +115,7 @@ export default async function syncFiles(context: SyncContext) {
     }
   }
 
-  await context.updateDeleted(allIds);
+  await context.pruneDeleted(allIds);
 }
 
 function createdOrUpdatedAfterSync(

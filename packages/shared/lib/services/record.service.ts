@@ -21,10 +21,10 @@ class RecordService {
         select: { external_id: true, hash: true },
       });
 
-      const existingIds = new Set(existingRecords.map((rec) => rec.external_id));
+      const existingExternalIds = new Set(existingRecords.map((rec) => rec.external_id));
       const existingHashes = new Set(existingRecords.map((rec) => rec.hash));
 
-      const recordsToCreate = records.filter((rec) => !existingIds.has(rec.external_id));
+      const recordsToCreate = records.filter((rec) => !existingExternalIds.has(rec.external_id));
       const recordsToUpdate = records.filter((rec) => !existingHashes.has(rec.hash));
 
       let addedKeys: string[] = [];
@@ -67,6 +67,38 @@ class RecordService {
       }
 
       return { addedKeys, updatedKeys };
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
+    }
+  }
+
+  public async pruneDeleted(
+    linkedAccountId: string,
+    collectionKey: string,
+    crawledExternalIds: string[]
+  ): Promise<{ deletedKeys: string[] } | null> {
+    try {
+      const recordsToDelete = await database.record.findMany({
+        where: {
+          linked_account_id: linkedAccountId,
+          collection_key: collectionKey,
+          external_id: { notIn: crawledExternalIds },
+          deleted_at: null,
+        },
+        select: { id: true },
+      });
+
+      const updatePromises = recordsToDelete.map((rec) => {
+        return database.record.update({
+          where: { id: rec.id, deleted_at: null },
+          data: { deleted_at: now() },
+          select: { id: true },
+        });
+      });
+
+      const deletedRecords = await Promise.all(updatePromises);
+      return { deletedKeys: deletedRecords.map((rec) => rec.id) };
     } catch (err) {
       await errorService.reportError(err);
       return null;
