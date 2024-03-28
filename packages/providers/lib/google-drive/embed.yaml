@@ -119,7 +119,7 @@ collections:
       file_chunk:
         schema: *file_chunk
         foreign_key: file_id
+        return_keys: [chunk]
       file_image_base64:
         schema: *file_image_base64
         foreign_key: file_id
-        visible_in_results: false
