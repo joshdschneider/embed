@@ -83,7 +83,7 @@ function buildVectorConfig(schemaProperties: [string, CollectionProperty][]): {
   return { ...vectorConfigs };
 }
 
-export async function createCollections() {
+async function createCollections() {
   const allClassDefinitions = await client.schema.getter().do();
   const allCollections = allClassDefinitions.classes || [];
   const allProviderSpecs = await registry.getAllProviderSpecifications();
@@ -120,8 +120,6 @@ export async function createCollections() {
       }
     }
   }
-
-  console.log(iter.map((i) => i.formattedCollectionName));
 
   let createdClassesCount = 0;
 
