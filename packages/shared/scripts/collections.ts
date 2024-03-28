@@ -39,6 +39,18 @@ function transformProperty(schemaProperty: [string, CollectionProperty]): {
     dataType = 'int';
   } else if (props.type === 'number') {
     dataType = 'number';
+  } else if (props.type === 'array') {
+    if (props.items?.type === 'boolean') {
+      dataType = 'boolean[]';
+    } else if (props.items?.type === 'integer') {
+      dataType = 'int[]';
+    } else if (props.items?.type === 'number') {
+      dataType = 'number[]';
+    } else if (props.items?.type === 'string') {
+      dataType = 'text[]';
+    } else {
+      throw new Error(`Unsupported array items ${props.items}`);
+    }
   } else {
     throw new Error(`Unsupported property type ${props.type}`);
   }
@@ -71,7 +83,7 @@ function buildVectorConfig(schemaProperties: [string, CollectionProperty][]): {
   return { ...vectorConfigs };
 }
 
-async function createCollections() {
+export async function createCollections() {
   const allClassDefinitions = await client.schema.getter().do();
   const allCollections = allClassDefinitions.classes || [];
   const allProviderSpecs = await registry.getAllProviderSpecifications();
@@ -89,9 +101,27 @@ async function createCollections() {
         const collectionSchema = collection[1].schema;
         const formattedCollectionName = formatCollectionName(providerName, collectionSchema.name);
         iter.push({ formattedCollectionName, collectionSchema });
+
+        if (collection[1].has_meta_collections) {
+          const metaCollections = Object.entries(collection[1].meta_collections || {});
+          for (const metaCollection of metaCollections) {
+            const metaCollectionSchema = metaCollection[1].schema;
+            const formattedMetaCollectionName = formatCollectionName(
+              providerName,
+              metaCollectionSchema.name
+            );
+
+            iter.push({
+              formattedCollectionName: formattedMetaCollectionName,
+              collectionSchema: metaCollectionSchema,
+            });
+          }
+        }
       }
     }
   }
+
+  console.log(iter.map((i) => i.formattedCollectionName));
 
   let createdClassesCount = 0;
 
@@ -114,6 +144,7 @@ async function createCollections() {
 
     if (!existingCollection) {
       await client.schema.classCreator().withClass(newClass).do();
+      console.log(`Collection created: ${newClass.class}`);
       createdClassesCount++;
     } else {
       if (existingCollection.class !== newClass.class) {

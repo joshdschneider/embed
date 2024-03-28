@@ -121,16 +121,26 @@ export const CollectionSchemaSchema = z.object({
 
 export type CollectionSchema = z.infer<typeof CollectionSchemaSchema>;
 
+export const MetaCollectionSchema = z.record(
+  z.object({
+    schema: CollectionSchemaSchema,
+    foreign_key: z.string(),
+    visible_in_results: z.boolean().optional(),
+  })
+);
+
+export type MetaCollection = z.infer<typeof CollectionSchemaSchema>;
+
 export const CollectionsSchema = z.record(
   z.object({
+    schema: CollectionSchemaSchema,
     default_enabled: z.boolean().optional(),
     default_sync_frequency: z.string().optional(),
     default_auto_start_sync: z.boolean().optional(),
     required_scopes: z.array(z.string()).optional(),
     has_multimodal_properties: z.boolean(),
-    has_references: z.boolean(),
-    schema: CollectionSchemaSchema,
-    reference_schemas: z.array(CollectionSchemaSchema).optional(),
+    has_meta_collections: z.boolean(),
+    meta_collections: MetaCollectionSchema.optional(),
   })
 );
 
