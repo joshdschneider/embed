@@ -243,16 +243,18 @@ export interface SyncContext extends BaseContext {
   syncRunId: string;
   lastSyncedAt: number | null;
   syncRunType: SyncRunType;
-  batchSave<T = any>(
+  batchSave<T extends { [key: string]: unknown }>(
     objects: T[],
-    options?: { metadata_collection_key?: string }
+    options?: {
+      metadata_collection_key?: string;
+    }
   ): Promise<boolean>;
+  pruneDeleted(allIds: string[]): Promise<boolean>;
   reportResults(): Promise<{
     records_added: number;
     records_updated: number;
     records_deleted: number;
   }>;
-  pruneDeleted(allIds: string[]): Promise<boolean>;
   finish(): boolean;
 }
 

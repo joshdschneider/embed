@@ -38,10 +38,12 @@ class TemporalClient {
       throw new Error('Temporal URL not set');
     } else if (!TEMPORAL_NAMESPACE) {
       throw new Error('Temporal namespace not set');
-    } else if (!TEMPORAL_CERT_PATH) {
-      throw new Error('Temporal cert path not set');
-    } else if (!TEMPORAL_KEY_PATH) {
-      throw new Error('Temporal key path not set');
+    } else if (isProd()) {
+      if (!TEMPORAL_CERT_PATH) {
+        throw new Error('Temporal cert path not set');
+      } else if (!TEMPORAL_KEY_PATH) {
+        throw new Error('Temporal key path not set');
+      }
     }
 
     const connection = await Connection.connect({
@@ -49,8 +51,8 @@ class TemporalClient {
       tls: isProd()
         ? {
             clientCertPair: {
-              crt: fs.readFileSync(TEMPORAL_CERT_PATH),
-              key: fs.readFileSync(TEMPORAL_KEY_PATH),
+              crt: fs.readFileSync(TEMPORAL_CERT_PATH!),
+              key: fs.readFileSync(TEMPORAL_KEY_PATH!),
             },
           }
         : false,

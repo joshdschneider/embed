@@ -158,7 +158,6 @@ model Collection {
   text_embedding_model         String
   multimodal_embedding_model   String
   has_multimodal_properties    Boolean
-  has_references               Boolean
   created_at                   Int
   updated_at                   Int
   deleted_at                   Int?

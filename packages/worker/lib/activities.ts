@@ -3,6 +3,7 @@ import {
   LogLevel,
   SyncContext,
   SyncRunStatus,
+  SyncRunType,
   activityService,
   errorService,
   linkedAccountService,
@@ -25,6 +26,7 @@ export async function runInitialSync(args: InitialSyncArgs): Promise<void> {
     const multimodalEnabled = await linkedAccountService.isMultimodalEnabled(args.linkedAccountId);
 
     const syncContext = new SyncContext({
+      environmentId: args.environmentId,
       linkedAccountId: args.linkedAccountId,
       integrationKey: args.integrationKey,
       collectionKey: args.collectionKey,
@@ -32,7 +34,7 @@ export async function runInitialSync(args: InitialSyncArgs): Promise<void> {
       multimodalEnabled: multimodalEnabled,
       lastSyncedAt: args.lastSyncedAt,
       activityId: args.activityId,
-      syncType: 'initial',
+      syncRunType: SyncRunType.Initial,
       temporalContext,
     });
 
@@ -45,7 +47,7 @@ export async function runInitialSync(args: InitialSyncArgs): Promise<void> {
       ...results,
     });
 
-    await syncContext.finish();
+    syncContext.finish();
     await syncService.updateSync(args.linkedAccountId, args.collectionKey, {
       last_synced_at: now(),
     });
@@ -103,6 +105,7 @@ export async function runIncrementalSync(args: IncrementalSyncArgs): Promise<voi
     const multimodalEnabled = await linkedAccountService.isMultimodalEnabled(args.linkedAccountId);
 
     const syncContext = new SyncContext({
+      environmentId: args.environmentId,
       linkedAccountId: args.linkedAccountId,
       integrationKey: args.integrationKey,
       collectionKey: args.collectionKey,
@@ -110,7 +113,7 @@ export async function runIncrementalSync(args: IncrementalSyncArgs): Promise<voi
       syncRunId: args.syncRunId,
       lastSyncedAt: args.lastSyncedAt,
       activityId: args.activityId,
-      syncType: 'incremental',
+      syncRunType: SyncRunType.Incremental,
       temporalContext,
     });
 
@@ -123,7 +126,7 @@ export async function runIncrementalSync(args: IncrementalSyncArgs): Promise<voi
       ...results,
     });
 
-    await syncContext.finish();
+    syncContext.finish();
     await syncService.updateSync(args.linkedAccountId, args.collectionKey, {
       last_synced_at: now(),
     });
