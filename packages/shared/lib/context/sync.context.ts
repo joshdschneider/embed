@@ -1,4 +1,10 @@
+import { Record as DataRecord } from '@prisma/client';
 import { Context } from '@temporalio/activity';
+import { now } from 'lodash';
+import md5 from 'md5';
+import recordService from '../services/record.service';
+import { Resource, SyncRunType } from '../utils/enums';
+import { generateId } from '../utils/helpers';
 import { BaseContext, BaseContextOptions } from './base.context';
 
 export type SyncContextOptions = BaseContextOptions & {
@@ -6,7 +12,7 @@ export type SyncContextOptions = BaseContextOptions & {
   multimodalEnabled: boolean;
   syncRunId: string;
   lastSyncedAt: number | null;
-  syncType: 'initial' | 'incremental';
+  syncRunType: SyncRunType;
   temporalContext: Context;
 };
 
@@ -15,9 +21,8 @@ export class SyncContext extends BaseContext {
   public multimodalEnabled: boolean;
   public syncRunId: string;
   public lastSyncedAt: number | null;
-  public syncType: 'initial' | 'incremental';
+  public syncRunType: SyncRunType;
 
-  private batchSize = 1000;
   private addedKeys: string[];
   private updatedKeys: string[];
   private deletedKeys: string[];
@@ -30,7 +35,7 @@ export class SyncContext extends BaseContext {
     this.syncRunId = options.syncRunId;
     this.activityId = options.activityId;
     this.lastSyncedAt = options.lastSyncedAt;
-    this.syncType = options.syncType;
+    this.syncRunType = options.syncRunType;
     this.addedKeys = [];
     this.updatedKeys = [];
     this.deletedKeys = [];
@@ -42,19 +47,60 @@ export class SyncContext extends BaseContext {
     }, heartbeat);
   }
 
-  public async batchSave<T = any>(results: T[], model: string): Promise<boolean | null> {
-    if (!results || results.length === 0) {
+  public async batchSave<T = any>(
+    objects: T[],
+    options?: { metadata_collection_key?: string }
+  ): Promise<boolean> {
+    if (!objects || objects.length === 0) {
       return true;
     }
 
-    // format data
-    // save data
+    if (!options || !options.metadata_collection_key) {
+      const records: DataRecord[] = objects.map((obj: any) => {
+        const hash = md5(JSON.stringify(obj));
+        return {
+          id: generateId(Resource.Record),
+          external_id: obj.id,
+          environment_id: this.environmentId,
+          linked_account_id: this.linkedAccountId,
+          integration_key: this.integrationKey,
+          collection_key: this.collectionKey,
+          object: JSON.stringify(obj),
+          object_iv: null,
+          object_tag: null,
+          hash,
+          created_at: now(),
+          updated_at: now(),
+          deleted_at: null,
+        };
+      });
+
+      const batchSaveResult = await recordService.batchSave(
+        this.linkedAccountId,
+        this.collectionKey,
+        records
+      );
+
+      if (batchSaveResult) {
+        const { addedKeys, updatedKeys } = batchSaveResult;
+        this.addedKeys.push(...addedKeys);
+        this.updatedKeys.push(...updatedKeys);
+      } else {
+        // log error
+      }
+    }
+
+    // save in weaviate
     // update keys
 
     return true;
   }
 
-  public async reportResults() {
+  public async reportResults(): Promise<{
+    records_added: number;
+    records_updated: number;
+    records_deleted: number;
+  }> {
     return {
       records_added: this.addedKeys.length,
       records_updated: this.updatedKeys.length,
@@ -62,8 +108,9 @@ export class SyncContext extends BaseContext {
     };
   }
 
-  public async finish() {
+  public finish(): boolean {
     clearInterval(this.interval);
     this.interval = undefined;
+    return true;
   }
 }

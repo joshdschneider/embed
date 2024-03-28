@@ -7,17 +7,20 @@ import proxyService from '../services/proxy.service';
 import { LogLevel } from '../utils/enums';
 
 export interface BaseContextOptions {
+  environmentId: string;
   integrationKey: string;
   linkedAccountId: string;
   activityId: string | null;
 }
 
 export class BaseContext {
+  protected environmentId: string;
   protected integrationKey: string;
   protected linkedAccountId: string;
   public activityId: string | null;
 
   constructor(options: BaseContextOptions) {
+    this.environmentId = options.environmentId;
     this.integrationKey = options.integrationKey;
     this.linkedAccountId = options.linkedAccountId;
     this.activityId = options.activityId;

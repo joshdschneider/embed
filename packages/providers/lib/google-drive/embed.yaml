@@ -114,8 +114,8 @@ collections:
     default_sync_auto_start: true
     required_scopes: [https://www.googleapis.com/auth/drive.readonly]
     has_multimodal_properties: true
-    has_meta_collections: true
-    meta_collections:
+    has_metadata_collections: true
+    metadata_collections:
       file_chunk:
         schema: *file_chunk
         foreign_key: file_id
