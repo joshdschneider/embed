@@ -2,8 +2,10 @@ import { Record as DataRecord } from '@prisma/client';
 import { Context } from '@temporalio/activity';
 import { now } from 'lodash';
 import md5 from 'md5';
+import WeaviateClient from '../clients/weaviate.client';
+import activityService from '../services/activity.service';
 import recordService from '../services/record.service';
-import { Resource, SyncRunType } from '../utils/enums';
+import { LogLevel, Resource, SyncRunType } from '../utils/enums';
 import { generateId } from '../utils/helpers';
 import { BaseContext, BaseContextOptions } from './base.context';
 
@@ -47,7 +49,7 @@ export class SyncContext extends BaseContext {
     }, heartbeat);
   }
 
-  public async batchSave<T = any>(
+  public async batchSave<T extends { [key: string]: unknown }>(
     objects: T[],
     options?: { metadata_collection_key?: string }
   ): Promise<boolean> {
@@ -55,7 +57,9 @@ export class SyncContext extends BaseContext {
       return true;
     }
 
-    if (!options || !options.metadata_collection_key) {
+    const isMetaCollection = options && options.metadata_collection_key;
+
+    if (!isMetaCollection) {
       const records: DataRecord[] = objects.map((obj: any) => {
         const hash = md5(JSON.stringify(obj));
         return {
@@ -86,14 +90,56 @@ export class SyncContext extends BaseContext {
         this.addedKeys.push(...addedKeys);
         this.updatedKeys.push(...updatedKeys);
       } else {
-        // log error
+        await activityService.createActivityLog(this.activityId, {
+          level: LogLevel.Error,
+          timestamp: now(),
+          message: `Failed to batch save records for collection ${this.collectionKey}`,
+          payload: {
+            linked_account: this.linkedAccountId,
+            integration: this.integrationKey,
+            collection: this.collectionKey,
+            batch_count: objects.length,
+          },
+        });
       }
     }
 
-    // save in weaviate
-    // update keys
+    const weaviate = WeaviateClient.getInstance();
+    const didSave = await weaviate.batchSave<T>(this.linkedAccountId, this.collectionKey, objects, {
+      metadataCollectionKey: isMetaCollection ? options.metadata_collection_key : undefined,
+    });
+
+    if (!didSave) {
+      await activityService.createActivityLog(this.activityId, {
+        level: LogLevel.Error,
+        timestamp: now(),
+        message: `Failed to batch save vectors for collection ${this.collectionKey}`,
+        payload: {
+          linked_account: this.linkedAccountId,
+          integration: this.integrationKey,
+          collection: this.collectionKey,
+          batch_count: objects.length,
+        },
+      });
+    }
 
     return true;
+  }
+
+  public async pruneDeleted(allIds: string[]): Promise<boolean> {
+    const result = await recordService.pruneDeleted(
+      this.linkedAccountId,
+      this.collectionKey,
+      allIds
+    );
+
+    if (result) {
+      const { deletedKeys } = result;
+      this.deletedKeys.push(...deletedKeys);
+      return true;
+    }
+
+    return false;
   }
 
   public async reportResults(): Promise<{
