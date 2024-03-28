@@ -4,7 +4,7 @@ import { PDFLoader } from 'langchain/document_loaders/fs/pdf';
 import { PPTXLoader } from 'langchain/document_loaders/fs/pptx';
 import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
 import { z } from 'zod';
-import { InternalProxyOptions, SyncContext } from '../types';
+import { InternalProxyOptions, SyncContext, SyncRunType } from '../types';
 import { getDeepgramInstance } from '../utils';
 
 const FileSchema = z.object({
@@ -27,12 +27,12 @@ const FileChunkSchema = z.object({
 
 type FileChunk = z.infer<typeof FileChunkSchema>;
 
-const FileImageSchema = z.object({
+const FileImageBase64Schema = z.object({
   file_id: z.string(),
-  image: z.string(),
+  image_base64: z.string(),
 });
 
-type FileImage = z.infer<typeof FileImageSchema>;
+type FileImageBase64 = z.infer<typeof FileImageBase64Schema>;
 
 type GoogleDriveFile = {
   id: string;
@@ -46,11 +46,11 @@ type GoogleDriveFile = {
 };
 
 export default async function syncFiles(context: SyncContext) {
-  const batchSize = 100;
-  const files = [];
-  const fileChunks = [];
-  const fileImages = [];
-  const allIds = [];
+  let batchSize = 100;
+  let allIds: string[] = [];
+  let files: File[] = [];
+  let fileChunks: FileChunk[] = [];
+  let fileImages: FileImageBase64[] = [];
 
   let options: InternalProxyOptions = {
     endpoint: `drive/v3/files`,
@@ -71,7 +71,8 @@ export default async function syncFiles(context: SyncContext) {
       allIds.push(googleDriveFile.id);
 
       if (
-        // TODO if full sync, process all files
+        context.syncRunType === SyncRunType.Initial ||
+        context.syncRunType === SyncRunType.Full ||
         createdOrUpdatedAfterSync(
           googleDriveFile.createdTime,
           googleDriveFile.modifiedTime,
@@ -79,8 +80,8 @@ export default async function syncFiles(context: SyncContext) {
         )
       ) {
         const { file, chunks, image } = await processFile(googleDriveFile, context);
-        files.push(file);
 
+        files.push(file);
         if (chunks && chunks.length > 0) {
           fileChunks.push(...chunks);
         }
@@ -90,6 +91,19 @@ export default async function syncFiles(context: SyncContext) {
         }
       }
     }
+
+    await context.batchSave<File>(files);
+    files = [];
+
+    await context.batchSave<FileChunk>(fileChunks, {
+      metadata_collection_key: 'file_chunk',
+    });
+    fileChunks = [];
+
+    await context.batchSave<FileImageBase64>(fileImages, {
+      metadata_collection_key: 'file_image_base64',
+    });
+    fileImages = [];
 
     if (nextPageToken) {
       options.params = {
@@ -101,7 +115,7 @@ export default async function syncFiles(context: SyncContext) {
     }
   }
 
-  // TODO Batch save
+  await context.updateDeleted(allIds);
 }
 
 function createdOrUpdatedAfterSync(
@@ -130,7 +144,7 @@ function createdOrUpdatedAfterSync(
 type ProcessFileResponse = {
   file: File;
   chunks: FileChunk[] | null;
-  image: FileImage | null;
+  image: FileImageBase64 | null;
 };
 
 async function processFile(
@@ -395,7 +409,7 @@ async function processJson(
 async function processImage(
   file: GoogleDriveFile,
   context: SyncContext
-): Promise<FileImage | null> {
+): Promise<FileImageBase64 | null> {
   try {
     if (!context.multimodalEnabled) {
       return null;
@@ -410,7 +424,7 @@ async function processImage(
 
     const base64 = Buffer.from(response.data, 'binary').toString('base64');
 
-    return { file_id: file.id, image: base64 };
+    return { file_id: file.id, image_base64: base64 };
   } catch (err) {
     await context.reportError(err);
     return null;

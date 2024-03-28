@@ -14,6 +14,7 @@ export enum Resource {
   LinkToken = 'link_tok',
   Webhook = 'web',
   WebhookEvent = 'web_ev',
+  Record = 'rec',
 }
 
 export enum ErrorCode {

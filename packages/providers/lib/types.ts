@@ -121,7 +121,7 @@ export const CollectionSchemaSchema = z.object({
 
 export type CollectionSchema = z.infer<typeof CollectionSchemaSchema>;
 
-export const MetaCollectionSchema = z.record(
+export const MetadataCollectionSchema = z.record(
   z.object({
     schema: CollectionSchemaSchema,
     foreign_key: z.string(),
@@ -139,8 +139,8 @@ export const CollectionsSchema = z.record(
     default_auto_start_sync: z.boolean().optional(),
     required_scopes: z.array(z.string()).optional(),
     has_multimodal_properties: z.boolean(),
-    has_meta_collections: z.boolean(),
-    meta_collections: MetaCollectionSchema.optional(),
+    has_metadata_collections: z.boolean(),
+    metadata_collections: MetadataCollectionSchema.optional(),
   })
 );
 
@@ -214,6 +214,12 @@ type ActivityLog = {
   timestamp: number;
 };
 
+export declare enum SyncRunType {
+  Initial = 'initial',
+  Incremental = 'incremental',
+  Full = 'full',
+}
+
 export declare class BaseContext {
   activityId: string | null;
   proxy<T = any>(options: InternalProxyOptions): Promise<AxiosResponse<T>>;
@@ -236,14 +242,18 @@ export interface SyncContext extends BaseContext {
   multimodalEnabled: boolean;
   syncRunId: string;
   lastSyncedAt: number | null;
-  syncType: 'initial' | 'incremental';
-  batchSave<T = any>(results: T[], model: string): Promise<boolean | null>;
+  syncRunType: SyncRunType;
+  batchSave<T = any>(
+    objects: T[],
+    options?: { metadata_collection_key?: string }
+  ): Promise<boolean>;
   reportResults(): Promise<{
     records_added: number;
     records_updated: number;
     records_deleted: number;
   }>;
-  finish(): Promise<void>;
+  updateDeleted(allIds: string[]): Promise<boolean>;
+  finish(): boolean;
 }
 
 export interface ActionContext extends BaseContext {}

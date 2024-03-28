@@ -102,8 +102,8 @@ async function createCollections() {
         const formattedCollectionName = formatCollectionName(providerName, collectionSchema.name);
         iter.push({ formattedCollectionName, collectionSchema });
 
-        if (collection[1].has_meta_collections) {
-          const metaCollections = Object.entries(collection[1].meta_collections || {});
+        if (collection[1].has_metadata_collections) {
+          const metaCollections = Object.entries(collection[1].metadata_collections || {});
           for (const metaCollection of metaCollections) {
             const metaCollectionSchema = metaCollection[1].schema;
             const formattedMetaCollectionName = formatCollectionName(
