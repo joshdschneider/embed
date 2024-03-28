@@ -125,7 +125,7 @@ export const MetaCollectionSchema = z.record(
   z.object({
     schema: CollectionSchemaSchema,
     foreign_key: z.string(),
-    visible_in_results: z.boolean().optional(),
+    return_keys: z.array(z.string()).optional(),
   })
 );
 
