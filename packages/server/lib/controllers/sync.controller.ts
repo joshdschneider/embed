@@ -21,12 +21,15 @@ import { SyncObject, SyncRunObject, UpdateSyncRequestSchema } from '../utils/typ
 class SyncController {
   public async listSyncs(req: Request, res: Response) {
     const linkedAccountId = req.params['linked_account_id'];
+
     if (!linkedAccountId) {
       return errorService.errorResponse(res, {
         code: ErrorCode.BadRequest,
         message: 'Linked account ID missing',
       });
     }
+
+    // TODO: check if linked account exists
 
     try {
       const syncs = await syncService.listSyncs(linkedAccountId);

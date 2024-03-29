@@ -10,6 +10,7 @@ import {
   getTemporalUrl,
   isProd,
 } from '../utils/constants';
+import { IncrementalSyncArgs, InitialSyncArgs } from '../utils/types';
 
 const TEMPORAL_URL = getTemporalUrl();
 const TEMPORAL_NAMESPACE = getTemporalNamespace();
@@ -66,18 +67,7 @@ class TemporalClient {
     return new TemporalClient(client);
   }
 
-  public async startInitialSync(
-    syncRunId: string,
-    args: {
-      environmentId: string;
-      linkedAccountId: string;
-      integrationKey: string;
-      collectionKey: string;
-      syncRunId: string;
-      lastSyncedAt: number | null;
-      activityId: string | null;
-    }
-  ): Promise<string | null> {
+  public async startInitialSync(syncRunId: string, args: InitialSyncArgs): Promise<string | null> {
     try {
       const handle = await this.client.workflow.start('initialSync', {
         taskQueue: SYNC_TASK_QUEUE,
@@ -94,15 +84,7 @@ class TemporalClient {
 
   public async triggerIncrementalSync(
     syncRunId: string,
-    args: {
-      environmentId: string;
-      linkedAccountId: string;
-      integrationKey: string;
-      collectionKey: string;
-      syncRunId: string;
-      lastSyncedAt: number | null;
-      activityId: string | null;
-    }
+    args: IncrementalSyncArgs
   ): Promise<string | null> {
     try {
       const handle = await this.client.workflow.start('incrementalSync', {
@@ -122,12 +104,7 @@ class TemporalClient {
     scheduleId: string,
     interval: StringValue,
     offset: number,
-    args: {
-      environmentId: string;
-      linkedAccountId: string;
-      integrationKey: string;
-      collectionKey: string;
-    }
+    args: IncrementalSyncArgs
   ): Promise<ScheduleHandle | null> {
     try {
       return await this.client.schedule.create({

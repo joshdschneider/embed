@@ -3,9 +3,7 @@ import { DEFAULT_ERROR_MESSAGE, ErrorCode, errorService, proxyService } from '@e
 import axios, { AxiosError } from 'axios';
 import type { Request, Response } from 'express';
 import type { OutgoingHttpHeaders } from 'http';
-import querystring from 'querystring';
 import { PassThrough } from 'stream';
-import url from 'url';
 
 class ProxyController {
   public async routeRequest(req: Request, res: Response): Promise<void> {
@@ -23,7 +21,8 @@ class ProxyController {
       const baseUrlOverride = req.get('Base-Url-Override');
       const responseType = req.get('Response-Type');
       const headers = this.parseHeaders(req);
-      const endpoint = this.buildEndpoint(req);
+      const endpoint = this.parseEndpoint(req);
+      const params = this.parseQueryParams(req);
       const data = req.body;
 
       const options: ProxyOptions = {
@@ -33,6 +32,7 @@ class ProxyController {
         method,
         responseType: responseType as ResponseType,
         headers,
+        params,
         data,
         retries,
       };
@@ -103,11 +103,19 @@ class ProxyController {
     }, {});
   }
 
-  private buildEndpoint(req: Request): string {
+  private parseEndpoint(req: Request): string {
     const path = req.params[0] || '';
-    const { query } = url.parse(req.url, true);
-    const queryString = querystring.stringify(query);
-    return `${path}${queryString ? `?${queryString}` : ''}`;
+    return path;
+  }
+
+  private parseQueryParams(req: Request): Record<string, string | number> {
+    const url = new URL(req.url);
+    const params: Record<string, string | number> = {};
+    url.searchParams.forEach((value, key) => {
+      params[key] = value;
+    });
+
+    return params;
   }
 }
 

@@ -1,12 +1,11 @@
 import { Record as DataRecord } from '@prisma/client';
 import { Context } from '@temporalio/activity';
-import { now } from 'lodash';
 import md5 from 'md5';
 import WeaviateClient from '../clients/weaviate.client';
 import activityService from '../services/activity.service';
 import recordService from '../services/record.service';
 import { LogLevel, Resource, SyncRunType } from '../utils/enums';
-import { generateId } from '../utils/helpers';
+import { generateId, now } from '../utils/helpers';
 import { BaseContext, BaseContextOptions } from './base.context';
 
 export type SyncContextOptions = BaseContextOptions & {

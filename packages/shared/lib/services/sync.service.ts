@@ -144,21 +144,29 @@ class SyncService {
       }
 
       if (!syncSchedule) {
-        const scheduleHandle = await temporal.createSyncSchedule(
-          generateId(Resource.SyncSchedule),
-          interval,
-          offset,
-          {
-            environmentId: sync.environment_id,
-            linkedAccountId: sync.environment_id,
-            integrationKey: sync.integration_key,
-            collectionKey: sync.collection_key,
-          }
-        );
+        const scheduleId = generateId(Resource.SyncSchedule);
+        const scheduleHandle = await temporal.createSyncSchedule(scheduleId, interval, offset, {
+          environmentId: sync.environment_id,
+          linkedAccountId: sync.linked_account_id,
+          integrationKey: sync.integration_key,
+          collectionKey: sync.collection_key,
+        });
 
         if (!scheduleHandle) {
           throw new Error('Failed to create sync schedule in Temporal');
         }
+
+        await this.createSyncSchedule({
+          id: scheduleId,
+          linked_account_id: sync.linked_account_id,
+          collection_key: sync.collection_key,
+          frequency: interval,
+          offset,
+          status: SyncScheduleStatus.Running,
+          created_at: now(),
+          updated_at: now(),
+          deleted_at: null,
+        });
 
         await activityService.createActivityLog(activityId, {
           level: LogLevel.Info,
@@ -185,6 +193,18 @@ class SyncService {
           if (!scheduleHandle) {
             throw new Error('Failed to create sync schedule in Temporal');
           }
+
+          await this.createSyncSchedule({
+            id: syncSchedule.id,
+            linked_account_id: sync.linked_account_id,
+            collection_key: sync.collection_key,
+            frequency: interval,
+            offset,
+            status: SyncScheduleStatus.Running,
+            created_at: now(),
+            updated_at: now(),
+            deleted_at: null,
+          });
         }
 
         const description = await scheduleHandle.describe();
@@ -322,6 +342,13 @@ class SyncService {
       }
     } catch (err) {
       await errorService.reportError(err);
+
+      await activityService.createActivityLog(activityId, {
+        level: LogLevel.Error,
+        message: 'Failed to trigger sync',
+        timestamp: now(),
+      });
+
       return null;
     }
   }
@@ -469,6 +496,29 @@ class SyncService {
           deleted_at: null,
         },
       });
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
+    }
+  }
+
+  public async getLastSyncedAt(
+    linkedAccountId: string,
+    collectionKey: string
+  ): Promise<number | null> {
+    try {
+      const sync = await database.sync.findUnique({
+        where: {
+          collection_key_linked_account_id: {
+            linked_account_id: linkedAccountId,
+            collection_key: collectionKey,
+          },
+          deleted_at: null,
+        },
+        select: { last_synced_at: true },
+      });
+
+      return sync ? sync.last_synced_at : null;
     } catch (err) {
       await errorService.reportError(err);
       return null;

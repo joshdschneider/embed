@@ -214,7 +214,7 @@ type ActivityLog = {
   timestamp: number;
 };
 
-export declare enum SyncRunType {
+export enum SyncRunType {
   Initial = 'initial',
   Incremental = 'incremental',
   Full = 'full',
@@ -229,7 +229,8 @@ export declare class BaseContext {
   put<T = any>(options: MethodProxyOptions): Promise<AxiosResponse<T>>;
   delete<T = any>(options: MethodProxyOptions): Promise<AxiosResponse<T>>;
   reportError(err: unknown): Promise<void>;
-  log(activityLog: {
+  log(message: string): void;
+  createActivityLog(activityLog: {
     level: LogLevel;
     message: string;
     payload?: object | undefined;
