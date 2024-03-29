@@ -12,7 +12,6 @@ export class Provider {
     if (spec.success) {
       this.specification = spec.data;
     } else {
-      console.log(spec.error);
       throw new Error(`Failed to parse ${provider} specification`);
     }
   }

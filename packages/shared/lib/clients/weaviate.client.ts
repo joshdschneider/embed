@@ -8,8 +8,9 @@ import errorService from '../services/error.service';
 import linkedAccountService from '../services/linkedAccount.service';
 import providerService from '../services/provider.service';
 import { getWeaviateUrl, isProd } from '../utils/constants';
+import { MultimodalEmbeddingModel, TextEmbeddingModel } from '../utils/enums';
 import { Filter } from '../utils/types';
-import { EmbeddingClient, MultimodalEmbeddingModel, TextEmbeddingModel } from './embedding.client';
+import { EmbeddingClient } from './embedding.client';
 
 const WEAVIATE_URL = getWeaviateUrl();
 
@@ -48,7 +49,7 @@ class WeaviateClient {
     linkedAccountId: string,
     integrationKey: string,
     collectionKey: string
-  ) {
+  ): Promise<CollectionSchema[] | null> {
     if (!this.weaviateClient) {
       await errorService.reportError(new Error('Weaviate client not initialized'));
       return null;
@@ -62,11 +63,23 @@ class WeaviateClient {
         throw new Error(`Collection not found for provider ${integrationKey}`);
       }
 
-      const collectionSchema = providerCollection[1].schema;
-      const collectionName = this.formatCollectionName(integrationKey, collectionSchema.name);
-      return await this.weaviateClient.schema
-        .tenantsCreator(collectionName, [{ name: linkedAccountId }])
-        .do();
+      const collectionSchemas = [providerCollection[1].schema];
+      if (providerCollection[1].has_metadata_collections) {
+        const metadataCollections = Object.entries(
+          providerCollection[1].metadata_collections || {}
+        );
+        const metadataSchemas = metadataCollections.map(([k, v]) => v.schema);
+        collectionSchemas.push(...metadataSchemas);
+      }
+
+      for (const collectionSchema of collectionSchemas) {
+        const collectionName = this.formatCollectionName(integrationKey, collectionSchema.name);
+        await this.weaviateClient.schema
+          .tenantsCreator(collectionName, [{ name: linkedAccountId }])
+          .do();
+      }
+
+      return collectionSchemas;
     } catch (err) {
       await errorService.reportError(err);
       return null;
@@ -83,6 +96,8 @@ class WeaviateClient {
       await errorService.reportError(new Error('Weaviate client not initialized'));
       return false;
     }
+
+    console.log('batchSave', linkedAccountId, collectionKey, objects, options);
 
     try {
       const linkedAccount = await linkedAccountService.getLinkedAccountById(linkedAccountId);
@@ -133,6 +148,14 @@ class WeaviateClient {
 
       for (const obj of objects) {
         const vectors = await this.vectorizeProperties(obj, collection, collectionProperties);
+
+        console.log({
+          class: collectionName,
+          tenant: linkedAccountId,
+          properties: obj,
+          vectors: vectors,
+        });
+
         batcher = batcher.withObject({
           class: collectionName,
           tenant: linkedAccountId,
@@ -520,6 +543,8 @@ class WeaviateClient {
     collection: Collection,
     collectionProperties: [string, CollectionProperty][]
   ): Promise<{ [key: string]: number[] }> {
+    console.log('vectorizeProperties for ', collection);
+
     const textProperties = collectionProperties
       .filter(([k, v]) => v.vector_searchable && v.embedding_model !== 'multimodal')
       .map(([k, v]) => k);
@@ -528,6 +553,9 @@ class WeaviateClient {
       .filter(([k, v]) => v.vector_searchable && v.embedding_model === 'multimodal')
       .map(([k, v]) => k);
 
+    console.log('textProperties', textProperties);
+    console.log('multimodalProperties', multimodalProperties);
+
     let textVectorsPromise;
     let multimodalVectorsPromise;
 
@@ -535,6 +563,8 @@ class WeaviateClient {
       const textChunks = Object.entries(obj)
         .filter(([k, v]) => textProperties.includes(k))
         .map(([k, v]) => v) as string[];
+
+      console.log('textChunks', textChunks);
 
       textVectorsPromise = this.embeddingClient.embedText({
         model: collection.text_embedding_model as TextEmbeddingModel,
@@ -548,6 +578,8 @@ class WeaviateClient {
         .filter(([k, v]) => multimodalProperties.includes(k))
         .map(([k, v]) => v) as string[];
 
+      console.log('multimodalChunks', multimodalChunks);
+
       multimodalVectorsPromise = this.embeddingClient.embedMultimodal({
         model: collection.multimodal_embedding_model as MultimodalEmbeddingModel,
         content: multimodalChunks,
@@ -559,6 +591,9 @@ class WeaviateClient {
       textVectorsPromise,
       multimodalVectorsPromise,
     ]);
+
+    console.log('has textVectors', !!textVectors);
+    console.log('has multimodalVectors', !!textVectors);
 
     const textVectorProperties =
       textVectors?.map((v, i) => {

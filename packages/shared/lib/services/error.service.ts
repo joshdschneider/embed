@@ -9,7 +9,6 @@ interface ErrorObject {
 
 class ErrorService {
   public async reportError(err: unknown) {
-    console.error(err);
     logger.error(`Exception caught: ${JSON.stringify(err, Object.getOwnPropertyNames(err))}`);
   }
 

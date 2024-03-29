@@ -1,6 +1,6 @@
 import { Record as DataRecord } from '@prisma/client';
-import { now } from 'lodash';
 import { database } from '../utils/database';
+import { now } from '../utils/helpers';
 import encryptionService from './encryption.service';
 import errorService from './error.service';
 
@@ -25,7 +25,9 @@ class RecordService {
       const existingHashes = new Set(existingRecords.map((rec) => rec.hash));
 
       const recordsToCreate = records.filter((rec) => !existingExternalIds.has(rec.external_id));
-      const recordsToUpdate = records.filter((rec) => !existingHashes.has(rec.hash));
+      const recordsToUpdate = records.filter(
+        (rec) => existingExternalIds.has(rec.external_id) && !existingHashes.has(rec.hash)
+      );
 
       let addedKeys: string[] = [];
       let updatedKeys: string[] = [];
@@ -40,9 +42,9 @@ class RecordService {
       }
 
       if (recordsToUpdate.length > 0) {
-        const updatePromises = recordsToUpdate.map((rec) => {
+        for (const rec of recordsToUpdate) {
           const encryptedRecord = encryptionService.encryptRecord(rec);
-          return database.record.update({
+          const updatedRecord = await database.record.update({
             where: {
               external_id_linked_account_id_collection_key: {
                 linked_account_id: linkedAccountId,
@@ -60,10 +62,9 @@ class RecordService {
             },
             select: { id: true },
           });
-        });
 
-        const updatedRecords = await Promise.all(updatePromises);
-        updatedKeys = updatedRecords.map((rec) => rec.id);
+          updatedKeys.push(updatedRecord.id);
+        }
       }
 
       return { addedKeys, updatedKeys };

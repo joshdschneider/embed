@@ -1,4 +1,9 @@
-import { collectionService, syncService, type LinkedAccount } from '@embed/shared';
+import {
+  collectionService,
+  linkedAccountService,
+  syncService,
+  type LinkedAccount,
+} from '@embed/shared';
 import webhookService from '../services/webhook.service';
 
 class LinkedAccountHook {
@@ -27,13 +32,19 @@ class LinkedAccountHook {
       throw new Error('Failed to retrieve collections from database');
     }
 
-    collections.map((collection) => {
-      return syncService.initializeSync({
+    for (const collection of collections) {
+      await linkedAccountService.createTenantForLinkedAccount(
+        linkedAccount.id,
+        linkedAccount.integration_key,
+        collection.unique_key
+      );
+
+      syncService.initializeSync({
         linkedAccountId: linkedAccount.id,
         collection,
         activityId,
       });
-    });
+    }
   }
 
   public async linkedAccountUpdated({

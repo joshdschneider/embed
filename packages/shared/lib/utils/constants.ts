@@ -2,6 +2,7 @@ import { BedrockRuntimeClient } from '@aws-sdk/client-bedrock-runtime';
 import { CohereClient } from 'cohere-ai';
 import { GoogleAuth } from 'google-auth-library';
 import OpenAI from 'openai';
+import { MultimodalEmbeddingModel, TextEmbeddingModel } from './enums';
 
 export function getServerUrl() {
   return process.env['SERVER_URL'];
@@ -161,16 +162,22 @@ export const ENCRYPTION_KEY_SALT = 'X89FHEGqR3yNK0+v7rPWxQ==';
 export const EMBED_AUTH_TOKEN_KEY = 'embed_token';
 export const EMBED_ENVIRONMENT_KEY = 'embed_enviroment';
 
-export const SYNC_TASK_QUEUE = 'syncs';
-export const ACTIONS_TASK_QUEUE = 'actions';
-
 export const MIN_LIMIT = 1;
 export const MAX_LIMIT = 100;
 export const DEFAULT_LIMIT = 20;
 
+export const SYNC_TASK_QUEUE = 'syncs';
+export const ACTIONS_TASK_QUEUE = 'actions';
+
 export const DEFAULT_SYNC_FREQUENCY = '1d';
 export const DEFAULT_AUTO_START_SYNC = false;
+
+export const DEFAULT_TEXT_EMBEDDING_MODEL = TextEmbeddingModel.OpenaiTextEmbedding3Small;
+export const DEFAULT_MULTIMODAL_EMBEDDING_MODEL =
+  MultimodalEmbeddingModel.GoogleVertexMultimodalEmbedding001;
+
 export const DEFAULT_PROXY_ATTEMPTS = 3;
+export const DEFAULT_PROXY_RESPONSE_TYPE = 'json';
 
 export const SUPPORTED_LANGUAGES = ['en'];
 

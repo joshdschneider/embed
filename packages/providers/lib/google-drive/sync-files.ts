@@ -250,7 +250,8 @@ async function processPdf(
       responseType: 'arraybuffer',
     });
 
-    const blob = new Blob([response.data]);
+    const buffer = Buffer.from(response.data, 'binary');
+    const blob = new Blob([buffer]);
     const loader = new PDFLoader(blob, { splitPages: false });
     const docs = await loader.load();
     const content = docs.map((doc) => doc.pageContent).join('\n\n');
@@ -287,7 +288,8 @@ async function processDocx(
       responseType: 'arraybuffer',
     });
 
-    const blob = new Blob([response.data]);
+    const buffer = Buffer.from(response.data, 'binary');
+    const blob = new Blob([buffer]);
     const loader = new DocxLoader(blob);
     const docs = await loader.load();
     const content = docs.map((doc) => doc.pageContent).join('\n\n');
@@ -324,7 +326,8 @@ async function processPptx(
       responseType: 'arraybuffer',
     });
 
-    const blob = new Blob([response.data]);
+    const buffer = Buffer.from(response.data, 'binary');
+    const blob = new Blob([buffer]);
     const loader = new PPTXLoader(blob);
     const docs = await loader.load();
     const content = docs.map((doc) => doc.pageContent).join('\n\n');
@@ -385,7 +388,6 @@ async function processJson(
       endpoint: `drive/v3/files/${file.id}`,
       params: { alt: 'media' },
       retries: 3,
-      responseType: 'json',
     });
 
     const jsonString = JSON.stringify(response.data);

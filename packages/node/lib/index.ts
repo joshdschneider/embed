@@ -94,38 +94,38 @@ export default class Embed {
     }
 
     if (!options.method || options.method.toUpperCase() === 'GET') {
-      return axios.get(url, config);
+      return axios.get<T>(url, config);
     } else if (options.method.toUpperCase() === 'POST') {
-      return axios.post(url, options.data, config);
+      return axios.post<T>(url, options.data, config);
     } else if (options.method.toUpperCase() === 'PATCH') {
-      return axios.patch(url, options.data, config);
+      return axios.patch<T>(url, options.data, config);
     } else if (options.method.toUpperCase() === 'PUT') {
-      return axios.put(url, options.data, config);
+      return axios.put<T>(url, options.data, config);
     } else if (options.method.toUpperCase() === 'DELETE') {
-      return axios.delete(url, config);
+      return axios.delete<T>(url, config);
     } else {
       throw new Error('Invalid HTTP method for proxy request');
     }
   }
 
   public async get<T = any>(options: Omit<ProxyOptions, 'method'>): Promise<AxiosResponse<T>> {
-    return this.proxy({ ...options, method: 'GET' });
+    return this.proxy<T>({ ...options, method: 'GET' });
   }
 
   public async post<T = any>(options: Omit<ProxyOptions, 'method'>): Promise<AxiosResponse<T>> {
-    return this.proxy({ ...options, method: 'POST' });
+    return this.proxy<T>({ ...options, method: 'POST' });
   }
 
   public async patch<T = any>(options: Omit<ProxyOptions, 'method'>): Promise<AxiosResponse<T>> {
-    return this.proxy({ ...options, method: 'PATCH' });
+    return this.proxy<T>({ ...options, method: 'PATCH' });
   }
 
   public async put<T = any>(options: Omit<ProxyOptions, 'method'>): Promise<AxiosResponse<T>> {
-    return this.proxy({ ...options, method: 'PUT' });
+    return this.proxy<T>({ ...options, method: 'PUT' });
   }
 
   public async delete<T = any>(options: Omit<ProxyOptions, 'method'>): Promise<AxiosResponse<T>> {
-    return this.proxy({ ...options, method: 'DELETE' });
+    return this.proxy<T>({ ...options, method: 'DELETE' });
   }
 
   private attachAuthorization(

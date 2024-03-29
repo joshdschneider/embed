@@ -1,6 +1,7 @@
 import { AuthScheme, OAuth2, ProviderSpecification } from '@embed/providers';
 import { LinkedAccount } from '@prisma/client';
 import { getFreshOAuth2Credentials } from '../clients/oauth2.client';
+import WeaviateClient from '../clients/weaviate.client';
 import { DEFAULT_LIMIT, MAX_LIMIT, MIN_LIMIT } from '../utils/constants';
 import { database } from '../utils/database';
 import { now } from '../utils/helpers';
@@ -250,6 +251,21 @@ class LinkedAccountService {
     } catch (err) {
       await errorService.reportError(err);
       return null;
+    }
+  }
+
+  public async createTenantForLinkedAccount(
+    linkedAccountId: string,
+    integrationKey: string,
+    collectionKey: string
+  ): Promise<boolean> {
+    try {
+      const weaviate = WeaviateClient.getInstance();
+      const tenant = await weaviate.createTenant(linkedAccountId, integrationKey, collectionKey);
+      return tenant == null ? false : true;
+    } catch (err) {
+      await errorService.reportError(err);
+      return false;
     }
   }
 
