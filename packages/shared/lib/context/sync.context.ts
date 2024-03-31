@@ -56,7 +56,7 @@ export class SyncContext extends BaseContext {
       return true;
     }
 
-    const isMetaCollection = options && options.metadata_collection_key;
+    const isMetaCollection = !!options && !!options.metadata_collection_key;
 
     if (!isMetaCollection) {
       const records: DataRecord[] = objects.map((obj: any) => {
@@ -88,6 +88,11 @@ export class SyncContext extends BaseContext {
         const { addedKeys, updatedKeys } = batchSaveResult;
         this.addedKeys.push(...addedKeys);
         this.updatedKeys.push(...updatedKeys);
+
+        /**
+         * handle updates in weaviate
+         * When !isMetaCollection object is updated, delete that object's meta collection objects
+         */
       } else {
         await activityService.createActivityLog(this.activityId, {
           level: LogLevel.Error,
@@ -104,6 +109,15 @@ export class SyncContext extends BaseContext {
     }
 
     const weaviate = WeaviateClient.getInstance();
+    let weaviateObjects: any = objects;
+
+    if (!isMetaCollection) {
+      weaviateObjects = objects.map(({ id, ...rest }) => ({
+        ...rest,
+        external_id: id,
+      }));
+    }
+
     const didSave = await weaviate.batchSave<T>(this.linkedAccountId, this.collectionKey, objects, {
       metadataCollectionKey: isMetaCollection ? options.metadata_collection_key : undefined,
     });

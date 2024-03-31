@@ -1,3 +1,6 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import { BedrockRuntimeClient } from '@aws-sdk/client-bedrock-runtime';
 import { CohereClient } from 'cohere-ai';
 import { GoogleAuth } from 'google-auth-library';
@@ -23,10 +26,6 @@ export function getRedisUrl() {
 
 export function getWeaviateUrl() {
   return process.env['WEAVIATE_URL'];
-}
-
-export function getWeaviateApiKey() {
-  return process.env['WEAVIATE_API_KEY'];
 }
 
 export function getTemporalUrl() {
@@ -64,14 +63,6 @@ export function getLogLevel() {
 
 export function isProd() {
   return process.env['NODE_ENV'] === 'production';
-}
-
-export function isCloud() {
-  return process.env['EMBED_CLOUD']?.toLowerCase() === 'true';
-}
-
-export function isEnterprise() {
-  return process.env['EMBED_ENTERPRISE']?.toLowerCase() === 'true';
 }
 
 export function getAuthTokenSecret() {
@@ -130,18 +121,13 @@ export async function getGoogleCloud() {
   }
 
   const auth = new GoogleAuth({ keyFilename: keyPath });
-
   const client = await auth.getClient();
   const accessToken = await client.getAccessToken();
   if (!accessToken.token) {
     throw new Error('Failed to get Google access token');
   }
 
-  return {
-    accessToken: accessToken.token,
-    projectId,
-    region,
-  };
+  return { accessToken: accessToken.token, projectId, region };
 }
 
 export function getMistralApiKey() {

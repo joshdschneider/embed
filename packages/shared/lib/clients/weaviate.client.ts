@@ -97,8 +97,6 @@ class WeaviateClient {
       return false;
     }
 
-    console.log('batchSave', linkedAccountId, collectionKey, objects, options);
-
     try {
       const linkedAccount = await linkedAccountService.getLinkedAccountById(linkedAccountId);
       if (!linkedAccount) {
@@ -149,13 +147,6 @@ class WeaviateClient {
       for (const obj of objects) {
         const vectors = await this.vectorizeProperties(obj, collection, collectionProperties);
 
-        console.log({
-          class: collectionName,
-          tenant: linkedAccountId,
-          properties: obj,
-          vectors: vectors,
-        });
-
         batcher = batcher.withObject({
           class: collectionName,
           tenant: linkedAccountId,
@@ -164,7 +155,15 @@ class WeaviateClient {
         });
       }
 
-      await batcher.do();
+      const batchResponse = await batcher.do();
+      batchResponse.forEach((batch) => {
+        if (batch.result?.status === 'FAILED') {
+          const err = batch.result.errors?.error
+            ? batch.result.errors.error.join(' ')
+            : 'Batch save failed';
+          throw new Error(err);
+        }
+      });
       return true;
     } catch (err) {
       await errorService.reportError(err);
@@ -222,9 +221,9 @@ class WeaviateClient {
 
       for (const [k, v] of Object.entries(collectionSchema.properties)) {
         if (v.vector_searchable !== false) {
-          if (v.embedding_model !== 'multimodal') {
+          if (!v.multimodal) {
             textProperties.push(k);
-          } else if (v.embedding_model === 'multimodal') {
+          } else if (v.multimodal) {
             multimodalProperties.push(k);
           }
         }
@@ -380,7 +379,7 @@ class WeaviateClient {
           : Object.keys(collectionSchema.properties);
 
       const multimodalProperties = Object.entries(collectionSchema.properties)
-        .filter(([k, v]) => v.vector_searchable && v.embedding_model === 'multimodal')
+        .filter(([k, v]) => v.vector_searchable && v.multimodal)
         .map(([k, v]) => k);
 
       const multimodalQueryResponse = await this.imageQuery({
@@ -543,18 +542,13 @@ class WeaviateClient {
     collection: Collection,
     collectionProperties: [string, CollectionProperty][]
   ): Promise<{ [key: string]: number[] }> {
-    console.log('vectorizeProperties for ', collection);
-
     const textProperties = collectionProperties
-      .filter(([k, v]) => v.vector_searchable && v.embedding_model !== 'multimodal')
+      .filter(([k, v]) => v.vector_searchable !== false && v.multimodal !== true)
       .map(([k, v]) => k);
 
     const multimodalProperties = collectionProperties
-      .filter(([k, v]) => v.vector_searchable && v.embedding_model === 'multimodal')
+      .filter(([k, v]) => v.vector_searchable !== false && v.multimodal === true)
       .map(([k, v]) => k);
-
-    console.log('textProperties', textProperties);
-    console.log('multimodalProperties', multimodalProperties);
 
     let textVectorsPromise;
     let multimodalVectorsPromise;
@@ -563,8 +557,6 @@ class WeaviateClient {
       const textChunks = Object.entries(obj)
         .filter(([k, v]) => textProperties.includes(k))
         .map(([k, v]) => v) as string[];
-
-      console.log('textChunks', textChunks);
 
       textVectorsPromise = this.embeddingClient.embedText({
         model: collection.text_embedding_model as TextEmbeddingModel,
@@ -578,8 +570,6 @@ class WeaviateClient {
         .filter(([k, v]) => multimodalProperties.includes(k))
         .map(([k, v]) => v) as string[];
 
-      console.log('multimodalChunks', multimodalChunks);
-
       multimodalVectorsPromise = this.embeddingClient.embedMultimodal({
         model: collection.multimodal_embedding_model as MultimodalEmbeddingModel,
         content: multimodalChunks,
@@ -591,9 +581,6 @@ class WeaviateClient {
       textVectorsPromise,
       multimodalVectorsPromise,
     ]);
-
-    console.log('has textVectors', !!textVectors);
-    console.log('has multimodalVectors', !!textVectors);
 
     const textVectorProperties =
       textVectors?.map((v, i) => {

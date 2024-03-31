@@ -10,6 +10,7 @@ import {
   environmentService,
   errorService,
   generateId,
+  getWeaviateUrl,
   integrationService,
   now,
 } from '@embed/shared';
@@ -74,6 +75,11 @@ class UserController {
           code: ErrorCode.InternalServerError,
           message: DEFAULT_ERROR_MESSAGE,
         });
+      }
+
+      const weaviateUrl = getWeaviateUrl();
+      if (!weaviateUrl) {
+        throw new Error('Weaviate URL not set');
       }
 
       const stagingEnvironment = await environmentService.createEnvironment({
