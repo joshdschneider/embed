@@ -107,7 +107,7 @@ export const CollectionPropertySchema = z.object({
   index_searchable: z.boolean().optional(),
   index_filterable: z.boolean().optional(),
   vector_searchable: z.boolean().optional(),
-  embedding_model: z.union([z.literal('text'), z.literal('multimodal')]).optional(),
+  multimodal: z.boolean().optional(),
 });
 
 export type CollectionProperty = z.infer<typeof CollectionPropertySchema>;

@@ -101,7 +101,7 @@ schemas:
         description: The base64-encoded string of the image file.
         index_searchable: false
         index_filterable: false
-        is_multimodal: true
+        multimodal: true
     required:
       - file_id
       - image

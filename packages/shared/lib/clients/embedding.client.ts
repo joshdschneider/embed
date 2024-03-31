@@ -24,6 +24,8 @@ export class EmbeddingClient {
     purpose: EmbeddingPurpose;
     text: string[];
   }): Promise<number[][]> {
+    console.log('Embedding text with model:', model);
+
     switch (model) {
       case TextEmbeddingModel.OpenaiTextEmbedding3Small:
       case TextEmbeddingModel.OpenaiTextEmbedding3Large:
@@ -59,6 +61,8 @@ export class EmbeddingClient {
     content: string[];
     type: ContentType;
   }): Promise<number[][]> {
+    console.log('Embedding text with model:', model);
+
     switch (model) {
       case MultimodalEmbeddingModel.AmazonTitanMultimodalG1:
         return this.withBedrockMultimodal(model, content, type);
@@ -79,6 +83,8 @@ export class EmbeddingClient {
         model: model.replace('openai-', ''),
         input: text,
       });
+
+      console.log('Embedding complete:', response.data.length);
 
       return response.data.map((chunk) => chunk.embedding);
     };
