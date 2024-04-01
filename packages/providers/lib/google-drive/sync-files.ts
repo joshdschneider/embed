@@ -14,25 +14,18 @@ const FileSchema = z.object({
   name: z.string(),
   parents: z.array(z.string()),
   mime_type: z.string(),
+  content: z.string().optional(),
+  base64: z.string().optional(),
   created_at: z.string(),
   updated_at: z.string(),
 });
 
 type File = z.infer<typeof FileSchema>;
 
-const FileChunkSchema = z.object({
-  file_id: z.string(),
-  chunk: z.string(),
-});
-
-type FileChunk = z.infer<typeof FileChunkSchema>;
-
-const FileImageBase64Schema = z.object({
-  file_id: z.string(),
-  image_base64: z.string(),
-});
-
-type FileImageBase64 = z.infer<typeof FileImageBase64Schema>;
+type ObjectWithInstances<T> = {
+  object: T;
+  instances?: T[];
+};
 
 type GoogleDriveFile = {
   id: string;
@@ -46,11 +39,9 @@ type GoogleDriveFile = {
 };
 
 export default async function syncFiles(context: SyncContext) {
-  let batchSize = 100;
+  let batchSize = 50;
   let allIds: string[] = [];
-  let files: File[] = [];
-  let fileChunks: FileChunk[] = [];
-  let fileImages: FileImageBase64[] = [];
+  let files: ObjectWithInstances<File>[] = [];
 
   let options: InternalProxyOptions = {
     endpoint: `drive/v3/files`,
@@ -79,31 +70,13 @@ export default async function syncFiles(context: SyncContext) {
           context.lastSyncedAt
         )
       ) {
-        const { file, chunks, image } = await processFile(googleDriveFile, context);
-
-        files.push(file);
-        if (chunks && chunks.length > 0) {
-          fileChunks.push(...chunks);
-        }
-
-        if (image) {
-          fileImages.push(image);
-        }
+        const fileWithInstances = await processFile(googleDriveFile, context);
+        files.push(fileWithInstances);
       }
     }
 
     await context.batchSave<File>(files);
     files = [];
-
-    await context.batchSave<FileChunk>(fileChunks, {
-      metadata_collection_key: 'file_chunk',
-    });
-    fileChunks = [];
-
-    await context.batchSave<FileImageBase64>(fileImages, {
-      metadata_collection_key: 'file_image_base64',
-    });
-    fileImages = [];
 
     if (nextPageToken) {
       options.params = {
@@ -141,16 +114,10 @@ function createdOrUpdatedAfterSync(
   }
 }
 
-type ProcessFileResponse = {
-  file: File;
-  chunks: FileChunk[] | null;
-  image: FileImageBase64 | null;
-};
-
 async function processFile(
   file: GoogleDriveFile,
   context: SyncContext
-): Promise<ProcessFileResponse> {
+): Promise<ObjectWithInstances<File>> {
   const fileObj: File = {
     id: file.id,
     name: file.name,
@@ -166,32 +133,39 @@ async function processFile(
     case 'application/vnd.google-apps.document':
     case 'application/vnd.google-apps.presentation':
       const docChunks = await processGoogleAppsFile(file, context);
-      return { file: fileObj, chunks: docChunks, image: null };
+      const withDocChunks = docChunks.map((chunk) => ({ ...fileObj, content: chunk }));
+      return { object: fileObj, instances: withDocChunks };
 
     case 'application/pdf':
       const pdfChunks = await processPdf(file, context);
-      return { file: fileObj, chunks: pdfChunks, image: null };
+      const withPdfChunks = pdfChunks.map((chunk) => ({ ...fileObj, content: chunk }));
+      return { object: fileObj, instances: withPdfChunks };
 
     case 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
       const docxChunks = await processDocx(file, context);
-      return { file: fileObj, chunks: docxChunks, image: null };
+      const withDocxChunks = docxChunks.map((chunk) => ({ ...fileObj, content: chunk }));
+      return { object: fileObj, instances: withDocxChunks };
 
     case 'application/vnd.openxmlformats-officedocument.presentationml.presentation':
       const pptxChunks = await processPptx(file, context);
-      return { file: fileObj, chunks: pptxChunks, image: null };
+      const withPptxChunks = pptxChunks.map((chunk) => ({ ...fileObj, content: chunk }));
+      return { object: fileObj, instances: withPptxChunks };
 
     case 'text/plain':
       const textChunks = await processText(file, context);
-      return { file: fileObj, chunks: textChunks, image: null };
+      const withTextChunks = textChunks.map((chunk) => ({ ...fileObj, content: chunk }));
+      return { object: fileObj, instances: withTextChunks };
 
     case 'application/json':
       const jsonChunks = await processJson(file, context);
-      return { file: fileObj, chunks: jsonChunks, image: null };
+      const withJsonChunks = jsonChunks.map((chunk) => ({ ...fileObj, content: chunk }));
+      return { object: fileObj, instances: withJsonChunks };
 
     case 'image/jpeg':
     case 'image/png':
-      const img = await processImage(file, context);
-      return { file: fileObj, chunks: null, image: img };
+      const base64Image = await processImage(file, context);
+      const withBase64Image = base64Image ? [{ ...fileObj, base64: base64Image }] : undefined;
+      return { object: fileObj, instances: withBase64Image };
 
     case 'audio/wav':
     case 'audio/mpeg':
@@ -204,17 +178,18 @@ async function processFile(
     case 'audio/opus':
     case 'audio/webm':
       const audioChunks = await processAudio(file, context);
-      return { file: fileObj, chunks: audioChunks, image: null };
+      const withAudioChunks = audioChunks.map((chunk) => ({ ...fileObj, content: chunk }));
+      return { object: fileObj, instances: withAudioChunks };
 
     default:
-      return { file: fileObj, chunks: null, image: null };
+      return { object: fileObj };
   }
 }
 
 async function processGoogleAppsFile(
   file: GoogleDriveFile,
   context: SyncContext
-): Promise<FileChunk[] | null> {
+): Promise<string[]> {
   try {
     const res = await context.get({
       endpoint: `drive/v3/files/${file.id}/export`,
@@ -228,20 +203,14 @@ async function processGoogleAppsFile(
     });
 
     const output = await splitter.createDocuments([res.data]);
-    return output.map((doc) => ({
-      file_id: file.id,
-      chunk: doc.pageContent,
-    }));
+    return output.map((doc) => doc.pageContent);
   } catch (err) {
     await context.reportError(err);
-    return null;
+    return [];
   }
 }
 
-async function processPdf(
-  file: GoogleDriveFile,
-  context: SyncContext
-): Promise<FileChunk[] | null> {
+async function processPdf(file: GoogleDriveFile, context: SyncContext): Promise<string[]> {
   try {
     const response = await context.get({
       endpoint: `drive/v3/files/${file.id}`,
@@ -263,23 +232,17 @@ async function processPdf(
       });
 
       const output = await splitter.createDocuments([content]);
-      return output.map((doc) => ({
-        file_id: file.id,
-        chunk: doc.pageContent,
-      }));
+      return output.map((doc) => doc.pageContent);
     }
 
-    return null;
+    return [];
   } catch (err) {
     await context.reportError(err);
-    return null;
+    return [];
   }
 }
 
-async function processDocx(
-  file: GoogleDriveFile,
-  context: SyncContext
-): Promise<FileChunk[] | null> {
+async function processDocx(file: GoogleDriveFile, context: SyncContext): Promise<string[]> {
   try {
     const response = await context.get({
       endpoint: `drive/v3/files/${file.id}`,
@@ -301,23 +264,17 @@ async function processDocx(
       });
 
       const output = await splitter.createDocuments([content]);
-      return output.map((doc) => ({
-        file_id: file.id,
-        chunk: doc.pageContent,
-      }));
+      return output.map((doc) => doc.pageContent);
     }
 
-    return null;
+    return [];
   } catch (err) {
     await context.reportError(err);
-    return null;
+    return [];
   }
 }
 
-async function processPptx(
-  file: GoogleDriveFile,
-  context: SyncContext
-): Promise<FileChunk[] | null> {
+async function processPptx(file: GoogleDriveFile, context: SyncContext): Promise<string[]> {
   try {
     const response = await context.get({
       endpoint: `drive/v3/files/${file.id}`,
@@ -339,23 +296,17 @@ async function processPptx(
       });
 
       const output = await splitter.createDocuments([content]);
-      return output.map((doc) => ({
-        file_id: file.id,
-        chunk: doc.pageContent,
-      }));
+      return output.map((doc) => doc.pageContent);
     }
 
-    return null;
+    return [];
   } catch (err) {
     await context.reportError(err);
-    return null;
+    return [];
   }
 }
 
-async function processText(
-  file: GoogleDriveFile,
-  context: SyncContext
-): Promise<FileChunk[] | null> {
+async function processText(file: GoogleDriveFile, context: SyncContext): Promise<string[]> {
   try {
     const response = await context.get({
       endpoint: `drive/v3/files/${file.id}`,
@@ -369,20 +320,14 @@ async function processText(
     });
 
     const output = await splitter.createDocuments([response.data]);
-    return output.map((doc) => ({
-      file_id: file.id,
-      chunk: doc.pageContent,
-    }));
+    return output.map((doc) => doc.pageContent);
   } catch (err) {
     await context.reportError(err);
-    return null;
+    return [];
   }
 }
 
-async function processJson(
-  file: GoogleDriveFile,
-  context: SyncContext
-): Promise<FileChunk[] | null> {
+async function processJson(file: GoogleDriveFile, context: SyncContext): Promise<string[]> {
   try {
     const response = await context.get({
       endpoint: `drive/v3/files/${file.id}`,
@@ -398,20 +343,14 @@ async function processJson(
     });
 
     const output = await splitter.createDocuments([jsonString]);
-    return output.map((doc) => ({
-      file_id: file.id,
-      chunk: doc.pageContent,
-    }));
+    return output.map((doc) => doc.pageContent);
   } catch (err) {
     await context.reportError(err);
-    return null;
+    return [];
   }
 }
 
-async function processImage(
-  file: GoogleDriveFile,
-  context: SyncContext
-): Promise<FileImageBase64 | null> {
+async function processImage(file: GoogleDriveFile, context: SyncContext): Promise<string | null> {
   try {
     if (!context.multimodalEnabled) {
       return null;
@@ -424,22 +363,17 @@ async function processImage(
       responseType: 'arraybuffer',
     });
 
-    const base64 = Buffer.from(response.data, 'binary').toString('base64');
-
-    return { file_id: file.id, image_base64: base64 };
+    return Buffer.from(response.data, 'binary').toString('base64');
   } catch (err) {
     await context.reportError(err);
     return null;
   }
 }
 
-async function processAudio(
-  file: GoogleDriveFile,
-  context: SyncContext
-): Promise<FileChunk[] | null> {
+async function processAudio(file: GoogleDriveFile, context: SyncContext): Promise<string[]> {
   try {
     if (!context.multimodalEnabled) {
-      return null;
+      return [];
     }
 
     const response = await context.get({
@@ -463,7 +397,7 @@ async function processAudio(
     );
 
     if (error) {
-      return null;
+      return [];
     }
 
     const content = result.results.channels
@@ -477,12 +411,9 @@ async function processAudio(
     });
 
     const output = await splitter.createDocuments([content]);
-    return output.map((doc) => ({
-      file_id: file.id,
-      chunk: doc.pageContent,
-    }));
+    return output.map((doc) => doc.pageContent);
   } catch (err) {
     await context.reportError(err);
-    return null;
+    return [];
   }
 }

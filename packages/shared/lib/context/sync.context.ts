@@ -3,6 +3,7 @@ import { Context } from '@temporalio/activity';
 import md5 from 'md5';
 import WeaviateClient from '../clients/weaviate.client';
 import activityService from '../services/activity.service';
+import providerService from '../services/provider.service';
 import recordService from '../services/record.service';
 import { LogLevel, Resource, SyncRunType } from '../utils/enums';
 import { generateId, now } from '../utils/helpers';
@@ -48,90 +49,117 @@ export class SyncContext extends BaseContext {
     }, heartbeat);
   }
 
-  public async batchSave<T extends { [key: string]: unknown }>(
-    objects: T[],
-    options?: { metadata_collection_key?: string }
+  public async batchSave<T extends { id: string; [key: string]: unknown }>(
+    data: { object: T; instances?: T[] }[]
   ): Promise<boolean> {
-    if (!objects || objects.length === 0) {
+    if (!data || data.length === 0) {
       return true;
     }
 
-    const isMetaCollection = !!options && !!options.metadata_collection_key;
+    const collectionSchema = await providerService.getProviderCollectionSchema(
+      this.integrationKey,
+      this.collectionKey
+    );
 
-    if (!isMetaCollection) {
-      const records: DataRecord[] = objects.map((obj: any) => {
-        const hash = md5(JSON.stringify(obj));
-        return {
-          id: generateId(Resource.Record),
-          external_id: obj.id,
-          environment_id: this.environmentId,
-          linked_account_id: this.linkedAccountId,
-          integration_key: this.integrationKey,
-          collection_key: this.collectionKey,
-          object: JSON.stringify(obj),
-          object_iv: null,
-          object_tag: null,
-          hash,
-          created_at: now(),
-          updated_at: now(),
-          deleted_at: null,
-        };
+    if (!collectionSchema) {
+      throw new Error(`Failed to get collection schema for ${this.collectionKey}`);
+    }
+
+    const records: DataRecord[] = data.map((d) => {
+      const obj = d.object;
+      const hash = md5(JSON.stringify(obj));
+
+      Object.entries(collectionSchema.properties).forEach(([k, v]) => {
+        if (v.query_only === true || v.hidden === true) {
+          delete obj[k];
+        }
       });
 
-      const batchSaveResult = await recordService.batchSave(
-        this.linkedAccountId,
-        this.collectionKey,
-        records
-      );
-
-      if (batchSaveResult) {
-        const { addedKeys, updatedKeys } = batchSaveResult;
-        this.addedKeys.push(...addedKeys);
-        this.updatedKeys.push(...updatedKeys);
-
-        /**
-         * handle updates in weaviate
-         * When !isMetaCollection object is updated, delete that object's meta collection objects
-         */
-      } else {
-        await activityService.createActivityLog(this.activityId, {
-          level: LogLevel.Error,
-          timestamp: now(),
-          message: `Failed to batch save records for collection ${this.collectionKey}`,
-          payload: {
-            linked_account: this.linkedAccountId,
-            integration: this.integrationKey,
-            collection: this.collectionKey,
-            batch_count: objects.length,
-          },
-        });
-      }
-    }
-
-    const weaviate = WeaviateClient.getInstance();
-    let weaviateObjects: any = objects;
-
-    if (!isMetaCollection) {
-      weaviateObjects = objects.map(({ id, ...rest }) => ({
-        ...rest,
-        external_id: id,
-      }));
-    }
-
-    const didSave = await weaviate.batchSave<T>(this.linkedAccountId, this.collectionKey, objects, {
-      metadataCollectionKey: isMetaCollection ? options.metadata_collection_key : undefined,
+      return {
+        id: generateId(Resource.Record),
+        external_id: obj.id,
+        environment_id: this.environmentId,
+        linked_account_id: this.linkedAccountId,
+        integration_key: this.integrationKey,
+        collection_key: this.collectionKey,
+        object: JSON.stringify(obj),
+        object_iv: null,
+        object_tag: null,
+        hash,
+        created_at: now(),
+        updated_at: now(),
+        deleted_at: null,
+      };
     });
 
-    if (!didSave) {
+    const batchSaveResult = await recordService.batchSave(
+      this.linkedAccountId,
+      this.collectionKey,
+      records
+    );
+
+    if (!batchSaveResult) {
       await activityService.createActivityLog(this.activityId, {
         level: LogLevel.Error,
         timestamp: now(),
-        message: `Failed to batch save vectors for collection ${this.collectionKey}`,
+        message: `Failed to batch save records for collection ${this.collectionKey}`,
         payload: {
           linked_account: this.linkedAccountId,
           integration: this.integrationKey,
           collection: this.collectionKey,
-          batch_count: objects.length,
+          batch_count: data.length,
+        },
+      });
+
+      return false;
+    }
+
+    const { addedKeys, updatedKeys } = batchSaveResult;
+    this.addedKeys.push(...addedKeys);
+    this.updatedKeys.push(...updatedKeys);
+
+    const weaviate = WeaviateClient.getInstance();
+
+    const objectsToCreate = data.filter((d) => addedKeys.includes(d.object.id));
+    const didCreate = await weaviate.batchCreate<T>(
+      this.linkedAccountId,
+      this.collectionKey,
+      objectsToCreate
+    );
+
+    if (!didCreate) {
+      await activityService.createActivityLog(this.activityId, {
+        level: LogLevel.Error,
+        timestamp: now(),
+        message: `Failed to create vectors for ${this.collectionKey} during sync run`,
+        payload: {
+          linked_account: this.linkedAccountId,
+          integration: this.integrationKey,
+          collection: this.collectionKey,
+          sync_run: this.syncRunId,
+          count: objectsToCreate.length,
+        },
+      });
+    }
+
+    const objectsToUpdate = data.filter((d) => updatedKeys.includes(d.object.id));
+    const didUpdate = await weaviate.batchUpdate<T>(
+      this.linkedAccountId,
+      this.collectionKey,
+      objectsToUpdate
+    );
+
+    if (!didUpdate) {
+      await activityService.createActivityLog(this.activityId, {
+        level: LogLevel.Error,
+        timestamp: now(),
+        message: `Failed to update vectors for ${this.collectionKey} during sync run`,
+        payload: {
+          linked_account: this.linkedAccountId,
+          integration: this.integrationKey,
+          collection: this.collectionKey,
+          sync_run: this.syncRunId,
+          count: objectsToUpdate.length,
         },
       });
     }
@@ -151,6 +179,8 @@ export class SyncContext extends BaseContext {
       this.deletedKeys.push(...deletedKeys);
       return true;
     }
+
+    // TODO: delete in weaviate
 
     return false;
   }

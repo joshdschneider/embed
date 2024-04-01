@@ -1,5 +1,6 @@
-import { CollectionProperty, CollectionSchema } from '@embed/providers';
+import { CollectionProperty } from '@embed/providers';
 import { Collection, LinkedAccount } from '@prisma/client';
+import md5 from 'md5';
 import weaviate, { WeaviateClient as Client } from 'weaviate-ts-client';
 import GraphQLHybrid from '../graphql/hybrid';
 import GraphQLWhere from '../graphql/where';
@@ -49,48 +50,38 @@ class WeaviateClient {
     linkedAccountId: string,
     integrationKey: string,
     collectionKey: string
-  ): Promise<CollectionSchema[] | null> {
+  ): Promise<boolean> {
     if (!this.weaviateClient) {
       await errorService.reportError(new Error('Weaviate client not initialized'));
-      return null;
+      return false;
     }
 
     try {
-      const providerSpec = await providerService.getProviderSpec(integrationKey);
-      const collectionEntries = Object.entries(providerSpec?.collections || {});
-      const providerCollection = collectionEntries.find(([k, v]) => k === collectionKey);
-      if (!providerCollection) {
-        throw new Error(`Collection not found for provider ${integrationKey}`);
+      const collectionSchema = await providerService.getProviderCollectionSchema(
+        integrationKey,
+        collectionKey
+      );
+
+      if (!collectionSchema) {
+        throw new Error(`Failed to get collection schema for ${collectionKey}`);
       }
 
-      const collectionSchemas = [providerCollection[1].schema];
-      if (providerCollection[1].has_metadata_collections) {
-        const metadataCollections = Object.entries(
-          providerCollection[1].metadata_collections || {}
-        );
-        const metadataSchemas = metadataCollections.map(([k, v]) => v.schema);
-        collectionSchemas.push(...metadataSchemas);
-      }
+      const collectionName = this.formatCollectionName(integrationKey, collectionSchema.name);
+      await this.weaviateClient.schema
+        .tenantsCreator(collectionName, [{ name: linkedAccountId }])
+        .do();
 
-      for (const collectionSchema of collectionSchemas) {
-        const collectionName = this.formatCollectionName(integrationKey, collectionSchema.name);
-        await this.weaviateClient.schema
-          .tenantsCreator(collectionName, [{ name: linkedAccountId }])
-          .do();
-      }
-
-      return collectionSchemas;
+      return true;
     } catch (err) {
       await errorService.reportError(err);
-      return null;
+      return false;
     }
   }
 
-  public async batchSave<T extends { [key: string]: unknown }>(
+  public async batchCreate<T extends { id: string; [key: string]: unknown }>(
     linkedAccountId: string,
     collectionKey: string,
-    objects: T[],
-    options?: { metadataCollectionKey?: string }
+    data: { object: T; instances?: T[] }[]
   ): Promise<boolean> {
     if (!this.weaviateClient) {
       await errorService.reportError(new Error('Weaviate client not initialized'));
@@ -110,66 +101,98 @@ class WeaviateClient {
       );
 
       if (!collection) {
-        throw new Error(`Collection not found with key ${collectionKey}`);
+        throw new Error(`Failed to retrieve collection with key ${collectionKey}`);
       }
 
-      const providerSpec = await providerService.getProviderSpec(linkedAccount.integration_key);
-      const collectionEntries = Object.entries(providerSpec?.collections || {});
-      const providerCollection = collectionEntries.find(([k, v]) => k === collectionKey);
-      if (!providerCollection) {
-        throw new Error(`Collection not found for provider ${linkedAccount.integration_key}`);
+      const collectionSchema = await providerService.getProviderCollectionSchema(
+        linkedAccount.integration_key,
+        collectionKey
+      );
+
+      if (!collectionSchema) {
+        throw new Error(`Failed to get collection schema for ${collectionKey}`);
       }
 
-      let collectionSchema: CollectionSchema;
-      let metadataCollectionKey = options?.metadataCollectionKey;
-
-      if (metadataCollectionKey) {
-        const metadataCollection = providerCollection[1].metadata_collections
-          ? providerCollection[1].metadata_collections[metadataCollectionKey]
-          : undefined;
-        if (!metadataCollection) {
-          throw new Error(`Metadata collection not found on collection ${collectionKey}`);
-        } else {
-          collectionSchema = metadataCollection.schema;
-        }
-      } else {
-        collectionSchema = providerCollection[1].schema;
-      }
-
-      const collectionProperties = Object.entries(collectionSchema.properties);
-      const collectionName = this.formatCollectionName(
+      const properties = Object.entries(collectionSchema.properties);
+      const schemaName = this.formatCollectionName(
         linkedAccount.integration_key,
         collectionSchema.name
       );
 
       let batcher = this.weaviateClient.batch.objectsBatcher();
 
-      for (const obj of objects) {
-        const vectors = await this.vectorizeProperties(obj, collection, collectionProperties);
+      for (const d of data) {
+        const obj = d.object;
+        const hash = md5(JSON.stringify(obj));
+        const instances = d.instances || [];
 
+        const mainObjectVectors = await this.vectorizeProperties(collection, properties, obj);
         batcher = batcher.withObject({
-          class: collectionName,
+          class: schemaName,
           tenant: linkedAccountId,
-          properties: obj,
-          vectors: vectors,
+          properties: { ...obj, hash },
+          vectors: mainObjectVectors,
         });
+
+        for (const instance of instances) {
+          const instanceHash = md5(JSON.stringify(instance));
+          const alreadyVectorizedKeys = Object.keys(mainObjectVectors);
+          const instanceVectors = await this.vectorizeProperties(
+            collection,
+            properties.filter(([k, v]) => !alreadyVectorizedKeys.includes(k)),
+            instance
+          );
+
+          batcher = batcher.withObject({
+            class: schemaName,
+            tenant: linkedAccountId,
+            properties: { ...instance, hash: instanceHash },
+            vectors: { ...mainObjectVectors, ...instanceVectors },
+          });
+        }
       }
 
       const batchResponse = await batcher.do();
-      batchResponse.forEach((batch) => {
+
+      for (const batch of batchResponse) {
         if (batch.result?.status === 'FAILED') {
           const err = batch.result.errors?.error
             ? batch.result.errors.error.join(' ')
             : 'Batch save failed';
+
           throw new Error(err);
         }
-      });
+      }
+
       return true;
     } catch (err) {
       await errorService.reportError(err);
       return false;
     }
   }
+
+  public async batchUpdate<T extends { id: string; [key: string]: unknown }>(
+    linkedAccountId: string,
+    collectionKey: string,
+    data: { object: T; instances?: T[] }[]
+  ): Promise<boolean> {
+    // for each object
+    // calculate hashes for each instance in batch
+
+    // get all instances by object id in weaviate
+    // compare batch hashes to saved hashes in weaviate
+
+    // if hash exists in weaviate but not in batch, delete in weaviate
+    // if hash exists in batch but not in weaviate, vectorize and create in weaviate
+
+    return false;
+  }
+
+  /**
+   * TODO:
+   * - delete hash from query response
+   * - turn external_id into just id
+   */
 
   public async nearText<T = any>(
     linkedAccount: LinkedAccount,
@@ -195,17 +218,18 @@ class WeaviateClient {
       );
 
       if (!collection) {
-        throw new Error(`Collection not found with key ${collectionKey}`);
+        throw new Error(`Failed to retrieve collection with key ${collectionKey}`);
       }
 
-      const providerSpec = await providerService.getProviderSpec(linkedAccount.integration_key);
-      const collectionEntries = Object.entries(providerSpec?.collections || {});
-      const providerCollection = collectionEntries.find(([k, v]) => k === collectionKey);
-      if (!providerCollection) {
-        throw new Error(`Collection not found for provider ${linkedAccount.integration_key}`);
+      const collectionSchema = await providerService.getProviderCollectionSchema(
+        linkedAccount.integration_key,
+        collectionKey
+      );
+
+      if (!collectionSchema) {
+        throw new Error(`Failed to get collection schema for ${collectionKey}`);
       }
 
-      const collectionSchema = providerCollection[1].schema;
       const collectionName = this.formatCollectionName(
         linkedAccount.integration_key,
         collectionSchema.name
@@ -357,17 +381,18 @@ class WeaviateClient {
       );
 
       if (!collection) {
-        throw new Error(`Collection not found with key ${collectionKey}`);
+        throw new Error(`Failed to retrieve collection with key ${collectionKey}`);
       }
 
-      const providerSpec = await providerService.getProviderSpec(linkedAccount.integration_key);
-      const collectionEntries = Object.entries(providerSpec?.collections || {});
-      const providerCollection = collectionEntries.find(([k, v]) => k === collectionKey);
-      if (!providerCollection) {
-        throw new Error(`Collection not found for provider ${linkedAccount.integration_key}`);
+      const collectionSchema = await providerService.getProviderCollectionSchema(
+        linkedAccount.integration_key,
+        collectionKey
+      );
+
+      if (!collectionSchema) {
+        throw new Error(`Failed to get collection schema for ${collectionKey}`);
       }
 
-      const collectionSchema = providerCollection[1].schema;
       const collectionName = this.formatCollectionName(
         linkedAccount.integration_key,
         collectionSchema.name
@@ -538,15 +563,15 @@ class WeaviateClient {
   }
 
   private async vectorizeProperties(
-    obj: { [key: string]: unknown },
     collection: Collection,
-    collectionProperties: [string, CollectionProperty][]
+    properties: [string, CollectionProperty][],
+    obj: { [key: string]: unknown }
   ): Promise<{ [key: string]: number[] }> {
-    const textProperties = collectionProperties
+    const textProperties = properties
       .filter(([k, v]) => v.vector_searchable !== false && v.multimodal !== true)
       .map(([k, v]) => k);
 
-    const multimodalProperties = collectionProperties
+    const multimodalProperties = properties
       .filter(([k, v]) => v.vector_searchable !== false && v.multimodal === true)
       .map(([k, v]) => k);
 
@@ -554,25 +579,25 @@ class WeaviateClient {
     let multimodalVectorsPromise;
 
     if (textProperties.length > 0) {
-      const textChunks = Object.entries(obj)
+      const textContent = Object.entries(obj)
         .filter(([k, v]) => textProperties.includes(k))
         .map(([k, v]) => v) as string[];
 
       textVectorsPromise = this.embeddingClient.embedText({
         model: collection.text_embedding_model as TextEmbeddingModel,
-        text: textChunks,
+        text: textContent,
         purpose: 'object',
       });
     }
 
     if (multimodalProperties.length > 0) {
-      const multimodalChunks = Object.entries(obj)
+      const multimodalContent = Object.entries(obj)
         .filter(([k, v]) => multimodalProperties.includes(k))
         .map(([k, v]) => v) as string[];
 
       multimodalVectorsPromise = this.embeddingClient.embedMultimodal({
         model: collection.multimodal_embedding_model as MultimodalEmbeddingModel,
-        content: multimodalChunks,
+        content: multimodalContent,
         type: 'images',
       });
     }

@@ -1,8 +1,8 @@
-import { CollectionProperty, CollectionSchema, Registry } from '@embed/providers';
 import { config } from 'dotenv';
-import weaviate, { WeaviateClass } from 'weaviate-ts-client';
-
 config();
+
+import { CollectionProperty, CollectionSchema, Registry } from '@embed/providers';
+import weaviate, { WeaviateClass } from 'weaviate-ts-client';
 
 const registry = new Registry();
 
@@ -73,10 +73,7 @@ function buildVectorConfig(schemaProperties: [string, CollectionProperty][]): {
   const vectorProps = schemaProperties.filter(([k, v]) => v.vector_searchable !== false);
   const vectorConfigEntries = vectorProps.map(([k, v]) => [
     k,
-    {
-      vectorIndexType: 'hnsw',
-      vectorizer: { none: { properties: [k] } },
-    },
+    { vectorIndexType: 'hnsw', vectorizer: { none: { properties: [k] } } },
   ]);
 
   const vectorConfigs = Object.fromEntries(vectorConfigEntries);
@@ -101,22 +98,6 @@ async function createCollections() {
         const collectionSchema = collection[1].schema;
         const formattedCollectionName = formatCollectionName(providerName, collectionSchema.name);
         iter.push({ formattedCollectionName, collectionSchema });
-
-        if (collection[1].has_metadata_collections) {
-          const metaCollections = Object.entries(collection[1].metadata_collections || {});
-          for (const metaCollection of metaCollections) {
-            const metaCollectionSchema = metaCollection[1].schema;
-            const formattedMetaCollectionName = formatCollectionName(
-              providerName,
-              metaCollectionSchema.name
-            );
-
-            iter.push({
-              formattedCollectionName: formattedMetaCollectionName,
-              collectionSchema: metaCollectionSchema,
-            });
-          }
-        }
       }
     }
   }
@@ -129,8 +110,17 @@ async function createCollections() {
     });
 
     const schemaProps = Object.entries(i.collectionSchema.properties);
-    const weaviateProps = schemaProps.map((prop) => transformProperty(prop));
     const weaviateVectorConfig = buildVectorConfig(schemaProps);
+    const transformedProps = schemaProps.map((prop) => transformProperty(prop));
+    const weaviateProps = [
+      ...transformedProps,
+      {
+        name: 'hash',
+        dataType: ['text'],
+        indexSearchable: false,
+        indexFilterable: false,
+      },
+    ];
 
     const newClass: WeaviateClass = {
       class: i.formattedCollectionName,

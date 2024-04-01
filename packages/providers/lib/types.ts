@@ -108,6 +108,8 @@ export const CollectionPropertySchema = z.object({
   index_filterable: z.boolean().optional(),
   vector_searchable: z.boolean().optional(),
   multimodal: z.boolean().optional(),
+  hidden: z.boolean().optional(),
+  query_only: z.boolean().optional(),
 });
 
 export type CollectionProperty = z.infer<typeof CollectionPropertySchema>;
@@ -121,16 +123,6 @@ export const CollectionSchemaSchema = z.object({
 
 export type CollectionSchema = z.infer<typeof CollectionSchemaSchema>;
 
-export const MetadataCollectionSchema = z.record(
-  z.object({
-    schema: CollectionSchemaSchema,
-    foreign_key: z.string(),
-    return_keys: z.array(z.string()).optional(),
-  })
-);
-
-export type MetaCollection = z.infer<typeof CollectionSchemaSchema>;
-
 export const CollectionsSchema = z.record(
   z.object({
     schema: CollectionSchemaSchema,
@@ -139,8 +131,6 @@ export const CollectionsSchema = z.record(
     default_auto_start_sync: z.boolean().optional(),
     required_scopes: z.array(z.string()).optional(),
     has_multimodal_properties: z.boolean(),
-    has_metadata_collections: z.boolean(),
-    metadata_collections: MetadataCollectionSchema.optional(),
   })
 );
 
@@ -244,11 +234,8 @@ export interface SyncContext extends BaseContext {
   syncRunId: string;
   lastSyncedAt: number | null;
   syncRunType: SyncRunType;
-  batchSave<T extends { [key: string]: unknown }>(
-    objects: T[],
-    options?: {
-      metadata_collection_key?: string;
-    }
+  batchSave<T extends { id: string; [key: string]: unknown }>(
+    data: { object: T; instances?: T[] }[]
   ): Promise<boolean>;
   pruneDeleted(allIds: string[]): Promise<boolean>;
   reportResults(): Promise<{
