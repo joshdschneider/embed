@@ -1,4 +1,4 @@
-import type { ProviderSpecification } from '@embed/providers';
+import type { CollectionSchema, ProviderSpecification } from '@embed/providers';
 import { Registry } from '@embed/providers';
 import { SyncContext } from '../context/sync.context';
 import errorService from './error.service';
@@ -22,6 +22,25 @@ class ProviderService {
   public async getProviderSpec(providerKey: string): Promise<ProviderSpecification | null> {
     try {
       return await this.registry.getProviderSpecification(providerKey);
+    } catch (err) {
+      errorService.reportError(err);
+      return null;
+    }
+  }
+
+  public async getProviderCollectionSchema(
+    providerKey: string,
+    collectionKey: string
+  ): Promise<CollectionSchema | null> {
+    try {
+      const spec = await this.registry.getProviderSpecification(providerKey);
+      const collectionEntries = Object.entries(spec?.collections || {});
+      const providerCollection = collectionEntries.find(([k, v]) => k === collectionKey);
+      if (!providerCollection) {
+        return null;
+      }
+
+      return providerCollection[1].schema;
     } catch (err) {
       errorService.reportError(err);
       return null;

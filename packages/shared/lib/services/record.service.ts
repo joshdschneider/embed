@@ -38,7 +38,7 @@ class RecordService {
         });
 
         await database.record.createMany({ data: encryptedRecordsToCreate });
-        addedKeys = encryptedRecordsToCreate.map((rec) => rec.id);
+        addedKeys = encryptedRecordsToCreate.map((rec) => rec.external_id);
       }
 
       if (recordsToUpdate.length > 0) {
@@ -60,10 +60,10 @@ class RecordService {
               object_tag: encryptedRecord.object_tag,
               updated_at: now(),
             },
-            select: { id: true },
+            select: { external_id: true },
           });
 
-          updatedKeys.push(updatedRecord.id);
+          updatedKeys.push(updatedRecord.external_id);
         }
       }
 
@@ -94,12 +94,12 @@ class RecordService {
         return database.record.update({
           where: { id: rec.id, deleted_at: null },
           data: { deleted_at: now() },
-          select: { id: true },
+          select: { external_id: true },
         });
       });
 
       const deletedRecords = await Promise.all(updatePromises);
-      return { deletedKeys: deletedRecords.map((rec) => rec.id) };
+      return { deletedKeys: deletedRecords.map((rec) => rec.external_id) };
     } catch (err) {
       await errorService.reportError(err);
       return null;

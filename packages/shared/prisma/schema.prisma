@@ -256,19 +256,20 @@ model ActionRun {
 }
 
 model Record {
-  id                String  @id
-  collection_key    String
-  integration_key   String
-  environment_id    String
-  linked_account_id String
-  external_id       String
-  object            String
-  object_iv         String?
-  object_tag        String?
-  hash              String
-  created_at        Int
-  updated_at        Int
-  deleted_at        Int?
+  id                    String  @id
+  collection_key        String
+  integration_key       String
+  environment_id        String
+  linked_account_id     String
+  external_id           String
+  object                String
+  object_iv             String?
+  object_tag            String?
+  hash                  String
+  nested_collection_key String?
+  created_at            Int
+  updated_at            Int
+  deleted_at            Int?
 
   collection     Collection    @relation(fields: [collection_key, integration_key, environment_id], references: [unique_key, integration_key, environment_id])
   linked_account LinkedAccount @relation(fields: [linked_account_id], references: [id])

@@ -261,8 +261,7 @@ class LinkedAccountService {
   ): Promise<boolean> {
     try {
       const weaviate = WeaviateClient.getInstance();
-      const tenant = await weaviate.createTenant(linkedAccountId, integrationKey, collectionKey);
-      return tenant == null ? false : true;
+      return await weaviate.createTenant(linkedAccountId, integrationKey, collectionKey);
     } catch (err) {
       await errorService.reportError(err);
       return false;
