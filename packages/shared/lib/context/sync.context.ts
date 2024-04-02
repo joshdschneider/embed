@@ -67,7 +67,9 @@ export class SyncContext extends BaseContext {
 
     const records: DataRecord[] = data.map((d) => {
       const obj = d.object;
-      const hash = md5(JSON.stringify(obj));
+      const instances = d.instances || [];
+      const objWithInstances = [obj, ...instances];
+      const hash = md5(JSON.stringify(objWithInstances));
 
       Object.entries(collectionSchema.properties).forEach(([k, v]) => {
         if (v.query_only === true || v.hidden === true) {
@@ -174,15 +176,21 @@ export class SyncContext extends BaseContext {
       allIds
     );
 
-    if (result) {
-      const { deletedKeys } = result;
-      this.deletedKeys.push(...deletedKeys);
-      return true;
+    if (!result) {
+      return false;
     }
 
-    // TODO: delete in weaviate
+    const { deletedKeys } = result;
+    this.deletedKeys.push(...deletedKeys);
 
-    return false;
+    const weaviate = WeaviateClient.getInstance();
+    const didPruneDeleted = await weaviate.pruneDeleted(
+      this.linkedAccountId,
+      this.collectionKey,
+      deletedKeys
+    );
+
+    return didPruneDeleted;
   }
 
   public async reportResults(): Promise<{

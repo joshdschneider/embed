@@ -176,20 +176,308 @@ class WeaviateClient {
     collectionKey: string,
     data: { object: T; instances?: T[] }[]
   ): Promise<boolean> {
-    // for each object
-    // calculate hashes for each instance in batch
+    if (!this.weaviateClient) {
+      await errorService.reportError(new Error('Weaviate client not initialized'));
+      return false;
+    }
 
-    // get all instances by object id in weaviate
-    // compare batch hashes to saved hashes in weaviate
+    try {
+      const linkedAccount = await linkedAccountService.getLinkedAccountById(linkedAccountId);
+      if (!linkedAccount) {
+        throw new Error(`Linked account not found with ID ${linkedAccountId}`);
+      }
 
-    // if hash exists in weaviate but not in batch, delete in weaviate
-    // if hash exists in batch but not in weaviate, vectorize and create in weaviate
+      const collection = await collectionService.retrieveCollection(
+        collectionKey,
+        linkedAccount.integration_key,
+        linkedAccount.environment_id
+      );
 
-    return false;
+      if (!collection) {
+        throw new Error(`Failed to retrieve collection with key ${collectionKey}`);
+      }
+
+      const collectionSchema = await providerService.getProviderCollectionSchema(
+        linkedAccount.integration_key,
+        collectionKey
+      );
+
+      if (!collectionSchema) {
+        throw new Error(`Failed to get collection schema for ${collectionKey}`);
+      }
+
+      const properties = Object.entries(collectionSchema.properties);
+      const schemaName = this.formatCollectionName(
+        linkedAccount.integration_key,
+        collectionSchema.name
+      );
+
+      let batcher = this.weaviateClient.batch.objectsBatcher();
+      let deleteIds = [];
+
+      for (const d of data) {
+        const obj = d.object;
+        const instances = d.instances || [];
+
+        let existingObjects = [];
+        let cursor;
+
+        while (true) {
+          let nextBatch = await this.fetchHashes({
+            linkedAccountId,
+            schemaName,
+            objectId: obj.id,
+            cursor,
+          });
+
+          if (nextBatch.length === 0) {
+            break;
+          }
+
+          existingObjects.push(...nextBatch);
+          cursor = nextBatch.at(-1)?._additional.id;
+        }
+
+        const mainObject = { ...obj, hash: md5(JSON.stringify(obj)) };
+        const instanceObjects = instances.map((i) => ({ ...i, hash: md5(JSON.stringify(i)) }));
+        const newObjects = [mainObject, ...instanceObjects];
+
+        const newObjectHashes = new Set(newObjects.map((obj) => obj.hash));
+        const existingObjectHashes = new Set(existingObjects.map((obj) => obj.hash));
+
+        const objectsToCreate = newObjects.filter((o) => !existingObjectHashes.has(o.hash));
+        const objectsToDelete = existingObjects.filter((o) => !newObjectHashes.has(o.hash));
+        deleteIds.push(...objectsToDelete.map((o) => o._additional.id));
+
+        const mainObjectVectors = await this.vectorizeProperties(
+          collection,
+          properties,
+          mainObject
+        );
+
+        batcher = batcher.withObject({
+          class: schemaName,
+          tenant: linkedAccountId,
+          properties: mainObject,
+          vectors: mainObjectVectors,
+        });
+
+        for (const objectToCreate of objectsToCreate) {
+          const alreadyVectorizedKeys = Object.keys(mainObjectVectors);
+          const instanceVectors = await this.vectorizeProperties(
+            collection,
+            properties.filter(([k, v]) => !alreadyVectorizedKeys.includes(k)),
+            objectToCreate
+          );
+
+          batcher = batcher.withObject({
+            class: schemaName,
+            tenant: linkedAccountId,
+            properties: objectToCreate,
+            vectors: { ...mainObjectVectors, ...instanceVectors },
+          });
+        }
+      }
+
+      const createObjects = await batcher.do();
+      let batchCreateError: string | null = null;
+
+      for (const createObject of createObjects) {
+        if (createObject.result?.status === 'FAILED') {
+          const err = createObject.result.errors?.error
+            ? createObject.result.errors.error.map((e) => e.message || '').join(' ')
+            : 'Batch create failed';
+          if (err && err !== batchCreateError) {
+            batchCreateError = err;
+          }
+        }
+      }
+
+      const deleteResponse = await this.weaviateClient.batch
+        .objectsBatchDeleter()
+        .withClassName(schemaName)
+        .withTenant(linkedAccountId)
+        .withWhere({
+          path: ['id'],
+          operator: 'ContainsAny',
+          valueTextArray: deleteIds,
+        })
+        .do();
+
+      const deleteObjects = deleteResponse.results?.objects;
+      let batchDeleteError: string | null = null;
+
+      if (deleteObjects && deleteObjects.length > 0) {
+        for (const deleteObject of deleteObjects) {
+          if (deleteObject.status === 'FAILED') {
+            const err = deleteObject.errors?.error
+              ? deleteObject.errors?.error.map((e) => e.message || '').join(' ')
+              : 'Batch delete failed';
+            if (!batchDeleteError) {
+              batchDeleteError = err;
+            } else if (err !== batchDeleteError) {
+              batchDeleteError += ' ' + err;
+            }
+          }
+        }
+      }
+
+      if (!!batchCreateError || !!batchDeleteError) {
+        throw new Error(`${batchCreateError || ''} ${batchDeleteError || ''}`);
+      }
+
+      return true;
+    } catch (err) {
+      await errorService.reportError(err);
+      return false;
+    }
+  }
+
+  private async fetchHashes({
+    linkedAccountId,
+    schemaName,
+    objectId,
+    cursor,
+  }: {
+    linkedAccountId: string;
+    schemaName: string;
+    objectId: string;
+    cursor?: string;
+  }): Promise<{ external_id: string; hash: string; _additional: { id: string } }[]> {
+    if (!this.weaviateClient) {
+      throw new Error('Weaviate client not initialized');
+    }
+
+    const query = this.weaviateClient.graphql
+      .get()
+      .withClassName(schemaName)
+      .withTenant(linkedAccountId)
+      .withWhere({
+        path: ['external_id'],
+        operator: 'Equal',
+        valueText: objectId,
+      })
+      .withFields('external_id hash _additional { id }')
+      .withLimit(100);
+
+    if (cursor) {
+      let result = await query.withAfter(cursor).do();
+      return result.data.Get[schemaName];
+    } else {
+      let result = await query.do();
+      return result.data.Get[schemaName];
+    }
+  }
+
+  private async fetchIds({
+    linkedAccountId,
+    schemaName,
+    externalId,
+    cursor,
+  }: {
+    linkedAccountId: string;
+    schemaName: string;
+    externalId: string;
+    cursor?: string;
+  }): Promise<{ external_id: string; _additional: { id: string } }[]> {
+    if (!this.weaviateClient) {
+      throw new Error('Weaviate client not initialized');
+    }
+
+    const query = this.weaviateClient.graphql
+      .get()
+      .withClassName(schemaName)
+      .withTenant(linkedAccountId)
+      .withWhere({
+        path: ['external_id'],
+        operator: 'Equal',
+        valueText: externalId,
+      })
+      .withFields('external_id _additional { id }')
+      .withLimit(100);
+
+    if (cursor) {
+      let result = await query.withAfter(cursor).do();
+      return result.data.Get[schemaName];
+    } else {
+      let result = await query.do();
+      return result.data.Get[schemaName];
+    }
+  }
+
+  public async pruneDeleted(
+    linkedAccountId: string,
+    schemaName: string,
+    deletedExternalIds: string[]
+  ): Promise<boolean> {
+    if (!this.weaviateClient) {
+      await errorService.reportError(new Error('Weaviate client not initialized'));
+      return false;
+    }
+
+    try {
+      let batchDeleteError: string | null = null;
+      for (const externalId of deletedExternalIds) {
+        let deleteIds = [];
+        let cursor;
+
+        while (true) {
+          let nextBatch = await this.fetchIds({
+            linkedAccountId,
+            schemaName,
+            externalId,
+            cursor,
+          });
+
+          if (nextBatch.length === 0) {
+            break;
+          }
+
+          deleteIds.push(...nextBatch.map((batch) => batch._additional.id));
+          cursor = nextBatch.at(-1)?._additional.id;
+        }
+
+        const response = await this.weaviateClient.batch
+          .objectsBatchDeleter()
+          .withClassName(schemaName)
+          .withTenant(linkedAccountId)
+          .withWhere({
+            path: ['id'],
+            operator: 'ContainsAny',
+            valueTextArray: deleteIds,
+          })
+          .do();
+
+        const objects = response.results?.objects;
+        if (objects && objects.length > 0) {
+          for (const obj of objects) {
+            if (obj.status === 'FAILED') {
+              const err = obj.errors?.error
+                ? obj.errors?.error.map((e) => e.message || '').join(' ')
+                : 'Batch delete failed';
+              if (!batchDeleteError) {
+                batchDeleteError = err;
+              } else if (err !== batchDeleteError) {
+                batchDeleteError += ' ' + err;
+              }
+            }
+          }
+        }
+      }
+
+      if (batchDeleteError) {
+        throw new Error(batchDeleteError);
+      }
+
+      return true;
+    } catch (err) {
+      await errorService.reportError(err);
+      return false;
+    }
   }
 
   /**
-   * TODO:
+   * TODO for queries:
    * - delete hash from query response
    * - turn external_id into just id
    */
