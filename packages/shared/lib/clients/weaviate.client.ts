@@ -226,7 +226,7 @@ class WeaviateClient {
           let nextBatch = await this.fetchHashes({
             linkedAccountId,
             schemaName,
-            objectId: obj.id,
+            externalId: obj.id,
             cursor,
           });
 
@@ -336,12 +336,12 @@ class WeaviateClient {
   private async fetchHashes({
     linkedAccountId,
     schemaName,
-    objectId,
+    externalId,
     cursor,
   }: {
     linkedAccountId: string;
     schemaName: string;
-    objectId: string;
+    externalId: string;
     cursor?: string;
   }): Promise<{ external_id: string; hash: string; _additional: { id: string } }[]> {
     if (!this.weaviateClient) {
@@ -355,7 +355,7 @@ class WeaviateClient {
       .withWhere({
         path: ['external_id'],
         operator: 'Equal',
-        valueText: objectId,
+        valueText: externalId,
       })
       .withFields('external_id hash _additional { id }')
       .withLimit(100);
