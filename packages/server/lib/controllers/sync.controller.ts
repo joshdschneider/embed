@@ -331,6 +331,7 @@ class SyncController {
   public async triggerSync(req: Request, res: Response) {
     const linkedAccountId = req.params['linked_account_id'];
     const collectionKey = req.params['collection_key'];
+    const runType = req.query['type'];
 
     if (!linkedAccountId) {
       return errorService.errorResponse(res, {
@@ -344,33 +345,71 @@ class SyncController {
       });
     }
 
+    if (runType && typeof runType !== 'string') {
+      return errorService.errorResponse(res, {
+        code: ErrorCode.BadRequest,
+        message: 'Invalid type parameter',
+      });
+    } else if (runType && runType !== SyncRunType.Incremental && runType !== SyncRunType.Full) {
+      return errorService.errorResponse(res, {
+        code: ErrorCode.BadRequest,
+        message: 'Invalid type',
+      });
+    }
+
+    const syncRunType = runType ? (runType as SyncRunType) : SyncRunType.Incremental;
     const sync = await syncService.retrieveSync(linkedAccountId, collectionKey);
 
     if (!sync) {
       return errorService.errorResponse(res, {
         code: ErrorCode.NotFound,
-        message: `Sync not found for collection ${collectionKey} on linked account ${linkedAccountId}`,
+        message: `Sync not found with collection ${collectionKey} for linked account ${linkedAccountId}`,
       });
     }
 
-    const activityId = await activityService.createActivity({
-      id: generateId(Resource.Activity),
-      environment_id: sync.environment_id,
-      integration_key: sync.integration_key,
-      linked_account_id: sync.linked_account_id,
-      collection_key: sync.collection_key,
-      link_token_id: null,
-      action_key: null,
-      level: LogLevel.Info,
-      action: LogAction.Sync,
-      timestamp: now(),
-    });
+    let activityId = null;
 
     try {
-      const triggeredSync = await syncService.triggerSync(sync, activityId);
+      const syncRuns = await syncService.listSyncRuns(sync.linked_account_id, sync.collection_key);
+      if (!syncRuns) {
+        throw new Error('Failed to get sync runs');
+      }
+
+      const stillRunning = syncRuns.find((run) => run.status === SyncRunStatus.Running);
+      if (stillRunning) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.NotFound,
+          message: 'Could not trigger because sync is still running',
+        });
+      }
+
+      const initialSuccessfulRuns = syncRuns.filter(
+        (run) => run.type === SyncRunType.Initial && run.status === SyncRunStatus.Succeeded
+      );
+
+      const triggerInitial = initialSuccessfulRuns.length === 0;
+      const triggerRunType = triggerInitial ? SyncRunType.Initial : syncRunType;
+
+      activityId = await activityService.createActivity({
+        id: generateId(Resource.Activity),
+        environment_id: sync.environment_id,
+        integration_key: sync.integration_key,
+        linked_account_id: sync.linked_account_id,
+        collection_key: sync.collection_key,
+        link_token_id: null,
+        action_key: null,
+        level: LogLevel.Info,
+        action: LogAction.Sync,
+        timestamp: now(),
+      });
+
+      const triggeredSync = await syncService.triggerSync(sync, triggerRunType, activityId);
 
       if (!triggeredSync) {
-        throw new Error('Failed to trigger sync');
+        return errorService.errorResponse(res, {
+          code: ErrorCode.InternalServerError,
+          message: `Failed to trigger sync`,
+        });
       }
 
       const syncObject: SyncObject = {

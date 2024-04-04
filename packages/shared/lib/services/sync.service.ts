@@ -66,8 +66,12 @@ class SyncService {
 
       await activityService.createActivityLog(activityId, {
         level: LogLevel.Error,
-        message: 'Failed to initialize sync for linked account',
+        message: 'Failed to initialize sync',
         timestamp: now(),
+        payload: {
+          linked_account: linkedAccountId,
+          collection: collection.unique_key,
+        },
       });
     }
   }
@@ -130,6 +134,17 @@ class SyncService {
             status: SyncRunStatus.Running,
             temporal_run_id: temporalRunId,
           });
+
+          await activityService.createActivityLog(activityId, {
+            level: LogLevel.Info,
+            message: `Sync run started for collection ${sync.collection_key}`,
+            timestamp: now(),
+            payload: {
+              linked_account: sync.linked_account_id,
+              collection: sync.collection_key,
+              sync_run: newSyncRun.id,
+            },
+          });
         }
       }
 
@@ -140,7 +155,20 @@ class SyncService {
       );
 
       if (error !== null) {
-        throw new Error(error);
+        await activityService.createActivityLog(activityId, {
+          level: LogLevel.Error,
+          message: 'Failed to create sync schedule due to invalid frequency interval',
+          timestamp: now(),
+          payload: {
+            linked_account: sync.linked_account_id,
+            integration: sync.integration_key,
+            collection: sync.collection_key,
+            frequency: sync.frequency,
+          },
+        });
+
+        await errorService.reportError(new Error(error));
+        return null;
       }
 
       if (!syncSchedule) {
@@ -153,7 +181,18 @@ class SyncService {
         });
 
         if (!scheduleHandle) {
-          throw new Error('Failed to create sync schedule in Temporal');
+          await activityService.createActivityLog(activityId, {
+            level: LogLevel.Error,
+            message: 'Failed to create sync schedule for linked account',
+            timestamp: now(),
+            payload: {
+              linked_account: sync.linked_account_id,
+              integration: sync.integration_key,
+              collection: sync.collection_key,
+              frequency: sync.frequency,
+            },
+          });
+          return null;
         }
 
         await this.createSyncSchedule({
@@ -170,14 +209,8 @@ class SyncService {
 
         await activityService.createActivityLog(activityId, {
           level: LogLevel.Info,
-          message: 'Sync schedule created',
+          message: 'Sync schedule created for linked account',
           timestamp: now(),
-          payload: {
-            integration: sync.integration_key,
-            linked_account: sync.linked_account_id,
-            collection: sync.collection_key,
-            frequency: interval,
-          },
         });
       } else {
         let scheduleHandle = await temporal.getSyncSchedule(syncSchedule.id);
@@ -191,19 +224,24 @@ class SyncService {
           });
 
           if (!scheduleHandle) {
-            throw new Error('Failed to create sync schedule in Temporal');
+            await activityService.createActivityLog(activityId, {
+              level: LogLevel.Error,
+              message: 'Failed to create sync schedule for linked account',
+              timestamp: now(),
+              payload: {
+                linked_account: sync.linked_account_id,
+                integration: sync.integration_key,
+                collection: sync.collection_key,
+                frequency: sync.frequency,
+              },
+            });
+            return null;
           }
 
-          await this.createSyncSchedule({
-            id: syncSchedule.id,
-            linked_account_id: sync.linked_account_id,
-            collection_key: sync.collection_key,
+          await this.updateSyncSchedule(syncSchedule.id, {
             frequency: interval,
             offset,
             status: SyncScheduleStatus.Running,
-            created_at: now(),
-            updated_at: now(),
-            deleted_at: null,
           });
         }
 
@@ -214,7 +252,7 @@ class SyncService {
           await scheduleHandle.unpause();
           await activityService.createActivityLog(activityId, {
             level: LogLevel.Info,
-            message: 'Sync schedule started',
+            message: 'Sync schedule started for linked account',
             timestamp: now(),
           });
         }
@@ -228,8 +266,13 @@ class SyncService {
 
       await activityService.createActivityLog(activityId, {
         level: LogLevel.Error,
-        message: 'Failed to start sync',
+        message: 'Failed to start sync due to an internal error',
         timestamp: now(),
+        payload: {
+          linked_account: sync.linked_account_id,
+          integration: sync.integration_key,
+          collection: sync.collection_key,
+        },
       });
 
       return null;
@@ -278,74 +321,95 @@ class SyncService {
     }
   }
 
-  public async triggerSync(sync: Sync, activityId: string | null): Promise<Sync | null> {
+  public async triggerSync(
+    sync: Sync,
+    runType: SyncRunType,
+    activityId: string | null
+  ): Promise<Sync | null> {
     try {
-      const syncRuns = await this.listSyncRuns(sync.linked_account_id, sync.collection_key);
-      if (!syncRuns) {
-        throw new Error('Failed to get sync runs');
-      }
-
-      const stillRunning = syncRuns.find((run) => run.status === SyncRunStatus.Running);
-      if (stillRunning) {
-        throw new Error('Sync still running');
-      }
-
       const temporal = await TemporalClient.getInstance();
       if (!temporal) {
         throw new Error('Failed to get Temporal client instance');
       }
 
-      const initialSuccessfulRuns = syncRuns.filter(
-        (run) => run.type === SyncRunType.Initial && run.status === SyncRunStatus.Succeeded
-      );
+      const syncSchedule = await this.getSyncSchedule(sync.linked_account_id, sync.collection_key);
+      if (
+        syncSchedule &&
+        syncSchedule.status !== SyncScheduleStatus.Stopped &&
+        runType === SyncRunType.Incremental
+      ) {
+        const didTrigger = await temporal.triggerSyncSchedule(syncSchedule.id);
+        return didTrigger ? sync : null;
+      }
 
-      if (initialSuccessfulRuns.length === 0) {
-        const initialSyncRunId = generateId(Resource.SyncRun);
-        const didStart = await temporal.startInitialSync(initialSyncRunId, {
-          activityId,
-          collectionKey: sync.collection_key,
-          environmentId: sync.environment_id,
-          integrationKey: sync.integration_key,
-          linkedAccountId: sync.linked_account_id,
-          syncRunId: initialSyncRunId,
-          lastSyncedAt: sync.last_synced_at,
+      const newSyncRun = await this.createSyncRun({
+        id: generateId(Resource.SyncRun),
+        linked_account_id: sync.linked_account_id,
+        collection_key: sync.collection_key,
+        temporal_run_id: null,
+        status: SyncRunStatus.Stopped,
+        type: runType,
+        records_added: null,
+        records_updated: null,
+        records_deleted: null,
+        created_at: now(),
+        updated_at: now(),
+      });
+
+      if (!newSyncRun) {
+        throw new Error('Failed to create sync run in the database');
+      }
+
+      let temporalRunId;
+      let temporalArgs = {
+        activityId,
+        collectionKey: sync.collection_key,
+        environmentId: sync.environment_id,
+        integrationKey: sync.integration_key,
+        linkedAccountId: sync.linked_account_id,
+        syncRunId: newSyncRun.id,
+        lastSyncedAt: sync.last_synced_at,
+      };
+
+      if (newSyncRun.type === SyncRunType.Initial) {
+        temporalRunId = await temporal.startInitialSync(newSyncRun.id, temporalArgs);
+      } else if (newSyncRun.type === SyncRunType.Incremental) {
+        temporalRunId = await temporal.triggerIncrementalSync(newSyncRun.id, temporalArgs);
+      } else if (newSyncRun.type === SyncRunType.Full) {
+        temporalRunId = await temporal.triggerFullSync(newSyncRun.id, temporalArgs);
+      }
+
+      if (!temporalRunId) {
+        await this.updateSyncRun(newSyncRun.id, {
+          status: SyncRunStatus.Failed,
         });
 
-        return didStart ? sync : null;
+        throw new Error(`Failed to trigger ${newSyncRun.type} sync in Temporal`);
       } else {
-        const syncSchedule = await this.getSyncSchedule(
-          sync.linked_account_id,
-          sync.collection_key
-        );
+        await this.updateSyncRun(newSyncRun.id, {
+          status: SyncRunStatus.Running,
+          temporal_run_id: temporalRunId,
+        });
 
-        if (!syncSchedule) {
-          throw new Error('Failed to get sync schedule');
-        }
-
-        if (syncSchedule.status === SyncScheduleStatus.Stopped) {
-          const incrementalSyncRunId = generateId(Resource.SyncRun);
-          const didTrigger = await temporal.triggerIncrementalSync(incrementalSyncRunId, {
-            activityId,
-            collectionKey: sync.collection_key,
-            environmentId: sync.environment_id,
-            integrationKey: sync.integration_key,
-            linkedAccountId: sync.linked_account_id,
-            syncRunId: incrementalSyncRunId,
-            lastSyncedAt: sync.last_synced_at,
-          });
-
-          return didTrigger ? sync : null;
-        } else {
-          const didTrigger = await temporal.triggerSyncSchedule(syncSchedule.id);
-          return didTrigger ? sync : null;
-        }
+        await activityService.createActivityLog(activityId, {
+          level: LogLevel.Info,
+          message: `Triggered ${newSyncRun.type} sync for collection ${sync.collection_key}`,
+          timestamp: now(),
+          payload: {
+            linked_account: sync.linked_account_id,
+            collection: sync.collection_key,
+            sync_run: newSyncRun.id,
+          },
+        });
       }
+
+      return sync;
     } catch (err) {
       await errorService.reportError(err);
 
       await activityService.createActivityLog(activityId, {
         level: LogLevel.Error,
-        message: 'Failed to trigger sync',
+        message: 'Failed to trigger sync due to an internal error',
         timestamp: now(),
       });
 
@@ -374,12 +438,12 @@ class SyncService {
         throw new Error('Failed to get Temporal client instance');
       }
 
-      const didUpdate = temporal.updateSyncSchedule(syncSchedule.id, interval, offset);
+      const didUpdate = await temporal.updateSyncSchedule(syncSchedule.id, interval, offset);
       if (!didUpdate) {
         throw new Error('Failed to update sync schedule in Temporal');
       }
 
-      const updatedSyncSchedule = this.updateSyncSchedule(syncSchedule.id, {
+      const updatedSyncSchedule = await this.updateSyncSchedule(syncSchedule.id, {
         frequency: interval,
         offset,
       });
