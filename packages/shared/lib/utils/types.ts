@@ -8,6 +8,15 @@ export interface InitialSyncArgs {
   activityId: string | null;
 }
 
+export interface FullSyncArgs {
+  environmentId: string;
+  integrationKey: string;
+  linkedAccountId: string;
+  collectionKey: string;
+  syncRunId: string;
+  activityId: string | null;
+}
+
 export interface IncrementalSyncArgs {
   environmentId: string;
   integrationKey: string;

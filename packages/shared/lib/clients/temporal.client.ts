@@ -10,7 +10,7 @@ import {
   getTemporalUrl,
   isProd,
 } from '../utils/constants';
-import { IncrementalSyncArgs, InitialSyncArgs } from '../utils/types';
+import { FullSyncArgs, IncrementalSyncArgs, InitialSyncArgs } from '../utils/types';
 
 const TEMPORAL_URL = getTemporalUrl();
 const TEMPORAL_NAMESPACE = getTemporalNamespace();
@@ -88,6 +88,21 @@ class TemporalClient {
   ): Promise<string | null> {
     try {
       const handle = await this.client.workflow.start('incrementalSync', {
+        taskQueue: SYNC_TASK_QUEUE,
+        workflowId: syncRunId,
+        args: [{ ...args }],
+      });
+
+      return handle.firstExecutionRunId;
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
+    }
+  }
+
+  public async triggerFullSync(syncRunId: string, args: FullSyncArgs): Promise<string | null> {
+    try {
+      const handle = await this.client.workflow.start('fullSync', {
         taskQueue: SYNC_TASK_QUEUE,
         workflowId: syncRunId,
         args: [{ ...args }],

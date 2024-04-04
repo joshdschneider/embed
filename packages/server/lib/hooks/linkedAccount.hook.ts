@@ -1,6 +1,10 @@
 import {
+  LogLevel,
+  activityService,
   collectionService,
+  errorService,
   linkedAccountService,
+  now,
   syncService,
   type LinkedAccount,
 } from '@embed/shared';
@@ -29,16 +33,53 @@ class LinkedAccountHook {
     );
 
     if (!collections) {
-      throw new Error('Failed to retrieve collections from database');
+      await activityService.createActivityLog(activityId, {
+        level: LogLevel.Error,
+        message: `Failed to create collections for linked account`,
+        timestamp: now(),
+      });
+
+      return await errorService.reportError(
+        new Error('Failed to retrieve collections from database')
+      );
     }
 
+    let createdCollections: string[] = [];
+    let failedCollections: string[] = [];
+
     for (const collection of collections) {
-      await linkedAccountService.createTenantForLinkedAccount(
+      const didCreateTenant = await linkedAccountService.createTenantForLinkedAccount(
         linkedAccount.id,
         linkedAccount.integration_key,
         collection.unique_key
       );
 
+      if (!didCreateTenant) {
+        failedCollections.push(collection.unique_key);
+      } else {
+        createdCollections.push(collection.unique_key);
+      }
+    }
+
+    if (createdCollections.length > 0) {
+      await activityService.createActivityLog(activityId, {
+        level: LogLevel.Info,
+        message: `${createdCollections.length} collection(s) created for linked account`,
+        timestamp: now(),
+        payload: { linked_account: linkedAccount.id, collections: createdCollections },
+      });
+    }
+
+    if (failedCollections.length > 0) {
+      await activityService.createActivityLog(activityId, {
+        level: LogLevel.Error,
+        message: `Failed to create ${failedCollections.length} collection(s) for linked account`,
+        timestamp: now(),
+        payload: { linked_account: linkedAccount.id, collections: failedCollections },
+      });
+    }
+
+    for (const collection of collections) {
       syncService.initializeSync({
         linkedAccountId: linkedAccount.id,
         collection,
@@ -69,16 +110,24 @@ class LinkedAccountHook {
     );
 
     if (!collections) {
-      throw new Error('Failed to retrieve collections from database');
+      await activityService.createActivityLog(activityId, {
+        level: LogLevel.Error,
+        message: `Failed to create collections for linked account`,
+        timestamp: now(),
+      });
+
+      return await errorService.reportError(
+        new Error('Failed to retrieve collections from database')
+      );
     }
 
-    collections.map((collection) => {
-      return syncService.initializeSync({
+    for (const collection of collections) {
+      syncService.initializeSync({
         linkedAccountId: linkedAccount.id,
         collection,
         activityId,
       });
-    });
+    }
   }
 }
 
