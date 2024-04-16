@@ -289,3 +289,24 @@ export const PaginationParametersSchema = z.object({
   before: z.string().optional(),
   after: z.string().optional(),
 });
+
+export const QueryCollectionRequestSchema = z.object({
+  type: z.enum(['vector', 'hybrid', 'keyword']).optional(),
+  query: z.string().optional(),
+  filters: z.any().optional(),
+  returnProperties: z.array(z.string()).optional(),
+  limit: z.number().optional(),
+  alpha: z.number().min(0).max(1).optional(),
+  disableMultimodal: z.boolean().optional(),
+});
+
+export type QueryCollectionRequest = z.infer<typeof QueryCollectionRequestSchema>;
+
+export const ImageSearchCollectionRequestSchema = z.object({
+  image: z.string(),
+  filters: z.any().optional(),
+  returnProperties: z.array(z.string()).optional(),
+  limit: z.number().optional(),
+});
+
+export type ImageSearchCollectionRequest = z.infer<typeof ImageSearchCollectionRequestSchema>;

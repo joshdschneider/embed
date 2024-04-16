@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-import { getServerPort, getWebsocketsPath, isCloud } from '@embed/shared';
+import { getServerPort, getWebsocketsPath } from '@embed/shared';
 import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
@@ -21,7 +21,6 @@ import proxyRouter from './routes/proxy.router';
 import webRouter from './routes/web.router';
 import webhookRouter from './routes/webhook.router';
 import { corsOptions } from './utils/cors';
-import { setupSelfHosted } from './utils/selfHosted';
 
 function setupExpressApp() {
   const app = express();
@@ -69,10 +68,6 @@ async function start() {
   const app = setupExpressApp();
   const server = http.createServer(app);
   await setupWebSockets(server);
-
-  if (!isCloud()) {
-    await setupSelfHosted();
-  }
 
   const port = getServerPort();
   server.listen(port, () => {

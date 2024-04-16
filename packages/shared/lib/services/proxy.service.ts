@@ -3,7 +3,7 @@ import { AuthScheme, ProviderSpecification } from '@embed/providers';
 import { LinkedAccount } from '@prisma/client';
 import axios, { AxiosError, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { backOff } from 'exponential-backoff';
-import { DEFAULT_PROXY_ATTEMPTS } from '../utils/constants';
+import { DEFAULT_PROXY_ATTEMPTS, DEFAULT_PROXY_RESPONSE_TYPE } from '../utils/constants';
 import { interpolateIfNeeded } from '../utils/helpers';
 import linkedAccountService from './linkedAccount.service';
 import providerService from './provider.service';
@@ -27,7 +27,7 @@ class ProxyService {
     const config: AxiosRequestConfig = {
       url,
       method: options.method,
-      responseType: options.responseType || 'stream',
+      responseType: options.responseType || DEFAULT_PROXY_RESPONSE_TYPE,
       headers,
     };
 
@@ -146,7 +146,12 @@ class ProxyService {
       { configuration }
     );
 
-    return interpolatedEndpoint;
+    const params = new URLSearchParams();
+    Object.entries(options.params || {}).forEach(([key, value]) => {
+      params.append(key, value.toString());
+    });
+
+    return interpolatedEndpoint + '?' + params.toString();
   }
 
   private buildHeaders(

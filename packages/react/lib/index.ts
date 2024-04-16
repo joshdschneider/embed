@@ -17,7 +17,7 @@ enum MessageType {
   Success = 'success',
 }
 
-export const useEmbedConnect = ({
+export const useEmbedLink = ({
   linkToken,
   linkMethod,
   redirectUrl,

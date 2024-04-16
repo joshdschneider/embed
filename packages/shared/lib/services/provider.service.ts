@@ -28,6 +28,22 @@ class ProviderService {
     }
   }
 
+  public async getProviderCollection(providerKey: string, collectionKey: string) {
+    try {
+      const spec = await this.registry.getProviderSpecification(providerKey);
+      const collectionEntries = Object.entries(spec?.collections || {});
+      const providerCollection = collectionEntries.find(([k, v]) => k === collectionKey);
+      if (!providerCollection) {
+        return null;
+      }
+
+      return providerCollection[1];
+    } catch (err) {
+      errorService.reportError(err);
+      return null;
+    }
+  }
+
   public async syncProviderCollection(
     providerKey: string,
     collectionKey: string,

@@ -1,7 +1,11 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import { BedrockRuntimeClient } from '@aws-sdk/client-bedrock-runtime';
 import { CohereClient } from 'cohere-ai';
 import { GoogleAuth } from 'google-auth-library';
 import OpenAI from 'openai';
+import { MultimodalEmbeddingModel, TextEmbeddingModel } from './enums';
 
 export function getServerUrl() {
   return process.env['SERVER_URL'];
@@ -24,8 +28,16 @@ export function getWeaviateUrl() {
   return process.env['WEAVIATE_URL'];
 }
 
-export function getWeaviateApiKey() {
-  return process.env['WEAVIATE_API_KEY'];
+export function getElasticUrl() {
+  return process.env['ELASTIC_URL'];
+}
+
+export function getElasticApiKeyId() {
+  return process.env['ELASTIC_API_KEY_ID'];
+}
+
+export function getElasticApiKey() {
+  return process.env['ELASTIC_API_KEY'];
 }
 
 export function getTemporalUrl() {
@@ -63,14 +75,6 @@ export function getLogLevel() {
 
 export function isProd() {
   return process.env['NODE_ENV'] === 'production';
-}
-
-export function isCloud() {
-  return process.env['EMBED_CLOUD']?.toLowerCase() === 'true';
-}
-
-export function isEnterprise() {
-  return process.env['EMBED_ENTERPRISE']?.toLowerCase() === 'true';
 }
 
 export function getAuthTokenSecret() {
@@ -129,18 +133,13 @@ export async function getGoogleCloud() {
   }
 
   const auth = new GoogleAuth({ keyFilename: keyPath });
-
   const client = await auth.getClient();
   const accessToken = await client.getAccessToken();
   if (!accessToken.token) {
     throw new Error('Failed to get Google access token');
   }
 
-  return {
-    accessToken: accessToken.token,
-    projectId,
-    region,
-  };
+  return { accessToken: accessToken.token, projectId, region };
 }
 
 export function getMistralApiKey() {
@@ -161,16 +160,26 @@ export const ENCRYPTION_KEY_SALT = 'X89FHEGqR3yNK0+v7rPWxQ==';
 export const EMBED_AUTH_TOKEN_KEY = 'embed_token';
 export const EMBED_ENVIRONMENT_KEY = 'embed_enviroment';
 
-export const SYNC_TASK_QUEUE = 'syncs';
-export const ACTIONS_TASK_QUEUE = 'actions';
-
 export const MIN_LIMIT = 1;
 export const MAX_LIMIT = 100;
 export const DEFAULT_LIMIT = 20;
 
+export const SYNC_TASK_QUEUE = 'syncs';
+export const ACTIONS_TASK_QUEUE = 'actions';
+
 export const DEFAULT_SYNC_FREQUENCY = '1d';
 export const DEFAULT_AUTO_START_SYNC = false;
+
+export const DEFAULT_TEXT_EMBEDDING_MODEL = TextEmbeddingModel.OpenaiTextEmbedding3Small;
+export const DEFAULT_MULTIMODAL_EMBEDDING_MODEL =
+  MultimodalEmbeddingModel.GoogleVertexMultimodalEmbedding001;
+
+export const DEFAULT_QUERY_LIMIT = 10;
+export const DEFAULT_KNN_NUM_CANDIDATES = 100;
+export const DEFAULT_SCORE_THRESHOLD = 0.3;
+
 export const DEFAULT_PROXY_ATTEMPTS = 3;
+export const DEFAULT_PROXY_RESPONSE_TYPE = 'json';
 
 export const SUPPORTED_LANGUAGES = ['en'];
 

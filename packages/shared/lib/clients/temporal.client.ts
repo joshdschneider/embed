@@ -10,6 +10,7 @@ import {
   getTemporalUrl,
   isProd,
 } from '../utils/constants';
+import { FullSyncArgs, IncrementalSyncArgs, InitialSyncArgs } from '../utils/types';
 
 const TEMPORAL_URL = getTemporalUrl();
 const TEMPORAL_NAMESPACE = getTemporalNamespace();
@@ -38,10 +39,12 @@ class TemporalClient {
       throw new Error('Temporal URL not set');
     } else if (!TEMPORAL_NAMESPACE) {
       throw new Error('Temporal namespace not set');
-    } else if (!TEMPORAL_CERT_PATH) {
-      throw new Error('Temporal cert path not set');
-    } else if (!TEMPORAL_KEY_PATH) {
-      throw new Error('Temporal key path not set');
+    } else if (isProd()) {
+      if (!TEMPORAL_CERT_PATH) {
+        throw new Error('Temporal cert path not set');
+      } else if (!TEMPORAL_KEY_PATH) {
+        throw new Error('Temporal key path not set');
+      }
     }
 
     const connection = await Connection.connect({
@@ -49,8 +52,8 @@ class TemporalClient {
       tls: isProd()
         ? {
             clientCertPair: {
-              crt: fs.readFileSync(TEMPORAL_CERT_PATH),
-              key: fs.readFileSync(TEMPORAL_KEY_PATH),
+              crt: fs.readFileSync(TEMPORAL_CERT_PATH!),
+              key: fs.readFileSync(TEMPORAL_KEY_PATH!),
             },
           }
         : false,
@@ -64,18 +67,7 @@ class TemporalClient {
     return new TemporalClient(client);
   }
 
-  public async startInitialSync(
-    syncRunId: string,
-    args: {
-      environmentId: string;
-      linkedAccountId: string;
-      integrationKey: string;
-      collectionKey: string;
-      syncRunId: string;
-      lastSyncedAt: number | null;
-      activityId: string | null;
-    }
-  ): Promise<string | null> {
+  public async startInitialSync(syncRunId: string, args: InitialSyncArgs): Promise<string | null> {
     try {
       const handle = await this.client.workflow.start('initialSync', {
         taskQueue: SYNC_TASK_QUEUE,
@@ -92,18 +84,25 @@ class TemporalClient {
 
   public async triggerIncrementalSync(
     syncRunId: string,
-    args: {
-      environmentId: string;
-      linkedAccountId: string;
-      integrationKey: string;
-      collectionKey: string;
-      syncRunId: string;
-      lastSyncedAt: number | null;
-      activityId: string | null;
-    }
+    args: IncrementalSyncArgs
   ): Promise<string | null> {
     try {
       const handle = await this.client.workflow.start('incrementalSync', {
+        taskQueue: SYNC_TASK_QUEUE,
+        workflowId: syncRunId,
+        args: [{ ...args }],
+      });
+
+      return handle.firstExecutionRunId;
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
+    }
+  }
+
+  public async triggerFullSync(syncRunId: string, args: FullSyncArgs): Promise<string | null> {
+    try {
+      const handle = await this.client.workflow.start('fullSync', {
         taskQueue: SYNC_TASK_QUEUE,
         workflowId: syncRunId,
         args: [{ ...args }],
@@ -120,12 +119,7 @@ class TemporalClient {
     scheduleId: string,
     interval: StringValue,
     offset: number,
-    args: {
-      environmentId: string;
-      linkedAccountId: string;
-      integrationKey: string;
-      collectionKey: string;
-    }
+    args: IncrementalSyncArgs
   ): Promise<ScheduleHandle | null> {
     try {
       return await this.client.schedule.create({
