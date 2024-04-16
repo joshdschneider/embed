@@ -1,6 +1,8 @@
-import { Collection } from '@prisma/client';
+import { Collection, LinkedAccount } from '@prisma/client';
+import ElasticClient from '../clients/elastic.client';
 import { database } from '../utils/database';
 import { now } from '../utils/helpers';
+import { QueryOptions } from '../utils/types';
 import errorService from './error.service';
 
 class CollectionService {
@@ -71,6 +73,24 @@ class CollectionService {
         },
         data: { ...data, updated_at: now() },
       });
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
+    }
+  }
+
+  public async queryCollection({
+    linkedAccount,
+    collectionKey,
+    queryOptions,
+  }: {
+    linkedAccount: LinkedAccount;
+    collectionKey: string;
+    queryOptions: QueryOptions;
+  }) {
+    try {
+      const elastic = ElasticClient.getInstance();
+      return await elastic.query({ linkedAccount, collectionKey, queryOptions });
     } catch (err) {
       await errorService.reportError(err);
       return null;

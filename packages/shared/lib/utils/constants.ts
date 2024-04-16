@@ -28,6 +28,18 @@ export function getWeaviateUrl() {
   return process.env['WEAVIATE_URL'];
 }
 
+export function getElasticUrl() {
+  return process.env['ELASTIC_URL'];
+}
+
+export function getElasticApiKeyId() {
+  return process.env['ELASTIC_API_KEY_ID'];
+}
+
+export function getElasticApiKey() {
+  return process.env['ELASTIC_API_KEY'];
+}
+
 export function getTemporalUrl() {
   return process.env['TEMPORAL_URL'];
 }
@@ -161,6 +173,10 @@ export const DEFAULT_AUTO_START_SYNC = false;
 export const DEFAULT_TEXT_EMBEDDING_MODEL = TextEmbeddingModel.OpenaiTextEmbedding3Small;
 export const DEFAULT_MULTIMODAL_EMBEDDING_MODEL =
   MultimodalEmbeddingModel.GoogleVertexMultimodalEmbedding001;
+
+export const DEFAULT_QUERY_LIMIT = 10;
+export const DEFAULT_KNN_NUM_CANDIDATES = 100;
+export const DEFAULT_SCORE_THRESHOLD = 0.3;
 
 export const DEFAULT_PROXY_ATTEMPTS = 3;
 export const DEFAULT_PROXY_RESPONSE_TYPE = 'json';

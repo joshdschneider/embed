@@ -5,12 +5,17 @@ import {
   ErrorCode,
   collectionService,
   errorService,
+  linkedAccountService,
   now,
   providerService,
 } from '@embed/shared';
 import type { Request, Response } from 'express';
 import { zodError } from '../utils/helpers';
-import { CollectionObject, UpdateCollectionRequestSchema } from '../utils/types';
+import {
+  CollectionObject,
+  QueryCollectionRequestSchema,
+  UpdateCollectionRequestSchema,
+} from '../utils/types';
 
 class CollectionController {
   public async listCollections(req: Request, res: Response) {
@@ -398,7 +403,55 @@ class CollectionController {
 
   public async queryCollection(req: Request, res: Response) {
     try {
-      // TODO
+      const linkedAccountId = req.params['linked_account_id'];
+      const collectionKey = req.params['collection_key'];
+
+      if (!linkedAccountId) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.BadRequest,
+          message: 'Linked account ID missing',
+        });
+      } else if (!collectionKey) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.BadRequest,
+          message: 'Collection unique key missing',
+        });
+      }
+
+      const linkedAccount = await linkedAccountService.getLinkedAccountById(linkedAccountId);
+      if (!linkedAccount) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.NotFound,
+          message: 'Linked account not found',
+        });
+      }
+
+      const parsedBody = QueryCollectionRequestSchema.safeParse(req.body);
+      if (!parsedBody.success) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.BadRequest,
+          message: zodError(parsedBody.error),
+        });
+      }
+
+      const results = await collectionService.queryCollection({
+        linkedAccountId,
+        integrationKey: linkedAccount.integration_key,
+        collectionKey,
+        queryOptions: parsedBody.data,
+      });
+
+      if (!results) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.InternalServerError,
+          message: DEFAULT_ERROR_MESSAGE,
+        });
+      }
+
+      res.status(200).json({
+        object: 'list',
+        data: results,
+      });
     } catch (err) {
       await errorService.reportError(err);
 
