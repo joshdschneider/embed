@@ -1,6 +1,8 @@
-import { Collection } from '@prisma/client';
+import { Collection, LinkedAccount } from '@prisma/client';
+import ElasticClient from '../clients/elastic.client';
 import { database } from '../utils/database';
 import { now } from '../utils/helpers';
+import { ImageSearchOptions, QueryOptions } from '../utils/types';
 import errorService from './error.service';
 
 class CollectionService {
@@ -70,6 +72,50 @@ class CollectionService {
           deleted_at: null,
         },
         data: { ...data, updated_at: now() },
+      });
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
+    }
+  }
+
+  public async queryCollection({
+    linkedAccount,
+    collectionKey,
+    queryOptions,
+  }: {
+    linkedAccount: LinkedAccount;
+    collectionKey: string;
+    queryOptions: QueryOptions;
+  }) {
+    try {
+      const elastic = ElasticClient.getInstance();
+      return await elastic.query({
+        linkedAccount,
+        collectionKey,
+        queryOptions,
+      });
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
+    }
+  }
+
+  public async imageSearchCollection({
+    linkedAccount,
+    collectionKey,
+    imageSearchOptions,
+  }: {
+    linkedAccount: LinkedAccount;
+    collectionKey: string;
+    imageSearchOptions: ImageSearchOptions;
+  }) {
+    try {
+      const elastic = ElasticClient.getInstance();
+      return await elastic.imageSearch({
+        linkedAccount,
+        collectionKey,
+        imageSearchOptions,
       });
     } catch (err) {
       await errorService.reportError(err);

@@ -1,3 +1,42 @@
+import { SourceObject } from '@embed/providers';
+
+export interface InitialSyncArgs {
+  environmentId: string;
+  integrationKey: string;
+  linkedAccountId: string;
+  collectionKey: string;
+  syncRunId: string;
+  lastSyncedAt: number | null;
+  activityId: string | null;
+}
+
+export interface FullSyncArgs {
+  environmentId: string;
+  integrationKey: string;
+  linkedAccountId: string;
+  collectionKey: string;
+  syncRunId: string;
+  activityId: string | null;
+}
+
+export interface IncrementalSyncArgs {
+  environmentId: string;
+  integrationKey: string;
+  linkedAccountId: string;
+  collectionKey: string;
+  syncRunId?: string;
+  lastSyncedAt?: number | null;
+  activityId?: string | null;
+}
+
+export interface ActionArgs {
+  environmentId: string;
+  integrationKey: string;
+  linkedAccountId: string;
+  actionKey: string;
+  activityId: string | null;
+}
+
 export type Branding = {
   name: string | null;
   appearance: string;
@@ -20,32 +59,66 @@ export type Branding = {
   };
 };
 
-export type Filter = {
-  conditions?: Filter[];
-  property?: string[];
-  operator?:
-    | 'And'
-    | 'Or'
-    | 'Equal'
-    | 'Like'
-    | 'NotEqual'
-    | 'GreaterThan'
-    | 'GreaterThanEqual'
-    | 'LessThan'
-    | 'LessThanEqual'
-    | 'IsNull'
-    | 'ContainsAny'
-    | 'ContainsAll';
-  valueInt?: number;
-  valueNumber?: number;
-  valueBoolean?: boolean;
-  valueString?: string;
-  valueText?: string;
-  valueDate?: string;
-  valueIntArray?: number[];
-  valueNumberArray?: number[];
-  valueBooleanArray?: boolean[];
-  valueStringArray?: string[];
-  valueTextArray?: string[];
-  valueDateArray?: string[];
+export type QueryOptions = {
+  type?: 'vector' | 'hybrid' | 'keyword';
+  query?: string;
+  filters?: any;
+  returnProperties?: string[];
+  limit?: number;
+  alpha?: number;
+  disableMultimodal?: boolean;
+};
+
+export type ImageSearchOptions = {
+  image: string;
+  filters?: any;
+  returnProperties?: string[];
+  limit?: number;
+};
+
+export interface TermFilter {
+  term: {
+    [field: string]: string | number | boolean;
+  };
+}
+
+export interface TermsFilter {
+  terms: {
+    [field: string]: Array<string | number | boolean>;
+  };
+}
+
+export interface RangeFilter {
+  range: {
+    [field: string]: {
+      gte?: number | string;
+      lte?: number | string;
+      gt?: number | string;
+      lt?: number | string;
+    };
+  };
+}
+
+export interface ExistsFilter {
+  exists: {
+    field: string;
+  };
+}
+
+export type Filter = TermFilter | TermsFilter | RangeFilter | ExistsFilter;
+
+export type SourceObjectWithHash = SourceObject & { hash: string };
+
+export type NestedSourceObjectWithHash = Omit<SourceObject, 'id'> & { hash: string };
+
+export interface HitObject {
+  _score: number | null | undefined;
+  _match: string[];
+  _source: SourceObjectWithHash;
+}
+
+export type NestedHitObject = {
+  _score: number | null | undefined;
+  _match: string[];
+  _source: NestedSourceObjectWithHash;
 };

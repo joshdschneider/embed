@@ -1,7 +1,7 @@
 import express from 'express';
 import actionController from '../controllers/action.controller';
+import collectionController from '../controllers/collection.controller';
 import linkedAccountController from '../controllers/linkedAccount.controller';
-import recordController from '../controllers/record.controller';
 import syncController from '../controllers/sync.controller';
 import authMiddleware from '../middleware/auth.middleware';
 
@@ -58,16 +58,16 @@ linkedAccountRouter
   .get(syncController.retrieveSyncRun.bind(syncController));
 
 linkedAccountRouter
-  .route('/:linked_account_id/records/:collection_key')
-  .get(recordController.listRecords.bind(recordController));
+  .route('/:linked_account_id/collections/:collection_key')
+  .get(collectionController.listCollectionRecords.bind(collectionController));
 
 linkedAccountRouter
-  .route('/:linked_account_id/records/:collection_key/query')
-  .post(recordController.queryRecords.bind(recordController));
+  .route('/:linked_account_id/collections/:collection_key/query')
+  .post(collectionController.queryCollection.bind(collectionController));
 
 linkedAccountRouter
-  .route('/:linked_account_id/records/:collection_key/:record_id')
-  .get(recordController.retrieveRecord.bind(recordController));
+  .route('/:linked_account_id/collections/:collection_key/:record_id')
+  .get(collectionController.retrieveCollectionRecord.bind(collectionController));
 
 linkedAccountRouter
   .route('/:linked_account_id/actions/:action_key/trigger')

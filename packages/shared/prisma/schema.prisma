@@ -158,7 +158,6 @@ model Collection {
   text_embedding_model         String
   multimodal_embedding_model   String
   has_multimodal_properties    Boolean
-  has_references               Boolean
   created_at                   Int
   updated_at                   Int
   deleted_at                   Int?
@@ -273,6 +272,9 @@ model Record {
 
   collection     Collection    @relation(fields: [collection_key, integration_key, environment_id], references: [unique_key, integration_key, environment_id])
   linked_account LinkedAccount @relation(fields: [linked_account_id], references: [id])
+
+  @@unique([external_id, linked_account_id, collection_key])
+  @@unique([hash, linked_account_id, collection_key])
 }
 
 model Webhook {

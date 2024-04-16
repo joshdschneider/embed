@@ -84,33 +84,58 @@ export const RetrySchema = z.object({
 
 export type Retry = z.infer<typeof RetrySchema>;
 
-export const CollectionPropertySchema = z.object({
+export const CollectionPropertyTypeSchema = z.union([
+  z.literal('string'),
+  z.literal('number'),
+  z.literal('integer'),
+  z.literal('boolean'),
+  z.literal('date'),
+  z.literal('object'),
+  z.literal('array'),
+  z.literal('nested'),
+]);
+
+export type CollectionPropertyType = z.infer<typeof CollectionPropertyTypeSchema>;
+
+export const CollectionPropertyItemsSchema = z.object({
   type: z.union([
     z.literal('string'),
     z.literal('number'),
-    z.literal('boolean'),
     z.literal('integer'),
-    z.literal('array'),
+    z.literal('boolean'),
+    z.literal('date'),
   ]),
-  items: z
-    .object({
-      type: z.union([
-        z.literal('string'),
-        z.literal('number'),
-        z.literal('boolean'),
-        z.literal('integer'),
-      ]),
-    })
-    .optional(),
-  format: z.union([z.literal('date'), z.literal('date-time')]).optional(),
-  description: z.string().optional(),
-  index_searchable: z.boolean().optional(),
-  index_filterable: z.boolean().optional(),
-  vector_searchable: z.boolean().optional(),
-  embedding_model: z.union([z.literal('text'), z.literal('multimodal')]).optional(),
 });
 
-export type CollectionProperty = z.infer<typeof CollectionPropertySchema>;
+export type CollectionPropertyItems = z.infer<typeof CollectionPropertyItemsSchema>;
+
+export interface CollectionProperty {
+  type: CollectionPropertyType;
+  items?: CollectionPropertyItems;
+  description?: string;
+  properties?: Record<string, CollectionProperty>;
+  filterable?: boolean;
+  keyword_searchable?: boolean;
+  vector_searchable?: boolean;
+  return_by_default?: boolean;
+  multimodal?: boolean;
+  wildcard?: boolean;
+  hidden?: boolean;
+}
+
+export const CollectionPropertySchema: z.ZodType<CollectionProperty> = z.object({
+  type: CollectionPropertyTypeSchema,
+  items: CollectionPropertyItemsSchema.optional(),
+  description: z.string().optional(),
+  properties: z.record(z.lazy(() => CollectionPropertySchema)).optional(),
+  filterable: z.boolean().default(true),
+  keyword_searchable: z.boolean().default(true),
+  vector_searchable: z.boolean().default(true),
+  return_by_default: z.boolean().default(true),
+  multimodal: z.boolean().default(false),
+  wildcard: z.boolean().default(false),
+  hidden: z.boolean().default(false),
+});
 
 export const CollectionSchemaSchema = z.object({
   name: z.string(),
@@ -123,14 +148,12 @@ export type CollectionSchema = z.infer<typeof CollectionSchemaSchema>;
 
 export const CollectionsSchema = z.record(
   z.object({
+    schema: CollectionSchemaSchema,
     default_enabled: z.boolean().optional(),
     default_sync_frequency: z.string().optional(),
     default_auto_start_sync: z.boolean().optional(),
     required_scopes: z.array(z.string()).optional(),
     has_multimodal_properties: z.boolean(),
-    has_references: z.boolean(),
-    schema: CollectionSchemaSchema,
-    reference_schemas: z.array(CollectionSchemaSchema).optional(),
   })
 );
 
@@ -204,6 +227,17 @@ type ActivityLog = {
   timestamp: number;
 };
 
+export enum SyncRunType {
+  Initial = 'initial',
+  Incremental = 'incremental',
+  Full = 'full',
+}
+
+export interface SourceObject {
+  id: string;
+  [key: string]: any;
+}
+
 export declare class BaseContext {
   activityId: string | null;
   proxy<T = any>(options: InternalProxyOptions): Promise<AxiosResponse<T>>;
@@ -213,7 +247,8 @@ export declare class BaseContext {
   put<T = any>(options: MethodProxyOptions): Promise<AxiosResponse<T>>;
   delete<T = any>(options: MethodProxyOptions): Promise<AxiosResponse<T>>;
   reportError(err: unknown): Promise<void>;
-  log(activityLog: {
+  log(message: string): void;
+  createActivityLog(activityLog: {
     level: LogLevel;
     message: string;
     payload?: object | undefined;
@@ -226,14 +261,15 @@ export interface SyncContext extends BaseContext {
   multimodalEnabled: boolean;
   syncRunId: string;
   lastSyncedAt: number | null;
-  syncType: 'initial' | 'incremental';
-  batchSave<T = any>(results: T[], model: string): Promise<boolean | null>;
+  syncRunType: SyncRunType;
+  batchSave(objects: SourceObject[]): Promise<boolean>;
+  pruneDeleted(allIds: string[]): Promise<boolean>;
   reportResults(): Promise<{
     records_added: number;
     records_updated: number;
     records_deleted: number;
   }>;
-  finish(): Promise<void>;
+  finish(): boolean;
 }
 
 export interface ActionContext extends BaseContext {}

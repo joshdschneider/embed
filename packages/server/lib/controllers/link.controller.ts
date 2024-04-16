@@ -529,7 +529,7 @@ class LinkController {
           await activityService.createActivityLog(activityId, {
             timestamp: now(),
             level: LogLevel.Info,
-            message: 'Linked account created without credentials',
+            message: `Linked account ${response.action} without credentials`,
           });
 
           await linkTokenService.deleteLinkToken(linkToken.id);
@@ -1147,7 +1147,7 @@ class LinkController {
       await activityService.createActivityLog(activityId, {
         timestamp: now(),
         level: LogLevel.Info,
-        message: 'Linked account created with API key credentials',
+        message: `Linked account ${response.action} with API key credentials`,
       });
 
       await linkTokenService.deleteLinkToken(linkToken.id);
@@ -1476,7 +1476,7 @@ class LinkController {
       await activityService.createActivityLog(activityId, {
         timestamp: now(),
         level: LogLevel.Info,
-        message: 'Linked account created with basic credentials',
+        message: `Linked account ${response.action} with basic credentials`,
       });
 
       await linkTokenService.deleteLinkToken(linkToken.id);

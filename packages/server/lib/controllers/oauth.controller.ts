@@ -627,7 +627,7 @@ class OAuthController {
       await activityService.createActivityLog(activityId, {
         timestamp: now(),
         level: LogLevel.Info,
-        message: 'Linked account created with OAuth2 credentials',
+        message: `Linked account ${response.action} with OAuth2 credentials`,
       });
 
       await linkTokenService.deleteLinkToken(linkToken.id);
@@ -757,7 +757,7 @@ class OAuthController {
       await activityService.createActivityLog(activityId, {
         timestamp: now(),
         level: LogLevel.Info,
-        message: 'Linked account created with OAuth1 credentials',
+        message: `Linked account ${response.action} with OAuth1 credentials`,
       });
 
       await linkTokenService.deleteLinkToken(linkToken.id);

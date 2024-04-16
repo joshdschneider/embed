@@ -2,7 +2,12 @@ import { Action, Collection, Integration } from '@prisma/client';
 import fs from 'fs';
 import yaml from 'js-yaml';
 import path from 'path';
-import { DEFAULT_AUTO_START_SYNC, DEFAULT_SYNC_FREQUENCY } from '../utils/constants';
+import {
+  DEFAULT_AUTO_START_SYNC,
+  DEFAULT_MULTIMODAL_EMBEDDING_MODEL,
+  DEFAULT_SYNC_FREQUENCY,
+  DEFAULT_TEXT_EMBEDDING_MODEL,
+} from '../utils/constants';
 import { database } from '../utils/database';
 import { now } from '../utils/helpers';
 import encryptionService from './encryption.service';
@@ -107,10 +112,9 @@ class IntegrationService {
             default_sync_frequency: v.default_sync_frequency || DEFAULT_SYNC_FREQUENCY,
             auto_start_sync: v.default_auto_start_sync || DEFAULT_AUTO_START_SYNC,
             exclude_properties_from_sync: [],
-            text_embedding_model: '', // TODO
-            multimodal_embedding_model: '', // TODO
+            text_embedding_model: DEFAULT_TEXT_EMBEDDING_MODEL,
+            multimodal_embedding_model: DEFAULT_MULTIMODAL_EMBEDDING_MODEL,
             has_multimodal_properties: v.has_multimodal_properties,
-            has_references: v.has_references,
             created_at: now(),
             updated_at: now(),
             deleted_at: null,

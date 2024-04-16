@@ -1,4 +1,3 @@
-import { MultimodalEmbeddingModel, TextEmbeddingModel } from './clients/embedding.client';
 import { OAuth1Client, OAuth1RequestTokenResult } from './clients/oauth1.client';
 import {
   OAuth1Credentials,
@@ -22,6 +21,7 @@ import linkedAccountService from './services/linkedAccount.service';
 import providerService from './services/provider.service';
 import proxyService from './services/proxy.service';
 import syncService from './services/sync.service';
+import { MultimodalEmbeddingModel, TextEmbeddingModel } from './utils/enums';
 
 export * from './utils/constants';
 export * from './utils/database';

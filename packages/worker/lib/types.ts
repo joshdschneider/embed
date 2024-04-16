@@ -1,4 +1,4 @@
-export interface SyncArgs {
+export interface InitialSyncArgs {
   environmentId: string;
   integrationKey: string;
   linkedAccountId: string;
@@ -8,9 +8,24 @@ export interface SyncArgs {
   activityId: string | null;
 }
 
-export type InitialSyncArgs = SyncArgs;
+export interface FullSyncArgs {
+  environmentId: string;
+  integrationKey: string;
+  linkedAccountId: string;
+  collectionKey: string;
+  syncRunId: string;
+  activityId: string | null;
+}
 
-export type IncrementalSyncArgs = SyncArgs;
+export interface IncrementalSyncArgs {
+  environmentId: string;
+  integrationKey: string;
+  linkedAccountId: string;
+  collectionKey: string;
+  syncRunId?: string;
+  lastSyncedAt?: number | null;
+  activityId?: string | null;
+}
 
 export interface ActionArgs {
   environmentId: string;
