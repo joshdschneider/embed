@@ -22,13 +22,6 @@ schemas:
         type: string
         description: The unique identifier for the file.
         vector_searchable: false
-      hash:
-        type: string
-        description: The hash of the file object.
-        filterable: false
-        keyword_searchable: false
-        vector_searchable: false
-        hidden: true
       webview_link:
         type: string
         description: A link for opening the file in a relevant Google editor or viewer in a browser.
@@ -66,13 +59,6 @@ schemas:
         type: nested
         return_by_default: false
         properties:
-          hash:
-            type: string
-            description: The hash of the chunk object.
-            filterable: false
-            keyword_searchable: false
-            vector_searchable: false
-            hidden: true
           chunk:
             type: string
             description: A chunk of content from the file.

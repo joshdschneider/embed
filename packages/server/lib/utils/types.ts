@@ -301,3 +301,12 @@ export const QueryCollectionRequestSchema = z.object({
 });
 
 export type QueryCollectionRequest = z.infer<typeof QueryCollectionRequestSchema>;
+
+export const ImageSearchCollectionRequestSchema = z.object({
+  image: z.string(),
+  filters: z.any().optional(),
+  returnProperties: z.array(z.string()).optional(),
+  limit: z.number().optional(),
+});
+
+export type ImageSearchCollectionRequest = z.infer<typeof ImageSearchCollectionRequestSchema>;

@@ -8,6 +8,7 @@ import type {
   SearchRequest,
 } from '@elastic/elasticsearch/lib/api/types';
 import { CollectionProperty } from '@embed/providers';
+import axios from 'axios';
 import collectionService from '../services/collection.service';
 import providerService from '../services/provider.service';
 import {
@@ -16,7 +17,14 @@ import {
   DEFAULT_SCORE_THRESHOLD,
 } from '../utils/constants';
 import { MultimodalEmbeddingModel, TextEmbeddingModel } from '../utils/enums';
-import { Filter, HitObject, NestedHitObject, QueryOptions } from '../utils/types';
+import { isValidUrl } from '../utils/helpers';
+import {
+  Filter,
+  HitObject,
+  ImageSearchOptions,
+  NestedHitObject,
+  QueryOptions,
+} from '../utils/types';
 import ElasticClient from './elastic.client';
 import { EmbeddingClient } from './embedding.client';
 
@@ -29,7 +37,7 @@ export class QueryClient {
     this.embeddings = embeddingClient;
   }
 
-  public async queryCollection({
+  public async query({
     environmentId,
     linkedAccountId,
     integrationKey,
@@ -78,7 +86,7 @@ export class QueryClient {
               returnProperties: queryOptions.returnProperties,
             });
           } else if (queryOptions.alpha === 1) {
-            const vectorAlphaHits = await this.vectorQuery({
+            const vectorAlphaHits = await this.textVectorQuery({
               indexName,
               schemaProperties,
               queryOptions,
@@ -99,7 +107,7 @@ export class QueryClient {
               queryOptions,
             });
 
-            const vectorQueryPromise = this.vectorQuery({
+            const vectorQueryPromise = this.textVectorQuery({
               indexName,
               schemaProperties,
               queryOptions,
@@ -122,7 +130,7 @@ export class QueryClient {
             });
           }
         case 'vector':
-          const vectorHits = await this.vectorQuery({
+          const vectorHits = await this.textVectorQuery({
             indexName,
             schemaProperties,
             queryOptions,
@@ -152,6 +160,42 @@ export class QueryClient {
           throw new Error('Invalid query type');
       }
     }
+  }
+
+  public async imageSearch({
+    environmentId,
+    linkedAccountId,
+    integrationKey,
+    collectionKey,
+    imageSearchOptions,
+  }: {
+    environmentId: string;
+    linkedAccountId: string;
+    integrationKey: string;
+    collectionKey: string;
+    imageSearchOptions: ImageSearchOptions;
+  }): Promise<unknown[]> {
+    const indexName = ElasticClient.formatIndexName(linkedAccountId, collectionKey);
+    const collection = await providerService.getProviderCollection(integrationKey, collectionKey);
+    if (!collection) {
+      throw new Error(`Failed to get collection ${collectionKey} for provider ${integrationKey}`);
+    }
+
+    const schemaProperties = collection.schema.properties;
+    const vectorHits = await this.imageVectorQuery({
+      indexName,
+      schemaProperties,
+      imageSearchOptions,
+      collectionKey,
+      environmentId,
+      integrationKey,
+    });
+
+    return QueryClient.formatQueryHits({
+      hits: vectorHits,
+      schemaProperties,
+      returnProperties: imageSearchOptions.returnProperties,
+    });
   }
 
   private async noQuery({
@@ -550,7 +594,112 @@ export class QueryClient {
     return hitObj;
   }
 
-  private async vectorQuery({
+  private async imageVectorQuery({
+    indexName,
+    schemaProperties,
+    imageSearchOptions,
+    collectionKey,
+    integrationKey,
+    environmentId,
+  }: {
+    indexName: string;
+    schemaProperties: Record<string, CollectionProperty>;
+    imageSearchOptions: ImageSearchOptions;
+    collectionKey: string;
+    integrationKey: string;
+    environmentId: string;
+  }): Promise<HitObject[]> {
+    if (!imageSearchOptions.image) {
+      throw new Error('Query missing for vector search');
+    }
+
+    const mainProperties: string[] = [];
+    const nestedProperties: string[] = [];
+    const multimodalProperties: string[] = [];
+
+    Object.entries(schemaProperties).forEach(([name, prop]) => {
+      if (prop.type === 'nested' && prop.properties) {
+        Object.entries(prop.properties).forEach(([nestedName, nestedProp]) => {
+          nestedProperties.push(`${name}.${nestedName}`);
+          if (nestedProp.vector_searchable) {
+            if (nestedProp.multimodal === true) {
+              multimodalProperties.push(`${name}.${nestedName}`);
+            }
+          }
+        });
+      } else {
+        mainProperties.push(name);
+        if (prop.vector_searchable) {
+          if (prop.multimodal === true) {
+            multimodalProperties.push(name);
+          }
+        }
+      }
+    });
+
+    if (multimodalProperties.length === 0) {
+      throw new Error(`No multimodal properties in collection ${collectionKey}`);
+    }
+
+    const collection = await collectionService.retrieveCollection(
+      collectionKey,
+      integrationKey,
+      environmentId
+    );
+
+    if (!collection) {
+      throw new Error(`Failed to retrieve collection with key ${collectionKey}`);
+    }
+
+    const base64 = await QueryClient.getImageBase64(imageSearchOptions.image);
+    const multimodalEmbedding = await this.embeddings.embedMultimodal({
+      model: collection.multimodal_embedding_model as MultimodalEmbeddingModel,
+      type: 'text',
+      content: [base64],
+    });
+
+    const filter = imageSearchOptions.filters
+      ? QueryClient.transformFilter(imageSearchOptions.filters)
+      : undefined;
+
+    const multimodalResults = multimodalProperties.map(async (prop) => {
+      const queryVector = multimodalEmbedding;
+
+      const knn: KnnQuery = {
+        field: `${prop}_vector`,
+        k: imageSearchOptions.limit || DEFAULT_QUERY_LIMIT,
+        num_candidates: DEFAULT_KNN_NUM_CANDIDATES,
+        query_vector: queryVector[0],
+        filter: filter,
+      };
+
+      if (prop.includes('.')) {
+        knn.inner_hits = {
+          size: imageSearchOptions.limit || DEFAULT_QUERY_LIMIT,
+          _source: nestedProperties,
+        };
+      }
+
+      return this.elastic
+        .search({
+          index: indexName,
+          knn: knn,
+          size: imageSearchOptions.limit || DEFAULT_QUERY_LIMIT,
+          _source: mainProperties,
+        })
+        .then((res) => res.hits.hits.map((hit) => QueryClient.processVectorHit(prop, hit)))
+        .catch((err) => {
+          throw err;
+        });
+    });
+
+    const results = await Promise.all([...multimodalResults]);
+    const hits = results.flat().sort((a, b) => b._score! - a._score!);
+    const nestedProps = new Set(nestedProperties.map((prop) => prop.split('.')[0]!));
+    return QueryClient.mergeHits(hits, [...nestedProps]);
+  }
+
+  private async textVectorQuery({
     indexName,
     schemaProperties,
     queryOptions,
@@ -605,7 +754,7 @@ export class QueryClient {
     });
 
     if (textProperties.length === 0 && multimodalProperties.length === 0) {
-      throw new Error('No vector searchable properties found');
+      throw new Error(`No vector properties in collection ${collectionKey}`);
     }
 
     const collection = await collectionService.retrieveCollection(
@@ -912,5 +1061,20 @@ export class QueryClient {
   private static blendNestedObjects(existingObj: NestedHitObject, newObj: NestedHitObject): void {
     existingObj._score = (existingObj._score ?? 0) + (newObj._score ?? 0);
     existingObj._match = Array.from(new Set([...existingObj._match, ...newObj._match]));
+  }
+
+  private static async getImageBase64(input: string): Promise<string> {
+    if (input.startsWith('data:image')) {
+      return input;
+    }
+
+    if (isValidUrl(input)) {
+      const response = await axios.get(input, { responseType: 'arraybuffer' });
+      const base64 = Buffer.from(response.data, 'binary').toString('base64');
+      const contentType = response.headers['content-type'] || 'image/jpeg';
+      return `data:${contentType};base64,${base64}`;
+    }
+
+    return input;
   }
 }

@@ -1,12 +1,13 @@
+import { SourceObject } from '@embed/providers';
 import { Record as DataRecord } from '@prisma/client';
 import { Context } from '@temporalio/activity';
 import md5 from 'md5';
-import WeaviateClient from '../clients/weaviate.client';
+import ElasticClient from '../clients/elastic.client';
 import activityService from '../services/activity.service';
 import providerService from '../services/provider.service';
 import recordService from '../services/record.service';
 import { LogLevel, Resource, SyncRunType } from '../utils/enums';
-import { generateId, now } from '../utils/helpers';
+import { generateId, hashObjects, now } from '../utils/helpers';
 import { BaseContext, BaseContextOptions } from './base.context';
 
 export type SyncContextOptions = BaseContextOptions & {
@@ -49,10 +50,8 @@ export class SyncContext extends BaseContext {
     }, heartbeat);
   }
 
-  public async batchSave<T extends { id: string; [key: string]: unknown }>(
-    data: { object: T; instances?: T[] }[]
-  ): Promise<boolean> {
-    if (!data || data.length === 0) {
+  public async batchSave(objects: SourceObject[]): Promise<boolean> {
+    if (!objects || objects.length === 0) {
       return true;
     }
 
@@ -67,16 +66,39 @@ export class SyncContext extends BaseContext {
 
     const collectionSchema = providerCollection.schema;
 
-    const records: DataRecord[] = data.map((d) => {
-      const obj = d.object;
-      const instances = d.instances || [];
-      const objWithInstances = [obj, ...instances];
-      const hash = md5(JSON.stringify(objWithInstances));
+    const records: DataRecord[] = objects.map((obj) => {
+      const hash = md5(JSON.stringify(obj));
 
       Object.entries(collectionSchema.properties).forEach(([k, v]) => {
-        /**
-         * TODO: Delete properties that are hidden, omitted, etc.
-         */
+        if (v.hidden) {
+          delete obj[k];
+        }
+        if (v.return_by_default === false) {
+          delete obj[k];
+        }
+        if (v.type === 'nested' && v.properties) {
+          Object.entries(v.properties).forEach(([nestedKey, nestedValue]) => {
+            const nestedObjOrArray = obj[k];
+            if (Array.isArray(nestedObjOrArray) && nestedObjOrArray.length > 0) {
+              nestedObjOrArray.forEach((nestedObj) => {
+                if (nestedValue.hidden) {
+                  delete nestedObj[nestedKey];
+                }
+                if (nestedValue.return_by_default === false) {
+                  delete nestedObj[nestedKey];
+                }
+              });
+              obj[k] = nestedObjOrArray;
+            } else if (nestedObjOrArray && typeof nestedObjOrArray === 'object') {
+              if (nestedValue.hidden) {
+                delete obj[k][nestedKey];
+              }
+              if (nestedValue.return_by_default === false) {
+                delete obj[k][nestedKey];
+              }
+            }
+          });
+        }
       });
 
       return {
@@ -111,7 +133,7 @@ export class SyncContext extends BaseContext {
           linked_account: this.linkedAccountId,
           integration: this.integrationKey,
           collection: this.collectionKey,
-          batch_count: data.length,
+          batch_count: objects.length,
         },
       });
 
@@ -122,14 +144,17 @@ export class SyncContext extends BaseContext {
     this.addedKeys.push(...addedKeys);
     this.updatedKeys.push(...updatedKeys);
 
-    const weaviate = WeaviateClient.getInstance();
+    const elastic = ElasticClient.getInstance();
 
-    const objectsToCreate = data.filter((d) => addedKeys.includes(d.object.id));
-    const didCreate = await weaviate.batchCreate<T>(
-      this.linkedAccountId,
-      this.collectionKey,
-      objectsToCreate
-    );
+    const objectsToCreate = objects.filter((obj) => addedKeys.includes(obj.id));
+    const hashedObjectsToCreate = hashObjects(objectsToCreate, collectionSchema.properties);
+    const didCreate = await elastic.batchUpsertObjects({
+      environmentId: this.environmentId,
+      collectionKey: this.collectionKey,
+      integrationKey: this.integrationKey,
+      linkedAccountId: this.linkedAccountId,
+      objects: hashedObjectsToCreate,
+    });
 
     if (!didCreate) {
       await activityService.createActivityLog(this.activityId, {
@@ -146,12 +171,15 @@ export class SyncContext extends BaseContext {
       });
     }
 
-    const objectsToUpdate = data.filter((d) => updatedKeys.includes(d.object.id));
-    const didUpdate = await weaviate.batchUpdate<T>(
-      this.linkedAccountId,
-      this.collectionKey,
-      objectsToUpdate
-    );
+    const objectsToUpdate = objects.filter((obj) => updatedKeys.includes(obj.id));
+    const hashedObjectsToUpdate = hashObjects(objectsToUpdate, collectionSchema.properties);
+    const didUpdate = await elastic.updateObjects({
+      environmentId: this.environmentId,
+      collectionKey: this.collectionKey,
+      integrationKey: this.integrationKey,
+      linkedAccountId: this.linkedAccountId,
+      objects: hashedObjectsToUpdate,
+    });
 
     if (!didUpdate) {
       await activityService.createActivityLog(this.activityId, {
@@ -185,12 +213,12 @@ export class SyncContext extends BaseContext {
     const { deletedKeys } = result;
     this.deletedKeys.push(...deletedKeys);
 
-    const weaviate = WeaviateClient.getInstance();
-    const didPruneDeleted = await weaviate.pruneDeleted(
-      this.linkedAccountId,
-      this.collectionKey,
-      deletedKeys
-    );
+    const elastic = ElasticClient.getInstance();
+    const didPruneDeleted = await elastic.deleteObjects({
+      collectionKey: this.collectionKey,
+      linkedAccountId: this.linkedAccountId,
+      objectIds: deletedKeys,
+    });
 
     return didPruneDeleted;
   }
