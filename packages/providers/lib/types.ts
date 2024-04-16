@@ -233,6 +233,11 @@ export enum SyncRunType {
   Full = 'full',
 }
 
+export interface SourceObject {
+  id: string;
+  [key: string]: any;
+}
+
 export declare class BaseContext {
   activityId: string | null;
   proxy<T = any>(options: InternalProxyOptions): Promise<AxiosResponse<T>>;
@@ -257,9 +262,7 @@ export interface SyncContext extends BaseContext {
   syncRunId: string;
   lastSyncedAt: number | null;
   syncRunType: SyncRunType;
-  batchSave<T extends { id: string; [key: string]: unknown }>(
-    data: { object: T; instances?: T[] }[]
-  ): Promise<boolean>;
+  batchSave(objects: SourceObject[]): Promise<boolean>;
   pruneDeleted(allIds: string[]): Promise<boolean>;
   reportResults(): Promise<{
     records_added: number;

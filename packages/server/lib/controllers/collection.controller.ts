@@ -13,6 +13,7 @@ import type { Request, Response } from 'express';
 import { zodError } from '../utils/helpers';
 import {
   CollectionObject,
+  ImageSearchCollectionRequestSchema,
   QueryCollectionRequestSchema,
   UpdateCollectionRequestSchema,
 } from '../utils/types';
@@ -435,10 +436,69 @@ class CollectionController {
       }
 
       const results = await collectionService.queryCollection({
-        linkedAccountId,
-        integrationKey: linkedAccount.integration_key,
+        linkedAccount,
         collectionKey,
         queryOptions: parsedBody.data,
+      });
+
+      if (!results) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.InternalServerError,
+          message: DEFAULT_ERROR_MESSAGE,
+        });
+      }
+
+      res.status(200).json({
+        object: 'list',
+        data: results,
+      });
+    } catch (err) {
+      await errorService.reportError(err);
+
+      return errorService.errorResponse(res, {
+        code: ErrorCode.InternalServerError,
+        message: DEFAULT_ERROR_MESSAGE,
+      });
+    }
+  }
+
+  public async imageSearchCollection(req: Request, res: Response) {
+    try {
+      const linkedAccountId = req.params['linked_account_id'];
+      const collectionKey = req.params['collection_key'];
+
+      if (!linkedAccountId) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.BadRequest,
+          message: 'Linked account ID missing',
+        });
+      } else if (!collectionKey) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.BadRequest,
+          message: 'Collection unique key missing',
+        });
+      }
+
+      const linkedAccount = await linkedAccountService.getLinkedAccountById(linkedAccountId);
+      if (!linkedAccount) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.NotFound,
+          message: 'Linked account not found',
+        });
+      }
+
+      const parsedBody = ImageSearchCollectionRequestSchema.safeParse(req.body);
+      if (!parsedBody.success) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.BadRequest,
+          message: zodError(parsedBody.error),
+        });
+      }
+
+      const results = await collectionService.imageSearchCollection({
+        linkedAccount,
+        collectionKey,
+        imageSearchOptions: parsedBody.data,
       });
 
       if (!results) {

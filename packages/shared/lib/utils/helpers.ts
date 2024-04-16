@@ -1,7 +1,10 @@
+import { CollectionProperty, SourceObject } from '@embed/providers';
 import crypto from 'crypto';
+import md5 from 'md5';
 import ms, { StringValue } from 'ms';
 import { DEFAULT_ERROR_MESSAGE } from './constants';
 import { Resource } from './enums';
+import { SourceObjectWithHash } from './types';
 
 export function generateId(prefix: Resource, byteLength = 8): string {
   return `${prefix}_${crypto.randomBytes(byteLength).toString('hex')}`;
@@ -74,4 +77,113 @@ export function missesInterpolationParam(str: string, replacers: Record<string, 
   const strWithoutConfig = str.replace(/configuration\./g, '');
   const interpolatedStr = interpolateString(strWithoutConfig, replacers);
   return /\${([^{}]*)}/g.test(interpolatedStr);
+}
+
+export function deconstructObject(
+  obj: Record<string, any>,
+  parentKey = '',
+  result: [string, any][] = []
+): [string, any][] {
+  Object.keys(obj).forEach((key) => {
+    const value = obj[key];
+    const newKey = parentKey ? `${parentKey}.${key}` : key;
+
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      deconstructObject(value, newKey, result);
+    } else if (Array.isArray(value)) {
+      value.forEach((item, index) => {
+        if (typeof item === 'object' && item !== null) {
+          deconstructObject(item, `${newKey}.${index}`, result);
+        } else {
+          result.push([`${newKey}.${index}`, item]);
+        }
+      });
+    } else {
+      result.push([newKey, value]);
+    }
+  });
+
+  return result;
+}
+
+export function reconstructObject(entries: [string, any][]): Record<string, any> {
+  const result: Record<string, any> = {};
+
+  entries.forEach(([path, value]) => {
+    const keys = path.split('.');
+    let current = result;
+
+    for (let i = 0; i < keys.length - 1; i++) {
+      const key = keys[i];
+      if (key === undefined) {
+        continue;
+      }
+
+      const nextKeyIsIndex = !isNaN(Number(keys[i + 1]));
+      if (nextKeyIsIndex && current[key] === undefined) {
+        current[key] = [];
+      } else if (!nextKeyIsIndex && current[key] === undefined) {
+        current[key] = {};
+      }
+
+      current = current[key];
+    }
+
+    const lastKey = keys[keys.length - 1];
+    if (lastKey !== undefined) {
+      if (!isNaN(Number(lastKey))) {
+        const index = parseInt(lastKey, 10);
+        if (Array.isArray(current)) {
+          current[index] = value;
+        } else {
+          current[lastKey] = value;
+        }
+      } else {
+        current[lastKey] = value;
+      }
+    }
+  });
+
+  return result;
+}
+
+export function isValidUrl(urlString: string): boolean {
+  try {
+    new URL(urlString);
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+export function hashObjects(
+  objects: SourceObject[],
+  schemaProps: Record<string, CollectionProperty>
+): SourceObjectWithHash[] {
+  return objects.map((originalObj) => {
+    const obj = { ...originalObj };
+
+    const objWithHash: SourceObjectWithHash = {
+      ...obj,
+      hash: md5(JSON.stringify(obj)),
+    };
+
+    Object.entries(schemaProps).forEach(([key, value]) => {
+      if (value.type === 'nested' && value.properties && obj.hasOwnProperty(key)) {
+        const nestedObjOrArray = obj[key];
+        if (Array.isArray(nestedObjOrArray)) {
+          objWithHash[key] = nestedObjOrArray.map((nestedObj) => {
+            return { ...nestedObj, hash: md5(JSON.stringify(nestedObj)) };
+          });
+        } else if (nestedObjOrArray && typeof nestedObjOrArray === 'object') {
+          objWithHash[key] = {
+            ...nestedObjOrArray,
+            hash: md5(JSON.stringify(nestedObjOrArray)),
+          };
+        }
+      }
+    });
+
+    return objWithHash;
+  });
 }

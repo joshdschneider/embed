@@ -1,3 +1,5 @@
+import { SourceObject } from '@embed/providers';
+
 export interface InitialSyncArgs {
   environmentId: string;
   integrationKey: string;
@@ -67,6 +69,13 @@ export type QueryOptions = {
   disableMultimodal?: boolean;
 };
 
+export type ImageSearchOptions = {
+  image: string;
+  filters?: any;
+  returnProperties?: string[];
+  limit?: number;
+};
+
 export interface TermFilter {
   term: {
     [field: string]: string | number | boolean;
@@ -98,21 +107,18 @@ export interface ExistsFilter {
 
 export type Filter = TermFilter | TermsFilter | RangeFilter | ExistsFilter;
 
+export type SourceObjectWithHash = SourceObject & { hash: string };
+
+export type NestedSourceObjectWithHash = Omit<SourceObject, 'id'> & { hash: string };
+
 export interface HitObject {
   _score: number | null | undefined;
   _match: string[];
-  _source: {
-    id: string;
-    hash: string;
-    [key: string]: any;
-  };
+  _source: SourceObjectWithHash;
 }
 
 export type NestedHitObject = {
   _score: number | null | undefined;
   _match: string[];
-  _source: {
-    hash: string;
-    [key: string]: any;
-  };
+  _source: NestedSourceObjectWithHash;
 };

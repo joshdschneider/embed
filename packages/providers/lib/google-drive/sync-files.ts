@@ -7,6 +7,11 @@ import { z } from 'zod';
 import { InternalProxyOptions, SyncContext, SyncRunType } from '../types';
 import { getDeepgramInstance } from '../utils';
 
+const FileChunkSchema = z.object({
+  chunk: z.string(),
+  metadata: z.any().optional(),
+});
+
 const FileSchema = z.object({
   id: z.string(),
   webview_link: z.string().optional(),
@@ -14,18 +19,13 @@ const FileSchema = z.object({
   name: z.string(),
   parents: z.array(z.string()),
   mime_type: z.string(),
-  content: z.string().optional(),
   base64: z.string().optional(),
+  chunks: z.array(FileChunkSchema).optional(),
   created_at: z.string(),
   updated_at: z.string(),
 });
 
 type File = z.infer<typeof FileSchema>;
-
-type ObjectWithInstances<T> = {
-  object: T;
-  instances?: T[];
-};
 
 type GoogleDriveFile = {
   id: string;
@@ -41,7 +41,7 @@ type GoogleDriveFile = {
 export default async function syncFiles(context: SyncContext) {
   let batchSize = 50;
   let allIds: string[] = [];
-  let files: ObjectWithInstances<File>[] = [];
+  let files: File[] = [];
 
   let options: InternalProxyOptions = {
     endpoint: `drive/v3/files`,
@@ -75,7 +75,7 @@ export default async function syncFiles(context: SyncContext) {
       }
     }
 
-    await context.batchSave<File>(files);
+    await context.batchSave(files);
     files = [];
 
     if (nextPageToken) {
@@ -114,10 +114,7 @@ function createdOrUpdatedAfterSync(
   }
 }
 
-async function processFile(
-  file: GoogleDriveFile,
-  context: SyncContext
-): Promise<ObjectWithInstances<File>> {
+async function processFile(file: GoogleDriveFile, context: SyncContext): Promise<File> {
   const fileObj: File = {
     id: file.id,
     name: file.name,
@@ -133,39 +130,32 @@ async function processFile(
     case 'application/vnd.google-apps.document':
     case 'application/vnd.google-apps.presentation':
       const docChunks = await processGoogleAppsFile(file, context);
-      const withDocChunks = docChunks.map((chunk) => ({ ...fileObj, content: chunk }));
-      return { object: fileObj, instances: withDocChunks };
+      return { ...fileObj, chunks: docChunks.map((chunk) => ({ chunk })) };
 
     case 'application/pdf':
       const pdfChunks = await processPdf(file, context);
-      const withPdfChunks = pdfChunks.map((chunk) => ({ ...fileObj, content: chunk }));
-      return { object: fileObj, instances: withPdfChunks };
+      return { ...fileObj, chunks: pdfChunks.map((chunk) => ({ chunk })) };
 
     case 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
       const docxChunks = await processDocx(file, context);
-      const withDocxChunks = docxChunks.map((chunk) => ({ ...fileObj, content: chunk }));
-      return { object: fileObj, instances: withDocxChunks };
+      return { ...fileObj, chunks: docxChunks.map((chunk) => ({ chunk })) };
 
     case 'application/vnd.openxmlformats-officedocument.presentationml.presentation':
       const pptxChunks = await processPptx(file, context);
-      const withPptxChunks = pptxChunks.map((chunk) => ({ ...fileObj, content: chunk }));
-      return { object: fileObj, instances: withPptxChunks };
+      return { ...fileObj, chunks: pptxChunks.map((chunk) => ({ chunk })) };
 
     case 'text/plain':
       const textChunks = await processText(file, context);
-      const withTextChunks = textChunks.map((chunk) => ({ ...fileObj, content: chunk }));
-      return { object: fileObj, instances: withTextChunks };
+      return { ...fileObj, chunks: textChunks.map((chunk) => ({ chunk })) };
 
     case 'application/json':
       const jsonChunks = await processJson(file, context);
-      const withJsonChunks = jsonChunks.map((chunk) => ({ ...fileObj, content: chunk }));
-      return { object: fileObj, instances: withJsonChunks };
+      return { ...fileObj, chunks: jsonChunks.map((chunk) => ({ chunk })) };
 
     case 'image/jpeg':
     case 'image/png':
       const base64Image = await processImage(file, context);
-      const withBase64Image = base64Image ? [{ ...fileObj, base64: base64Image }] : undefined;
-      return { object: fileObj, instances: withBase64Image };
+      return { ...fileObj, base64: base64Image ? base64Image : undefined };
 
     case 'audio/wav':
     case 'audio/mpeg':
@@ -178,11 +168,10 @@ async function processFile(
     case 'audio/opus':
     case 'audio/webm':
       const audioChunks = await processAudio(file, context);
-      const withAudioChunks = audioChunks.map((chunk) => ({ ...fileObj, content: chunk }));
-      return { object: fileObj, instances: withAudioChunks };
+      return { ...fileObj, chunks: audioChunks.map((chunk) => ({ chunk })) };
 
     default:
-      return { object: fileObj };
+      return fileObj;
   }
 }
 
