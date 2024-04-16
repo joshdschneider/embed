@@ -84,35 +84,58 @@ export const RetrySchema = z.object({
 
 export type Retry = z.infer<typeof RetrySchema>;
 
-export const CollectionPropertySchema = z.object({
+export const CollectionPropertyTypeSchema = z.union([
+  z.literal('string'),
+  z.literal('number'),
+  z.literal('integer'),
+  z.literal('boolean'),
+  z.literal('date'),
+  z.literal('object'),
+  z.literal('array'),
+  z.literal('nested'),
+]);
+
+export type CollectionPropertyType = z.infer<typeof CollectionPropertyTypeSchema>;
+
+export const CollectionPropertyItemsSchema = z.object({
   type: z.union([
     z.literal('string'),
     z.literal('number'),
-    z.literal('boolean'),
     z.literal('integer'),
-    z.literal('array'),
+    z.literal('boolean'),
+    z.literal('date'),
   ]),
-  items: z
-    .object({
-      type: z.union([
-        z.literal('string'),
-        z.literal('number'),
-        z.literal('boolean'),
-        z.literal('integer'),
-      ]),
-    })
-    .optional(),
-  format: z.union([z.literal('date'), z.literal('date-time')]).optional(),
-  description: z.string().optional(),
-  index_searchable: z.boolean().optional(),
-  index_filterable: z.boolean().optional(),
-  vector_searchable: z.boolean().optional(),
-  multimodal: z.boolean().optional(),
-  hidden: z.boolean().optional(),
-  query_only: z.boolean().optional(),
 });
 
-export type CollectionProperty = z.infer<typeof CollectionPropertySchema>;
+export type CollectionPropertyItems = z.infer<typeof CollectionPropertyItemsSchema>;
+
+export interface CollectionProperty {
+  type: CollectionPropertyType;
+  items?: CollectionPropertyItems;
+  description?: string;
+  properties?: Record<string, CollectionProperty>;
+  filterable?: boolean;
+  keyword_searchable?: boolean;
+  vector_searchable?: boolean;
+  return_by_default?: boolean;
+  multimodal?: boolean;
+  wildcard?: boolean;
+  hidden?: boolean;
+}
+
+export const CollectionPropertySchema: z.ZodType<CollectionProperty> = z.object({
+  type: CollectionPropertyTypeSchema,
+  items: CollectionPropertyItemsSchema.optional(),
+  description: z.string().optional(),
+  properties: z.record(z.lazy(() => CollectionPropertySchema)).optional(),
+  filterable: z.boolean().default(true),
+  keyword_searchable: z.boolean().default(true),
+  vector_searchable: z.boolean().default(true),
+  return_by_default: z.boolean().default(true),
+  multimodal: z.boolean().default(false),
+  wildcard: z.boolean().default(false),
+  hidden: z.boolean().default(false),
+});
 
 export const CollectionSchemaSchema = z.object({
   name: z.string(),

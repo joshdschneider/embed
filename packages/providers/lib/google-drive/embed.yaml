@@ -22,21 +22,29 @@ schemas:
         type: string
         description: The unique identifier for the file.
         vector_searchable: false
+      hash:
+        type: string
+        description: The hash of the file object.
+        filterable: false
+        keyword_searchable: false
+        vector_searchable: false
+        hidden: true
       webview_link:
         type: string
         description: A link for opening the file in a relevant Google editor or viewer in a browser.
-        index_searchable: false
-        index_filterable: false
+        filterable: false
+        keyword_searchable: false
         vector_searchable: false
       download_link:
         type: string
         description: A link for downloading the content of the file in a browser. Only available for files with binary content in Google Drive.
-        index_searchable: false
-        index_filterable: false
+        filterable: false
+        keyword_searchable: false
         vector_searchable: false
       name:
         type: string
         description: The name of the file.
+        wildcard: true
       parents:
         type: array
         items:
@@ -46,37 +54,48 @@ schemas:
       mime_type:
         type: string
         description: The MIME type of the file.
-        index_searchable: false
+        keyword_searchable: false
         vector_searchable: false
       base64:
         type: string
-        index_searchable: false
-        index_filterable: false
+        filterable: false
+        keyword_searchable: false
         multimodal: true
-        query_only: true
         hidden: true
-      content:
-        type: string
-        description: The relevant chunk of content from the file. Only available when querying.
-        index_filterable: false
-        query_only: true
+      chunks:
+        type: nested
+        return_by_default: false
+        properties:
+          hash:
+            type: string
+            description: The hash of the chunk object.
+            filterable: false
+            keyword_searchable: false
+            vector_searchable: false
+            hidden: true
+          chunk:
+            type: string
+            description: A chunk of content from the file.
+            filterable: false
+          metadata:
+            type: object
+            description: Metadata associated with the chunk.
+            filterable: false
+            keyword_searchable: false
+            vector_searchable: false
       created_at:
-        type: string
-        format: date-time
+        type: date
         description: The timestamp (RFC 3339 format) for when the file was created.
-        index_searchable: false
+        keyword_searchable: false
         vector_searchable: false
       updated_at:
-        type: string
-        format: date-time
+        type: date
         description: The timestamp (RFC 3339 format) for when the file was updated.
-        index_searchable: false
+        keyword_searchable: false
         vector_searchable: false
     required:
       - id
-      - hash
       - name
-      - parents
       - mime_type
       - created_at
       - updated_at
