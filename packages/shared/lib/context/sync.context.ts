@@ -56,14 +56,16 @@ export class SyncContext extends BaseContext {
       return true;
     }
 
-    const collectionSchema = await providerService.getProviderCollectionSchema(
+    const providerCollection = await providerService.getProviderCollection(
       this.integrationKey,
       this.collectionKey
     );
 
-    if (!collectionSchema) {
+    if (!providerCollection) {
       throw new Error(`Failed to get collection schema for ${this.collectionKey}`);
     }
+
+    const collectionSchema = providerCollection.schema;
 
     const records: DataRecord[] = data.map((d) => {
       const obj = d.object;
@@ -72,9 +74,9 @@ export class SyncContext extends BaseContext {
       const hash = md5(JSON.stringify(objWithInstances));
 
       Object.entries(collectionSchema.properties).forEach(([k, v]) => {
-        if (v.query_only === true || v.hidden === true) {
-          delete obj[k];
-        }
+        /**
+         * TODO: Delete properties that are hidden, omitted, etc.
+         */
       });
 
       return {

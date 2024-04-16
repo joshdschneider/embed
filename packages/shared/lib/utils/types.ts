@@ -57,32 +57,62 @@ export type Branding = {
   };
 };
 
-export type Filter = {
-  conditions?: Filter[];
-  property?: string[];
-  operator?:
-    | 'And'
-    | 'Or'
-    | 'Equal'
-    | 'Like'
-    | 'NotEqual'
-    | 'GreaterThan'
-    | 'GreaterThanEqual'
-    | 'LessThan'
-    | 'LessThanEqual'
-    | 'IsNull'
-    | 'ContainsAny'
-    | 'ContainsAll';
-  valueInt?: number;
-  valueNumber?: number;
-  valueBoolean?: boolean;
-  valueString?: string;
-  valueText?: string;
-  valueDate?: string;
-  valueIntArray?: number[];
-  valueNumberArray?: number[];
-  valueBooleanArray?: boolean[];
-  valueStringArray?: string[];
-  valueTextArray?: string[];
-  valueDateArray?: string[];
+export type QueryOptions = {
+  type?: 'vector' | 'hybrid' | 'keyword';
+  query?: string;
+  filters?: any;
+  returnProperties?: string[];
+  limit?: number;
+  alpha?: number;
+  disableMultimodal?: boolean;
+};
+
+export interface TermFilter {
+  term: {
+    [field: string]: string | number | boolean;
+  };
+}
+
+export interface TermsFilter {
+  terms: {
+    [field: string]: Array<string | number | boolean>;
+  };
+}
+
+export interface RangeFilter {
+  range: {
+    [field: string]: {
+      gte?: number | string;
+      lte?: number | string;
+      gt?: number | string;
+      lt?: number | string;
+    };
+  };
+}
+
+export interface ExistsFilter {
+  exists: {
+    field: string;
+  };
+}
+
+export type Filter = TermFilter | TermsFilter | RangeFilter | ExistsFilter;
+
+export interface HitObject {
+  _score: number | null | undefined;
+  _match: string[];
+  _source: {
+    id: string;
+    hash: string;
+    [key: string]: any;
+  };
+}
+
+export type NestedHitObject = {
+  _score: number | null | undefined;
+  _match: string[];
+  _source: {
+    hash: string;
+    [key: string]: any;
+  };
 };

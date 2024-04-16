@@ -29,5 +29,8 @@
     "@typescript-eslint/parser": "^6.19.1",
     "eslint": "^8.56.0",
     "prettier-plugin-organize-imports": "^3.2.4"
+  },
+  "dependencies": {
+    "@elastic/elasticsearch": "^8.13.1"
   }
 }

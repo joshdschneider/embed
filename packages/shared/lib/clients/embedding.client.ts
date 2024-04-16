@@ -251,8 +251,8 @@ export class EmbeddingClient {
     const embeddingPromises = content.map(async (chunk) => {
       const body =
         type === 'text'
-          ? JSON.stringify({ instances: [{ text: 'What is life?' }] })
-          : JSON.stringify({ instances: [{ image: { bytesBase64Encoded: content } }] });
+          ? JSON.stringify({ instances: [{ text: chunk }] })
+          : JSON.stringify({ instances: [{ image: { bytesBase64Encoded: chunk } }] });
 
       const options: RequestInit = {
         method: 'POST',
