@@ -48,7 +48,7 @@ class LinkedAccountHook {
     let failedCollections: string[] = [];
 
     for (const collection of collections) {
-      const didCreateTenant = await linkedAccountService.createTenantForLinkedAccount(
+      const didCreateTenant = await linkedAccountService.createIndexForLinkedAccount(
         linkedAccount.id,
         linkedAccount.integration_key,
         collection.unique_key

@@ -36,6 +36,7 @@ export enum LogLevel {
 export enum LogAction {
   Link = 'link',
   Sync = 'sync',
+  SyncRun = 'sync_run',
   Action = 'action',
 }
 
@@ -44,12 +45,6 @@ export enum SyncStatus {
   Stopped = 'stopped',
   Success = 'success',
   Error = 'error',
-}
-
-export enum SyncRunType {
-  Initial = 'initial',
-  Incremental = 'incremental',
-  Full = 'full',
 }
 
 export enum SyncRunStatus {

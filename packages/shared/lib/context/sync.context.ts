@@ -3,10 +3,9 @@ import { Record as DataRecord } from '@prisma/client';
 import { Context } from '@temporalio/activity';
 import md5 from 'md5';
 import ElasticClient from '../clients/elastic.client';
-import activityService from '../services/activity.service';
 import providerService from '../services/provider.service';
 import recordService from '../services/record.service';
-import { LogLevel, Resource, SyncRunType } from '../utils/enums';
+import { Resource } from '../utils/enums';
 import { generateId, hashObjects, now } from '../utils/helpers';
 import { BaseContext, BaseContextOptions } from './base.context';
 
@@ -15,7 +14,6 @@ export type SyncContextOptions = BaseContextOptions & {
   multimodalEnabled: boolean;
   syncRunId: string;
   lastSyncedAt: number | null;
-  syncRunType: SyncRunType;
   temporalContext: Context;
 };
 
@@ -24,7 +22,6 @@ export class SyncContext extends BaseContext {
   public multimodalEnabled: boolean;
   public syncRunId: string;
   public lastSyncedAt: number | null;
-  public syncRunType: SyncRunType;
 
   private addedKeys: string[];
   private updatedKeys: string[];
@@ -38,7 +35,6 @@ export class SyncContext extends BaseContext {
     this.syncRunId = options.syncRunId;
     this.activityId = options.activityId;
     this.lastSyncedAt = options.lastSyncedAt;
-    this.syncRunType = options.syncRunType;
     this.addedKeys = [];
     this.updatedKeys = [];
     this.deletedKeys = [];
@@ -55,21 +51,18 @@ export class SyncContext extends BaseContext {
       return true;
     }
 
-    const providerCollection = await providerService.getProviderCollection(
+    const collection = await providerService.getProviderCollection(
       this.integrationKey,
       this.collectionKey
     );
 
-    if (!providerCollection) {
+    if (!collection) {
       throw new Error(`Failed to get collection schema for ${this.collectionKey}`);
     }
 
-    const collectionSchema = providerCollection.schema;
-
     const records: DataRecord[] = objects.map((obj) => {
       const hash = md5(JSON.stringify(obj));
-
-      Object.entries(collectionSchema.properties).forEach(([k, v]) => {
+      Object.entries(collection.schema.properties).forEach(([k, v]) => {
         if (v.hidden) {
           delete obj[k];
         }
@@ -125,18 +118,6 @@ export class SyncContext extends BaseContext {
     );
 
     if (!batchSaveResult) {
-      await activityService.createActivityLog(this.activityId, {
-        level: LogLevel.Error,
-        timestamp: now(),
-        message: `Failed to batch save records for collection ${this.collectionKey}`,
-        payload: {
-          linked_account: this.linkedAccountId,
-          integration: this.integrationKey,
-          collection: this.collectionKey,
-          batch_count: objects.length,
-        },
-      });
-
       return false;
     }
 
@@ -145,9 +126,8 @@ export class SyncContext extends BaseContext {
     this.updatedKeys.push(...updatedKeys);
 
     const elastic = ElasticClient.getInstance();
-
     const objectsToCreate = objects.filter((obj) => addedKeys.includes(obj.id));
-    const hashedObjectsToCreate = hashObjects(objectsToCreate, collectionSchema.properties);
+    const hashedObjectsToCreate = hashObjects(objectsToCreate, collection.schema.properties);
     const didCreate = await elastic.batchUpsertObjects({
       environmentId: this.environmentId,
       collectionKey: this.collectionKey,
@@ -157,22 +137,11 @@ export class SyncContext extends BaseContext {
     });
 
     if (!didCreate) {
-      await activityService.createActivityLog(this.activityId, {
-        level: LogLevel.Error,
-        timestamp: now(),
-        message: `Failed to create vectors for ${this.collectionKey} during sync run`,
-        payload: {
-          linked_account: this.linkedAccountId,
-          integration: this.integrationKey,
-          collection: this.collectionKey,
-          sync_run: this.syncRunId,
-          count: objectsToCreate.length,
-        },
-      });
+      return false;
     }
 
     const objectsToUpdate = objects.filter((obj) => updatedKeys.includes(obj.id));
-    const hashedObjectsToUpdate = hashObjects(objectsToUpdate, collectionSchema.properties);
+    const hashedObjectsToUpdate = hashObjects(objectsToUpdate, collection.schema.properties);
     const didUpdate = await elastic.updateObjects({
       environmentId: this.environmentId,
       collectionKey: this.collectionKey,
@@ -182,18 +151,7 @@ export class SyncContext extends BaseContext {
     });
 
     if (!didUpdate) {
-      await activityService.createActivityLog(this.activityId, {
-        level: LogLevel.Error,
-        timestamp: now(),
-        message: `Failed to update vectors for ${this.collectionKey} during sync run`,
-        payload: {
-          linked_account: this.linkedAccountId,
-          integration: this.integrationKey,
-          collection: this.collectionKey,
-          sync_run: this.syncRunId,
-          count: objectsToUpdate.length,
-        },
-      });
+      return false;
     }
 
     return true;

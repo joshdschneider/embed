@@ -1,32 +1,10 @@
 import { SourceObject } from '@embed/providers';
 
-export interface InitialSyncArgs {
+export interface SyncArgs {
   environmentId: string;
   integrationKey: string;
   linkedAccountId: string;
   collectionKey: string;
-  syncRunId: string;
-  lastSyncedAt: number | null;
-  activityId: string | null;
-}
-
-export interface FullSyncArgs {
-  environmentId: string;
-  integrationKey: string;
-  linkedAccountId: string;
-  collectionKey: string;
-  syncRunId: string;
-  activityId: string | null;
-}
-
-export interface IncrementalSyncArgs {
-  environmentId: string;
-  integrationKey: string;
-  linkedAccountId: string;
-  collectionKey: string;
-  syncRunId?: string;
-  lastSyncedAt?: number | null;
-  activityId?: string | null;
 }
 
 export interface ActionArgs {

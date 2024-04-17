@@ -1,5 +1,5 @@
 import { AuthScheme } from '@embed/providers';
-import { Branding, SyncRunStatus, SyncRunType, SyncStatus } from '@embed/shared';
+import { Branding, SyncRunStatus, SyncStatus } from '@embed/shared';
 import { z } from 'zod';
 
 export enum EnvironmentType {
@@ -231,7 +231,6 @@ export interface SyncRunObject {
   collection: string;
   integration: string;
   linked_account: string;
-  type: SyncRunType;
   status: SyncRunStatus;
   records_added: number | null;
   records_updated: number | null;
