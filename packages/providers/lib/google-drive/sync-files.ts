@@ -4,7 +4,7 @@ import { PDFLoader } from 'langchain/document_loaders/fs/pdf';
 import { PPTXLoader } from 'langchain/document_loaders/fs/pptx';
 import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
 import { z } from 'zod';
-import { InternalProxyOptions, SyncContext, SyncRunType } from '../types';
+import { InternalProxyOptions, SyncContext } from '../types';
 import { getDeepgramInstance } from '../utils';
 
 const FileChunkSchema = z.object({
@@ -62,8 +62,6 @@ export default async function syncFiles(context: SyncContext) {
       allIds.push(googleDriveFile.id);
 
       if (
-        context.syncRunType === SyncRunType.Initial ||
-        context.syncRunType === SyncRunType.Full ||
         createdOrUpdatedAfterSync(
           googleDriveFile.createdTime,
           googleDriveFile.modifiedTime,

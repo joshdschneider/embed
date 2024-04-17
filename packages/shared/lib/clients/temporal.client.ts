@@ -10,7 +10,7 @@ import {
   getTemporalUrl,
   isProd,
 } from '../utils/constants';
-import { FullSyncArgs, IncrementalSyncArgs, InitialSyncArgs } from '../utils/types';
+import { SyncArgs } from '../utils/types';
 
 const TEMPORAL_URL = getTemporalUrl();
 const TEMPORAL_NAMESPACE = getTemporalNamespace();
@@ -67,71 +67,30 @@ class TemporalClient {
     return new TemporalClient(client);
   }
 
-  public async startInitialSync(syncRunId: string, args: InitialSyncArgs): Promise<string | null> {
-    try {
-      const handle = await this.client.workflow.start('initialSync', {
-        taskQueue: SYNC_TASK_QUEUE,
-        workflowId: syncRunId,
-        args: [{ ...args }],
-      });
-
-      return handle.firstExecutionRunId;
-    } catch (err) {
-      await errorService.reportError(err);
-      return null;
-    }
-  }
-
-  public async triggerIncrementalSync(
-    syncRunId: string,
-    args: IncrementalSyncArgs
-  ): Promise<string | null> {
-    try {
-      const handle = await this.client.workflow.start('incrementalSync', {
-        taskQueue: SYNC_TASK_QUEUE,
-        workflowId: syncRunId,
-        args: [{ ...args }],
-      });
-
-      return handle.firstExecutionRunId;
-    } catch (err) {
-      await errorService.reportError(err);
-      return null;
-    }
-  }
-
-  public async triggerFullSync(syncRunId: string, args: FullSyncArgs): Promise<string | null> {
-    try {
-      const handle = await this.client.workflow.start('fullSync', {
-        taskQueue: SYNC_TASK_QUEUE,
-        workflowId: syncRunId,
-        args: [{ ...args }],
-      });
-
-      return handle.firstExecutionRunId;
-    } catch (err) {
-      await errorService.reportError(err);
-      return null;
-    }
-  }
-
   public async createSyncSchedule(
     scheduleId: string,
     interval: StringValue,
     offset: number,
-    args: IncrementalSyncArgs
+    args: SyncArgs
   ): Promise<ScheduleHandle | null> {
     try {
+      const existingSyncSchedule = await this.getSyncSchedule(scheduleId);
+
+      if (existingSyncSchedule) {
+        await existingSyncSchedule.delete();
+      }
+
       return await this.client.schedule.create({
         scheduleId,
         policies: { overlap: OVERLAP_POLICY },
         spec: { intervals: [{ every: ms(interval), offset }] },
         action: {
           type: 'startWorkflow',
-          workflowType: 'incrementalSync',
+          workflowType: 'sync',
           taskQueue: SYNC_TASK_QUEUE,
           args: [{ ...args }],
         },
+        state: { paused: true },
       });
     } catch (err) {
       await errorService.reportError(err);
@@ -142,8 +101,7 @@ class TemporalClient {
   public async getSyncSchedule(scheduleId: string) {
     try {
       return this.client.schedule.getHandle(scheduleId);
-    } catch (err) {
-      await errorService.reportError(err);
+    } catch {
       return null;
     }
   }
@@ -153,11 +111,16 @@ class TemporalClient {
       await this.client.workflow.workflowService.terminateWorkflowExecution({
         firstExecutionRunId: runId,
       });
+
       return true;
     } catch (err) {
       await errorService.reportError(err);
       return false;
     }
+  }
+
+  public static generateSyncScheduleId(linkedAccountId: string, collectionKey: string): string {
+    return `${linkedAccountId}-${collectionKey}`;
   }
 
   public async triggerSyncSchedule(scheduleId: string): Promise<boolean> {
@@ -168,40 +131,6 @@ class TemporalClient {
     } catch (err) {
       await errorService.reportError(err);
       return false;
-    }
-  }
-
-  public async pauseSyncSchedule(scheduleId: string): Promise<boolean> {
-    try {
-      const scheduleHandle = this.client.schedule.getHandle(scheduleId);
-      await scheduleHandle.pause();
-      return true;
-    } catch (err) {
-      await errorService.reportError(err);
-      return false;
-    }
-  }
-
-  public async unpauseSyncSchedule(scheduleId: string): Promise<boolean> {
-    try {
-      const scheduleHandle = this.client.schedule.getHandle(scheduleId);
-      await scheduleHandle.unpause();
-      return true;
-    } catch (err) {
-      await errorService.reportError(err);
-      return false;
-    }
-  }
-
-  public async describeSyncSchedule(scheduleId: string) {
-    try {
-      return await this.client.workflowService.describeSchedule({
-        scheduleId,
-        namespace: TEMPORAL_NAMESPACE,
-      });
-    } catch (err) {
-      await errorService.reportError(err);
-      return null;
     }
   }
 

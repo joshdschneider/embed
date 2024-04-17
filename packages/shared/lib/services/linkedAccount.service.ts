@@ -254,7 +254,7 @@ class LinkedAccountService {
     }
   }
 
-  public async createTenantForLinkedAccount(
+  public async createIndexForLinkedAccount(
     linkedAccountId: string,
     integrationKey: string,
     collectionKey: string

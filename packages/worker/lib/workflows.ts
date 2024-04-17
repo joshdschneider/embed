@@ -1,13 +1,11 @@
 import { proxyActivities } from '@temporalio/workflow';
 import type * as activities from './activities.js';
-import { ActionArgs, IncrementalSyncArgs, InitialSyncArgs } from './types.js';
+import { ActionArgs, SyncArgs } from './types.js';
 
 const DEFAULT_TIMEOUT = '24 hours';
 const MAXIMUM_ATTEMPTS = 3;
 
-const { runInitialSync, runIncrementalSync, triggerAction, reportFailure } = proxyActivities<
-  typeof activities
->({
+const { triggerSync, triggerAction, reportFailure } = proxyActivities<typeof activities>({
   startToCloseTimeout: DEFAULT_TIMEOUT,
   scheduleToCloseTimeout: DEFAULT_TIMEOUT,
   heartbeatTimeout: '30m',
@@ -17,19 +15,17 @@ const { runInitialSync, runIncrementalSync, triggerAction, reportFailure } = pro
   },
 });
 
-export async function initialSync(args: InitialSyncArgs): Promise<void> {
+export async function sync(args: SyncArgs): Promise<void> {
   try {
-    return await runInitialSync(args);
+    return await triggerSync(args);
   } catch (err: any) {
-    return await reportFailure(err, args, DEFAULT_TIMEOUT, MAXIMUM_ATTEMPTS);
-  }
-}
-
-export async function incrementalSync(args: IncrementalSyncArgs): Promise<void> {
-  try {
-    return await runIncrementalSync(args);
-  } catch (err: any) {
-    return await reportFailure(err, args, DEFAULT_TIMEOUT, MAXIMUM_ATTEMPTS);
+    return await reportFailure({
+      err,
+      type: 'sync',
+      args,
+      defaultTimeout: DEFAULT_TIMEOUT,
+      maxAttempts: MAXIMUM_ATTEMPTS,
+    });
   }
 }
 
@@ -37,6 +33,12 @@ export async function action(args: ActionArgs): Promise<void> {
   try {
     return await triggerAction(args);
   } catch (err: any) {
-    return await reportFailure(err, args, DEFAULT_TIMEOUT, MAXIMUM_ATTEMPTS);
+    return await reportFailure({
+      err,
+      type: 'action',
+      args,
+      defaultTimeout: DEFAULT_TIMEOUT,
+      maxAttempts: MAXIMUM_ATTEMPTS,
+    });
   }
 }

@@ -5,7 +5,6 @@ import {
   LogLevel,
   Resource,
   SyncRunStatus,
-  SyncRunType,
   SyncStatus,
   activityService,
   errorService,
@@ -287,17 +286,11 @@ class SyncController {
     });
 
     try {
-      const stoppedSync = await syncService.stopSync(sync);
+      const stoppedSync = await syncService.stopSync(sync, activityId);
 
       if (!stoppedSync) {
         throw new Error('Failed to stop sync');
       }
-
-      await activityService.createActivityLog(activityId, {
-        level: LogLevel.Info,
-        timestamp: now(),
-        message: 'Sync stopped',
-      });
 
       const syncObject: SyncObject = {
         object: 'sync',
@@ -331,7 +324,6 @@ class SyncController {
   public async triggerSync(req: Request, res: Response) {
     const linkedAccountId = req.params['linked_account_id'];
     const collectionKey = req.params['collection_key'];
-    const runType = req.query['type'];
 
     if (!linkedAccountId) {
       return errorService.errorResponse(res, {
@@ -345,21 +337,7 @@ class SyncController {
       });
     }
 
-    if (runType && typeof runType !== 'string') {
-      return errorService.errorResponse(res, {
-        code: ErrorCode.BadRequest,
-        message: 'Invalid type parameter',
-      });
-    } else if (runType && runType !== SyncRunType.Incremental && runType !== SyncRunType.Full) {
-      return errorService.errorResponse(res, {
-        code: ErrorCode.BadRequest,
-        message: 'Invalid type',
-      });
-    }
-
-    const syncRunType = runType ? (runType as SyncRunType) : SyncRunType.Incremental;
     const sync = await syncService.retrieveSync(linkedAccountId, collectionKey);
-
     if (!sync) {
       return errorService.errorResponse(res, {
         code: ErrorCode.NotFound,
@@ -367,44 +345,21 @@ class SyncController {
       });
     }
 
-    let activityId = null;
+    const activityId = await activityService.createActivity({
+      id: generateId(Resource.Activity),
+      environment_id: sync.environment_id,
+      integration_key: sync.integration_key,
+      linked_account_id: sync.linked_account_id,
+      collection_key: sync.collection_key,
+      link_token_id: null,
+      action_key: null,
+      level: LogLevel.Info,
+      action: LogAction.Sync,
+      timestamp: now(),
+    });
 
     try {
-      const syncRuns = await syncService.listSyncRuns(sync.linked_account_id, sync.collection_key);
-      if (!syncRuns) {
-        throw new Error('Failed to get sync runs');
-      }
-
-      const stillRunning = syncRuns.find((run) => run.status === SyncRunStatus.Running);
-      if (stillRunning) {
-        return errorService.errorResponse(res, {
-          code: ErrorCode.NotFound,
-          message: 'Could not trigger because sync is still running',
-        });
-      }
-
-      const initialSuccessfulRuns = syncRuns.filter(
-        (run) => run.type === SyncRunType.Initial && run.status === SyncRunStatus.Succeeded
-      );
-
-      const triggerInitial = initialSuccessfulRuns.length === 0;
-      const triggerRunType = triggerInitial ? SyncRunType.Initial : syncRunType;
-
-      activityId = await activityService.createActivity({
-        id: generateId(Resource.Activity),
-        environment_id: sync.environment_id,
-        integration_key: sync.integration_key,
-        linked_account_id: sync.linked_account_id,
-        collection_key: sync.collection_key,
-        link_token_id: null,
-        action_key: null,
-        level: LogLevel.Info,
-        action: LogAction.Sync,
-        timestamp: now(),
-      });
-
-      const triggeredSync = await syncService.triggerSync(sync, triggerRunType, activityId);
-
+      const triggeredSync = await syncService.triggerSync(sync, activityId);
       if (!triggeredSync) {
         return errorService.errorResponse(res, {
           code: ErrorCode.InternalServerError,
@@ -473,7 +428,6 @@ class SyncController {
           collection: run.collection_key,
           integration: run.integration_key,
           linked_account: run.linked_account_id,
-          type: run.type as SyncRunType,
           status: run.status as SyncRunStatus,
           records_added: run.records_added,
           records_updated: run.records_updated,
@@ -517,7 +471,6 @@ class SyncController {
         collection: syncRun.collection_key,
         integration: syncRun.integration_key,
         linked_account: syncRun.linked_account_id,
-        type: syncRun.type as SyncRunType,
         status: syncRun.status as SyncRunStatus,
         records_added: syncRun.records_added,
         records_updated: syncRun.records_updated,

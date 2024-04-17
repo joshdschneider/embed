@@ -11,14 +11,14 @@ export interface BaseContextOptions {
   environmentId: string;
   integrationKey: string;
   linkedAccountId: string;
-  activityId: string | null;
+  activityId?: string | null;
 }
 
 export class BaseContext {
   protected environmentId: string;
   protected integrationKey: string;
   protected linkedAccountId: string;
-  public activityId: string | null;
+  public activityId?: string | null;
 
   constructor(options: BaseContextOptions) {
     this.environmentId = options.environmentId;
@@ -65,6 +65,10 @@ export class BaseContext {
     payload?: object | undefined;
     timestamp: number;
   }): Promise<ActivityLog | null> {
-    return await activityService.createActivityLog(this.activityId, activityLog);
+    if (this.activityId) {
+      return await activityService.createActivityLog(this.activityId, activityLog);
+    } else {
+      return null;
+    }
   }
 }

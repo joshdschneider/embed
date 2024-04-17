@@ -212,7 +212,6 @@ model SyncRun {
   id                String  @id
   collection_key    String
   linked_account_id String
-  type              String
   status            String
   temporal_run_id   String?
   records_added     Int?
@@ -238,6 +237,8 @@ model SyncSchedule {
 
   sync           Sync          @relation(fields: [collection_key, linked_account_id], references: [collection_key, linked_account_id])
   linked_account LinkedAccount @relation(fields: [linked_account_id], references: [id])
+
+  @@unique([collection_key, linked_account_id])
 }
 
 model ActionRun {

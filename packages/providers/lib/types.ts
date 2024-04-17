@@ -227,19 +227,13 @@ type ActivityLog = {
   timestamp: number;
 };
 
-export enum SyncRunType {
-  Initial = 'initial',
-  Incremental = 'incremental',
-  Full = 'full',
-}
-
 export interface SourceObject {
   id: string;
   [key: string]: any;
 }
 
 export declare class BaseContext {
-  activityId: string | null;
+  activityId?: string | null;
   proxy<T = any>(options: InternalProxyOptions): Promise<AxiosResponse<T>>;
   get<T = any>(options: MethodProxyOptions): Promise<AxiosResponse<T>>;
   post<T = any>(options: MethodProxyOptions): Promise<AxiosResponse<T>>;
@@ -261,7 +255,6 @@ export interface SyncContext extends BaseContext {
   multimodalEnabled: boolean;
   syncRunId: string;
   lastSyncedAt: number | null;
-  syncRunType: SyncRunType;
   batchSave(objects: SourceObject[]): Promise<boolean>;
   pruneDeleted(allIds: string[]): Promise<boolean>;
   reportResults(): Promise<{

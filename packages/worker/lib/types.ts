@@ -1,30 +1,8 @@
-export interface InitialSyncArgs {
+export interface SyncArgs {
   environmentId: string;
   integrationKey: string;
   linkedAccountId: string;
   collectionKey: string;
-  syncRunId: string;
-  lastSyncedAt: number | null;
-  activityId: string | null;
-}
-
-export interface FullSyncArgs {
-  environmentId: string;
-  integrationKey: string;
-  linkedAccountId: string;
-  collectionKey: string;
-  syncRunId: string;
-  activityId: string | null;
-}
-
-export interface IncrementalSyncArgs {
-  environmentId: string;
-  integrationKey: string;
-  linkedAccountId: string;
-  collectionKey: string;
-  syncRunId?: string;
-  lastSyncedAt?: number | null;
-  activityId?: string | null;
 }
 
 export interface ActionArgs {
@@ -33,4 +11,21 @@ export interface ActionArgs {
   linkedAccountId: string;
   actionKey: string;
   activityId: string | null;
+}
+
+export interface BaseFailureArgs {
+  err: any;
+  type: 'sync' | 'action';
+  defaultTimeout: string;
+  maxAttempts: number;
+}
+
+export interface SyncFailureArgs extends BaseFailureArgs {
+  type: 'sync';
+  args: SyncArgs;
+}
+
+export interface ActionFailureArgs extends BaseFailureArgs {
+  type: 'action';
+  args: ActionArgs;
 }
