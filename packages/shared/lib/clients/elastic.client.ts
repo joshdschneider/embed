@@ -7,6 +7,7 @@ import {
 import { CollectionProperty } from '@embed/providers';
 import { LinkedAccount } from '@prisma/client';
 import collectionService from '../services/collection.service';
+import errorService from '../services/error.service';
 import providerService from '../services/provider.service';
 import { getElasticApiKey, getElasticApiKeyId, getElasticUrl } from '../utils/constants';
 import { MultimodalEmbeddingModel, TextEmbeddingModel } from '../utils/enums';
@@ -451,9 +452,14 @@ class ElasticClient {
   }
 
   public async deleteIndex(linkedAccountId: string, collectionKey: string): Promise<boolean> {
-    const indexName = ElasticClient.formatIndexName(linkedAccountId, collectionKey);
-    const response = await this.elastic.indices.delete({ index: indexName });
-    return response.acknowledged;
+    try {
+      const indexName = ElasticClient.formatIndexName(linkedAccountId, collectionKey);
+      const response = await this.elastic.indices.delete({ index: indexName });
+      return response.acknowledged;
+    } catch (err) {
+      await errorService.reportError(err);
+      return false;
+    }
   }
 }
 

@@ -1,5 +1,6 @@
 import { Collection, Sync, SyncRun, SyncSchedule } from '@prisma/client';
 import { StringValue } from 'ms';
+import ElasticClient from '../clients/elastic.client';
 import TemporalClient from '../clients/temporal.client';
 import { database } from '../utils/database';
 import {
@@ -552,7 +553,7 @@ class SyncService {
         collectionKey
       );
 
-      const scheduleHandle = await temporal.getSyncSchedule(temporalSyncScheduleId);
+      const scheduleHandle = await temporal.getSyncScheduleHandle(temporalSyncScheduleId);
       if (!scheduleHandle) {
         throw new Error('Sync schedule not found in Temporal');
       }
@@ -585,7 +586,7 @@ class SyncService {
         collectionKey
       );
 
-      const scheduleHandle = await temporal.getSyncSchedule(temporalSyncScheduleId);
+      const scheduleHandle = await temporal.getSyncScheduleHandle(temporalSyncScheduleId);
       if (!scheduleHandle) {
         throw new Error('Sync schedule not found in Temporal');
       }
@@ -673,6 +674,9 @@ class SyncService {
           await temporal.terminateSyncRun(syncRun.temporal_run_id);
         }
       }
+
+      const elastic = ElasticClient.getInstance();
+      await elastic.deleteIndex(linkedAccountId, collectionKey);
 
       return await this.updateSync(linkedAccountId, collectionKey, {
         deleted_at: now(),
