@@ -60,7 +60,6 @@ export default async function syncFiles(context: SyncContext) {
 
     for (const googleDriveFile of googleDriveFiles) {
       allIds.push(googleDriveFile.id);
-
       if (
         createdOrUpdatedAfterSync(
           googleDriveFile.createdTime,
@@ -95,7 +94,7 @@ function createdOrUpdatedAfterSync(
   lastSyncedAt: number | null // Unix (seconds)
 ): boolean {
   if (lastSyncedAt === null) {
-    return false;
+    return true;
   }
 
   const lastSyncedAtMs = lastSyncedAt * 1000;

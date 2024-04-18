@@ -124,7 +124,7 @@ class ElasticClient {
       throw new Error(`Failed to get collection schema for ${collectionKey}`);
     }
 
-    const properties: [string, MappingProperty][] = [];
+    const properties: [string, MappingProperty][] = [['hash', { type: 'keyword', index: false }]];
     for (const [schemaName, schemaProps] of Object.entries(collection.schema.properties)) {
       properties.push(...IndexClient.transformProperty(schemaName, schemaProps));
     }
@@ -159,6 +159,10 @@ class ElasticClient {
     const multimodalProperties: [string, any][] = [];
 
     for (const [k, v] of objProperties) {
+      if (!v) {
+        continue;
+      }
+
       const path = k.split('.').shift()!;
       const property = schemaProperties[path];
 
@@ -255,6 +259,10 @@ class ElasticClient {
     collectionKey: string;
     objects: SourceObjectWithHash[];
   }): Promise<boolean> {
+    if (!objects || objects.length === 0) {
+      return true;
+    }
+
     const providerCollection = await providerService.getProviderCollection(
       integrationKey,
       collectionKey
@@ -360,6 +368,10 @@ class ElasticClient {
     collectionKey: string;
     objects: SourceObjectWithHash[];
   }): Promise<boolean> {
+    if (!objects || objects.length === 0) {
+      return true;
+    }
+
     const providerCollection = await providerService.getProviderCollection(
       integrationKey,
       collectionKey
@@ -383,7 +395,7 @@ class ElasticClient {
 
     const results = await this.elastic.search({
       index: indexName,
-      query: { terms: { id: objects.map((obj) => obj.id) } },
+      query: { terms: { 'id.keyword': objects.map((obj) => obj.id) } },
       _source: ['id'],
     });
 
@@ -392,22 +404,8 @@ class ElasticClient {
       id: hit._source.id,
     }));
 
-    if (matchingObjects.length !== objects.length) {
-      const objectsNotFound = objects.filter(
-        (obj) => !matchingObjects.find((match) => match.id === obj.id)
-      );
-
-      const batchUpsertResults = await this.batchUpsertObjects({
-        linkedAccountId,
-        integrationKey,
-        collectionKey,
-        environmentId,
-        objects: objectsNotFound,
-      });
-
-      if (!batchUpsertResults) {
-        return false;
-      }
+    if (matchingObjects.length === 0) {
+      return true;
     }
 
     const operations: object[] = [];
@@ -442,10 +440,30 @@ class ElasticClient {
     collectionKey: string;
     objectIds: string[];
   }): Promise<boolean> {
+    if (!objectIds || objectIds.length === 0) {
+      return true;
+    }
+
     const indexName = ElasticClient.formatIndexName(linkedAccountId, collectionKey);
     const response = await this.elastic.deleteByQuery({
       index: indexName,
-      query: { terms: { id: objectIds } },
+      query: { terms: { 'id.keyword': objectIds } },
+    });
+
+    return response.failures?.length === 0;
+  }
+
+  public async deleteAllObjects({
+    linkedAccountId,
+    collectionKey,
+  }: {
+    linkedAccountId: string;
+    collectionKey: string;
+  }): Promise<boolean> {
+    const indexName = ElasticClient.formatIndexName(linkedAccountId, collectionKey);
+    const response = await this.elastic.deleteByQuery({
+      index: indexName,
+      query: { match_all: {} },
     });
 
     return response.failures?.length === 0;

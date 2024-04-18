@@ -9,6 +9,7 @@ import {
   activityService,
   errorService,
   generateId,
+  linkedAccountService,
   now,
   syncService,
 } from '@embed/shared';
@@ -28,9 +29,15 @@ class SyncController {
       });
     }
 
-    // TODO: check if linked account exists
-
     try {
+      const linkedAccount = await linkedAccountService.getLinkedAccountById(linkedAccountId);
+      if (!linkedAccount) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.NotFound,
+          message: 'Linked account not found',
+        });
+      }
+
       const syncs = await syncService.listSyncs(linkedAccountId);
       if (!syncs) {
         return errorService.errorResponse(res, {

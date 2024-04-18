@@ -70,6 +70,10 @@ linkedAccountRouter
   .get(collectionController.retrieveCollectionRecord.bind(collectionController));
 
 linkedAccountRouter
+  .route('/:linked_account_id/collections/:collection_key/clear')
+  .post(collectionController.clearCollectionRecords.bind(collectionController));
+
+linkedAccountRouter
   .route('/:linked_account_id/actions/:action_key/trigger')
   .post(actionController.triggerAction.bind(actionController));
 

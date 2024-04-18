@@ -60,15 +60,19 @@ export class SyncContext extends BaseContext {
       throw new Error(`Failed to get collection schema for ${this.collectionKey}`);
     }
 
-    const records: DataRecord[] = objects.map((obj) => {
+    const records: DataRecord[] = objects.map((originalObj) => {
+      const obj = { ...originalObj };
       const hash = md5(JSON.stringify(obj));
+
       Object.entries(collection.schema.properties).forEach(([k, v]) => {
         if (v.hidden) {
           delete obj[k];
         }
+
         if (v.return_by_default === false) {
           delete obj[k];
         }
+
         if (v.type === 'nested' && v.properties) {
           Object.entries(v.properties).forEach(([nestedKey, nestedValue]) => {
             const nestedObjOrArray = obj[k];
@@ -77,6 +81,7 @@ export class SyncContext extends BaseContext {
                 if (nestedValue.hidden) {
                   delete nestedObj[nestedKey];
                 }
+
                 if (nestedValue.return_by_default === false) {
                   delete nestedObj[nestedKey];
                 }
@@ -86,6 +91,7 @@ export class SyncContext extends BaseContext {
               if (nestedValue.hidden) {
                 delete obj[k][nestedKey];
               }
+
               if (nestedValue.return_by_default === false) {
                 delete obj[k][nestedKey];
               }
@@ -128,6 +134,7 @@ export class SyncContext extends BaseContext {
     const elastic = ElasticClient.getInstance();
     const objectsToCreate = objects.filter((obj) => addedKeys.includes(obj.id));
     const hashedObjectsToCreate = hashObjects(objectsToCreate, collection.schema.properties);
+
     const didCreate = await elastic.batchUpsertObjects({
       environmentId: this.environmentId,
       collectionKey: this.collectionKey,
@@ -142,6 +149,7 @@ export class SyncContext extends BaseContext {
 
     const objectsToUpdate = objects.filter((obj) => updatedKeys.includes(obj.id));
     const hashedObjectsToUpdate = hashObjects(objectsToUpdate, collection.schema.properties);
+
     const didUpdate = await elastic.updateObjects({
       environmentId: this.environmentId,
       collectionKey: this.collectionKey,
@@ -170,13 +178,16 @@ export class SyncContext extends BaseContext {
 
     const { deletedKeys } = result;
     this.deletedKeys.push(...deletedKeys);
+    let didPruneDeleted = true;
 
-    const elastic = ElasticClient.getInstance();
-    const didPruneDeleted = await elastic.deleteObjects({
-      collectionKey: this.collectionKey,
-      linkedAccountId: this.linkedAccountId,
-      objectIds: deletedKeys,
-    });
+    if (deletedKeys.length > 0) {
+      const elastic = ElasticClient.getInstance();
+      didPruneDeleted = await elastic.deleteObjects({
+        collectionKey: this.collectionKey,
+        linkedAccountId: this.linkedAccountId,
+        objectIds: deletedKeys,
+      });
+    }
 
     return didPruneDeleted;
   }
