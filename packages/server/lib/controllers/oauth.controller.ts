@@ -5,13 +5,11 @@ import {
   DEFAULT_ERROR_MESSAGE,
   LogLevel,
   OAuth1Client,
-  Resource,
   actionService,
   activityService,
   collectionService,
   environmentService,
   errorService,
-  generateId,
   getSimpleOAuth2ClientConfig,
   integrationService,
   linkedAccountService,
@@ -599,9 +597,11 @@ class OAuthController {
       const parsedCredentials = parseRawCredentials(rawCredentials, AuthScheme.OAuth2);
       const tokenMetadata = this.getMetadataFromOAuthToken(rawCredentials, authSpec);
       const config = typeof linkToken.configuration === 'object' ? linkToken.configuration : {};
+      const linkedAccountId =
+        linkToken.linked_account_id || linkedAccountService.generateId(integration.unique_key);
 
       const response = await linkedAccountService.upsertLinkedAccount({
-        id: linkToken.linked_account_id || generateId(Resource.LinkedAccount),
+        id: linkedAccountId,
         environment_id: linkToken.environment_id,
         integration_key: integration.unique_key,
         consent_given: linkToken.consent_given,
@@ -729,9 +729,11 @@ class OAuthController {
 
       const parsedCredentials = parseRawCredentials(accessTokenResult, AuthScheme.OAuth1);
       const config = typeof linkToken.configuration === 'object' ? linkToken.configuration : {};
+      const linkedAccountId =
+        linkToken.linked_account_id || linkedAccountService.generateId(integration.unique_key);
 
       const response = await linkedAccountService.upsertLinkedAccount({
-        id: linkToken.linked_account_id || generateId(Resource.LinkedAccount),
+        id: linkedAccountId,
         environment_id: linkToken.environment_id,
         integration_key: integration.unique_key,
         consent_given: linkToken.consent_given,

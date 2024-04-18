@@ -1,5 +1,6 @@
 import { AuthScheme, OAuth2, ProviderSpecification } from '@embed/providers';
 import { LinkedAccount } from '@prisma/client';
+import crypto from 'crypto';
 import ElasticClient from '../clients/elastic.client';
 import { getFreshOAuth2Credentials } from '../clients/oauth2.client';
 import { DEFAULT_LIMIT, MAX_LIMIT, MIN_LIMIT } from '../utils/constants';
@@ -8,6 +9,7 @@ import { now } from '../utils/helpers';
 import encryptionService from './encryption.service';
 import errorService from './error.service';
 import integrationService from './integration.service';
+import syncService from './sync.service';
 
 class LinkedAccountService {
   public async upsertLinkedAccount(linkedAccount: LinkedAccount): Promise<{
@@ -56,6 +58,10 @@ class LinkedAccountService {
       await errorService.reportError(err);
       return null;
     }
+  }
+
+  public generateId(integrationKey: string, byteLength = 8) {
+    return `${integrationKey.replace('-', '_')}_${crypto.randomBytes(byteLength).toString('hex')}`;
   }
 
   public async listLinkedAccounts(
@@ -202,6 +208,13 @@ class LinkedAccountService {
 
       if (!linkedAccount) {
         return null;
+      }
+
+      const syncs = await syncService.listSyncs(linkedAccountId);
+      if (syncs) {
+        for (const sync of syncs) {
+          await syncService.deleteSync(linkedAccount.id, sync.collection_key);
+        }
       }
 
       const deletedLinkedAccount = await database.linkedAccount.update({

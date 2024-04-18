@@ -24,10 +24,6 @@ export function getRedisUrl() {
   return process.env['REDIS_URL'];
 }
 
-export function getWeaviateUrl() {
-  return process.env['WEAVIATE_URL'];
-}
-
 export function getElasticUrl() {
   return process.env['ELASTIC_URL'];
 }

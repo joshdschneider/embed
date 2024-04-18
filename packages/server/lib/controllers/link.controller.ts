@@ -3,11 +3,9 @@ import type { Integration } from '@embed/shared';
 import {
   DEFAULT_ERROR_MESSAGE,
   LogLevel,
-  Resource,
   activityService,
   environmentService,
   errorService,
-  generateId,
   getServerUrl,
   integrationService,
   linkedAccountService,
@@ -502,8 +500,11 @@ class LinkController {
             message: `User consent received; Upserting linked account without credentials`,
           });
 
+          const linkedAccountId =
+            linkToken.linked_account_id || linkedAccountService.generateId(integration.unique_key);
+
           const response = await linkedAccountService.upsertLinkedAccount({
-            id: linkToken.linked_account_id || generateId(Resource.LinkedAccount),
+            id: linkedAccountId,
             environment_id: linkToken.environment_id,
             integration_key: integration.unique_key,
             consent_given: linkToken.consent_given,
@@ -1120,8 +1121,11 @@ class LinkController {
         });
       }
 
+      const linkedAccountId =
+        linkToken.linked_account_id || linkedAccountService.generateId(linkToken.integration_key);
+
       const response = await linkedAccountService.upsertLinkedAccount({
-        id: linkToken.linked_account_id || generateId(Resource.LinkedAccount),
+        id: linkedAccountId,
         environment_id: linkToken.environment_id,
         integration_key: linkToken.integration_key,
         consent_given: linkToken.consent_given,
@@ -1449,8 +1453,11 @@ class LinkController {
         });
       }
 
+      const linkedAccountId =
+        linkToken.linked_account_id || linkedAccountService.generateId(linkToken.integration_key);
+
       const response = await linkedAccountService.upsertLinkedAccount({
-        id: linkToken.linked_account_id || generateId(Resource.LinkedAccount),
+        id: linkedAccountId,
         environment_id: linkToken.environment_id,
         integration_key: linkToken.integration_key,
         consent_given: linkToken.consent_given,

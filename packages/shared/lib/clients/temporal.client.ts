@@ -74,10 +74,10 @@ class TemporalClient {
     args: SyncArgs
   ): Promise<ScheduleHandle | null> {
     try {
-      const existingSyncSchedule = await this.getSyncSchedule(scheduleId);
+      const existingHandle = await this.getSyncScheduleHandle(scheduleId);
 
-      if (existingSyncSchedule) {
-        await existingSyncSchedule.delete();
+      if (existingHandle) {
+        await existingHandle.delete();
       }
 
       return await this.client.schedule.create({
@@ -98,9 +98,11 @@ class TemporalClient {
     }
   }
 
-  public async getSyncSchedule(scheduleId: string) {
+  public async getSyncScheduleHandle(scheduleId: string) {
     try {
-      return this.client.schedule.getHandle(scheduleId);
+      const scheduleHandle = this.client.schedule.getHandle(scheduleId);
+      await scheduleHandle.describe();
+      return scheduleHandle;
     } catch {
       return null;
     }
