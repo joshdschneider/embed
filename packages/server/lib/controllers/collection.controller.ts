@@ -13,6 +13,7 @@ import type { Request, Response } from 'express';
 import { zodError } from '../utils/helpers';
 import {
   CollectionObject,
+  CollectionRecordsClearedObject,
   ImageSearchCollectionRequestSchema,
   QueryCollectionRequestSchema,
   UpdateCollectionRequestSchema,
@@ -538,6 +539,53 @@ class CollectionController {
   public async retrieveCollectionRecord(req: Request, res: Response) {
     try {
       // TODO
+    } catch (err) {
+      await errorService.reportError(err);
+
+      return errorService.errorResponse(res, {
+        code: ErrorCode.InternalServerError,
+        message: DEFAULT_ERROR_MESSAGE,
+      });
+    }
+  }
+
+  public async clearCollectionRecords(req: Request, res: Response) {
+    const linkedAccountId = req.params['linked_account_id'];
+    const collectionKey = req.params['collection_key'];
+
+    if (!linkedAccountId) {
+      return errorService.errorResponse(res, {
+        code: ErrorCode.BadRequest,
+        message: 'Linked account ID missing',
+      });
+    } else if (!collectionKey) {
+      return errorService.errorResponse(res, {
+        code: ErrorCode.BadRequest,
+        message: 'Collection unique key missing',
+      });
+    }
+
+    try {
+      const dataCleared = await collectionService.clearCollectionRecords(
+        linkedAccountId,
+        collectionKey
+      );
+
+      if (!dataCleared) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.InternalServerError,
+          message: `Failed to clear synced data due to an internal error`,
+        });
+      }
+
+      const syncDataClearedObject: CollectionRecordsClearedObject = {
+        object: 'collection.records_cleared',
+        linked_account: linkedAccountId,
+        collection: collectionKey,
+        records_cleared: true,
+      };
+
+      res.status(200).json(syncDataClearedObject);
     } catch (err) {
       await errorService.reportError(err);
 

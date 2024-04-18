@@ -160,6 +160,10 @@ export function hashObjects(
   objects: SourceObject[],
   schemaProps: Record<string, CollectionProperty>
 ): SourceObjectWithHash[] {
+  if (!objects || objects.length === 0) {
+    return [];
+  }
+
   return objects.map((originalObj) => {
     const obj = { ...originalObj };
 

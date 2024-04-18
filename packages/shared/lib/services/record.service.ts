@@ -87,13 +87,18 @@ class RecordService {
           external_id: { notIn: crawledExternalIds },
           deleted_at: null,
         },
-        select: { id: true },
+        select: { id: true, external_id: true, hash: true },
       });
 
+      const deletedSuffix = '_deleted_' + now().toString();
       const updatePromises = recordsToDelete.map((rec) => {
         return database.record.update({
           where: { id: rec.id, deleted_at: null },
-          data: { deleted_at: now() },
+          data: {
+            external_id: rec.external_id + deletedSuffix,
+            hash: rec.hash + deletedSuffix,
+            deleted_at: now(),
+          },
           select: { external_id: true },
         });
       });
@@ -103,6 +108,38 @@ class RecordService {
     } catch (err) {
       await errorService.reportError(err);
       return null;
+    }
+  }
+
+  public async deleteAllRecords(linkedAccountId: string, collectionKey: string): Promise<boolean> {
+    try {
+      const recordsToDelete = await database.record.findMany({
+        where: {
+          linked_account_id: linkedAccountId,
+          collection_key: collectionKey,
+          deleted_at: null,
+        },
+        select: { id: true, external_id: true, hash: true },
+      });
+
+      const deletedSuffix = '_deleted_' + now().toString();
+      const updatePromises = recordsToDelete.map((rec) => {
+        return database.record.update({
+          where: { id: rec.id, deleted_at: null },
+          data: {
+            external_id: rec.external_id + deletedSuffix,
+            hash: rec.hash + deletedSuffix,
+            deleted_at: now(),
+          },
+          select: { external_id: true },
+        });
+      });
+
+      await Promise.all(updatePromises);
+      return true;
+    } catch (err) {
+      await errorService.reportError(err);
+      return false;
     }
   }
 }

@@ -309,3 +309,10 @@ export const ImageSearchCollectionRequestSchema = z.object({
 });
 
 export type ImageSearchCollectionRequest = z.infer<typeof ImageSearchCollectionRequestSchema>;
+
+export type CollectionRecordsClearedObject = {
+  object: 'collection.records_cleared';
+  linked_account: string;
+  collection: string;
+  records_cleared: true;
+};

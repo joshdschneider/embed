@@ -72,7 +72,7 @@ export class IndexClient {
       throw new Error('Nested property missing properties');
     }
 
-    const properties: [string, MappingProperty][] = [];
+    const properties: [string, MappingProperty][] = [['hash', { type: 'keyword', index: false }]];
     for (const [nestedName, nestedProp] of Object.entries(prop.properties)) {
       properties.push(...IndexClient.transformProperty(nestedName, nestedProp));
     }

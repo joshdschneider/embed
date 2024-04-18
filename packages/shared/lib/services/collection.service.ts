@@ -4,6 +4,8 @@ import { database } from '../utils/database';
 import { now } from '../utils/helpers';
 import { ImageSearchOptions, QueryOptions } from '../utils/types';
 import errorService from './error.service';
+import recordService from './record.service';
+import syncService from './sync.service';
 
 class CollectionService {
   public async listCollections(
@@ -120,6 +122,33 @@ class CollectionService {
     } catch (err) {
       await errorService.reportError(err);
       return null;
+    }
+  }
+
+  public async clearCollectionRecords(
+    linkedAccountId: string,
+    collectionKey: string
+  ): Promise<boolean> {
+    try {
+      const recordsDeleted = await recordService.deleteAllRecords(linkedAccountId, collectionKey);
+      if (!recordsDeleted) {
+        return false;
+      }
+
+      const elastic = ElasticClient.getInstance();
+      const objectsDeleted = await elastic.deleteAllObjects({ linkedAccountId, collectionKey });
+      if (!objectsDeleted) {
+        return false;
+      }
+
+      await syncService.updateSync(linkedAccountId, collectionKey, {
+        last_synced_at: null,
+      });
+
+      return true;
+    } catch (err) {
+      await errorService.reportError(err);
+      return false;
     }
   }
 }

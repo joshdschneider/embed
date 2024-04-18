@@ -660,6 +660,7 @@ class SyncService {
       if (syncSchedule) {
         await temporal.deleteSyncSchedule(temporalSyncScheduleId);
         await this.updateSyncSchedule(syncSchedule.id, {
+          status: SyncScheduleStatus.Stopped,
           deleted_at: now(),
         });
       }
@@ -679,6 +680,7 @@ class SyncService {
       await elastic.deleteIndex(linkedAccountId, collectionKey);
 
       return await this.updateSync(linkedAccountId, collectionKey, {
+        status: SyncStatus.Stopped,
         deleted_at: now(),
       });
     } catch (err) {

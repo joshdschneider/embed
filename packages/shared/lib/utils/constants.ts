@@ -167,8 +167,7 @@ export const DEFAULT_SYNC_FREQUENCY = '1d';
 export const DEFAULT_AUTO_START_SYNC = false;
 
 export const DEFAULT_TEXT_EMBEDDING_MODEL = TextEmbeddingModel.OpenaiTextEmbedding3Small;
-export const DEFAULT_MULTIMODAL_EMBEDDING_MODEL =
-  MultimodalEmbeddingModel.GoogleVertexMultimodalEmbedding001;
+export const DEFAULT_MULTIMODAL_EMBEDDING_MODEL = MultimodalEmbeddingModel.AmazonTitanMultimodalG1;
 
 export const DEFAULT_QUERY_LIMIT = 10;
 export const DEFAULT_KNN_NUM_CANDIDATES = 100;
