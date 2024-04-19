@@ -5,9 +5,9 @@ import {
   SyncArgs,
   SyncContext,
   SyncRunStatus,
+  collectionService,
   errorService,
   generateId,
-  linkedAccountService,
   now,
   syncService,
 } from '@embed/shared';
@@ -38,7 +38,16 @@ export async function triggerSync(args: SyncArgs): Promise<void> {
 
   try {
     const temporalContext: Context = Context.current();
-    const multimodalEnabled = await linkedAccountService.isMultimodalEnabled(args.linkedAccountId);
+    const modelSettings = await collectionService.getCollectionModelSettings(
+      args.environmentId,
+      args.integrationKey,
+      args.collectionKey
+    );
+
+    if (!modelSettings) {
+      throw new Error('Failed to get collection model settings');
+    }
+
     const lastSyncedAt = await syncService.getLastSyncedAt(
       args.linkedAccountId,
       args.collectionKey
@@ -49,7 +58,7 @@ export async function triggerSync(args: SyncArgs): Promise<void> {
       linkedAccountId: args.linkedAccountId,
       integrationKey: args.integrationKey,
       collectionKey: args.collectionKey,
-      multimodalEnabled: multimodalEnabled,
+      multimodalEnabled: modelSettings.multimodalEnabled,
       syncRunId: syncRun.id,
       lastSyncedAt: lastSyncedAt,
       temporalContext,

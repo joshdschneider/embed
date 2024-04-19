@@ -9,8 +9,6 @@ import type {
 } from '@elastic/elasticsearch/lib/api/types';
 import { CollectionProperty } from '@embed/providers';
 import axios from 'axios';
-import collectionService from '../services/collection.service';
-import providerService from '../services/provider.service';
 import {
   DEFAULT_KNN_NUM_CANDIDATES,
   DEFAULT_QUERY_LIMIT,
@@ -25,7 +23,6 @@ import {
   NestedHitObject,
   QueryOptions,
 } from '../utils/types';
-import ElasticClient from './elastic.client';
 import { EmbeddingClient } from './embedding.client';
 
 export class QueryClient {
@@ -37,168 +34,7 @@ export class QueryClient {
     this.embeddings = embeddingClient;
   }
 
-  public async query({
-    environmentId,
-    linkedAccountId,
-    integrationKey,
-    collectionKey,
-    queryOptions,
-  }: {
-    environmentId: string;
-    linkedAccountId: string;
-    integrationKey: string;
-    collectionKey: string;
-    queryOptions: QueryOptions;
-  }): Promise<unknown[]> {
-    const indexName = ElasticClient.formatIndexName(linkedAccountId, collectionKey);
-    const collection = await providerService.getProviderCollection(integrationKey, collectionKey);
-    if (!collection) {
-      throw new Error(`Failed to get collection ${collectionKey} for provider ${integrationKey}`);
-    }
-
-    const schemaProperties = collection.schema.properties;
-    if (!queryOptions?.query) {
-      const noQueryHits = await this.noQuery({
-        indexName,
-        queryOptions,
-      });
-
-      return QueryClient.formatNoQueryHits({
-        hits: noQueryHits,
-        schemaProperties,
-        returnProperties: queryOptions?.returnProperties,
-      });
-    } else {
-      switch (queryOptions.type) {
-        case 'hybrid':
-          if (queryOptions.alpha && (queryOptions.alpha < 0 || queryOptions.alpha > 1)) {
-            throw new Error('Alpha must be between 0 and 1');
-          } else if (queryOptions.alpha === 0) {
-            const keywordAlphaHits = await this.keywordQuery({
-              indexName,
-              schemaProperties,
-              queryOptions,
-            });
-
-            return QueryClient.formatQueryHits({
-              hits: keywordAlphaHits,
-              schemaProperties,
-              returnProperties: queryOptions.returnProperties,
-            });
-          } else if (queryOptions.alpha === 1) {
-            const vectorAlphaHits = await this.textVectorQuery({
-              indexName,
-              schemaProperties,
-              queryOptions,
-              collectionKey,
-              environmentId,
-              integrationKey,
-            });
-
-            return QueryClient.formatQueryHits({
-              hits: vectorAlphaHits,
-              schemaProperties,
-              returnProperties: queryOptions.returnProperties,
-            });
-          } else {
-            const keywordQueryPromise = this.keywordQuery({
-              indexName,
-              schemaProperties,
-              queryOptions,
-            });
-
-            const vectorQueryPromise = this.textVectorQuery({
-              indexName,
-              schemaProperties,
-              queryOptions,
-              collectionKey,
-              environmentId,
-              integrationKey,
-            });
-
-            const blendedHits = await this.blendResults({
-              keywordQueryPromise,
-              vectorQueryPromise,
-              schemaProperties,
-              queryOptions,
-            });
-
-            return QueryClient.formatQueryHits({
-              hits: blendedHits,
-              schemaProperties,
-              returnProperties: queryOptions.returnProperties,
-            });
-          }
-        case 'vector':
-          const vectorHits = await this.textVectorQuery({
-            indexName,
-            schemaProperties,
-            queryOptions,
-            collectionKey,
-            environmentId,
-            integrationKey,
-          });
-
-          return QueryClient.formatQueryHits({
-            hits: vectorHits,
-            schemaProperties,
-            returnProperties: queryOptions.returnProperties,
-          });
-        case 'keyword':
-          const keywordHits = await this.keywordQuery({
-            indexName,
-            schemaProperties,
-            queryOptions,
-          });
-
-          return QueryClient.formatQueryHits({
-            hits: keywordHits,
-            schemaProperties,
-            returnProperties: queryOptions.returnProperties,
-          });
-        default:
-          throw new Error('Invalid query type');
-      }
-    }
-  }
-
-  public async imageSearch({
-    environmentId,
-    linkedAccountId,
-    integrationKey,
-    collectionKey,
-    imageSearchOptions,
-  }: {
-    environmentId: string;
-    linkedAccountId: string;
-    integrationKey: string;
-    collectionKey: string;
-    imageSearchOptions: ImageSearchOptions;
-  }): Promise<unknown[]> {
-    const indexName = ElasticClient.formatIndexName(linkedAccountId, collectionKey);
-    const collection = await providerService.getProviderCollection(integrationKey, collectionKey);
-    if (!collection) {
-      throw new Error(`Failed to get collection ${collectionKey} for provider ${integrationKey}`);
-    }
-
-    const schemaProperties = collection.schema.properties;
-    const vectorHits = await this.imageVectorQuery({
-      indexName,
-      schemaProperties,
-      imageSearchOptions,
-      collectionKey,
-      environmentId,
-      integrationKey,
-    });
-
-    return QueryClient.formatQueryHits({
-      hits: vectorHits,
-      schemaProperties,
-      returnProperties: imageSearchOptions.returnProperties,
-    });
-  }
-
-  private async noQuery({
+  public async emptyQuery({
     indexName,
     queryOptions,
   }: {
@@ -219,6 +55,368 @@ export class QueryClient {
 
     const res = await this.elastic.search(req);
     return res.hits.hits;
+  }
+
+  public async keywordQuery({
+    indexName,
+    schemaProperties,
+    queryOptions,
+  }: {
+    indexName: string;
+    schemaProperties: Record<string, CollectionProperty>;
+    queryOptions: QueryOptions;
+  }): Promise<HitObject[]> {
+    const { query, limit } = queryOptions;
+    if (!query) {
+      throw new Error('Query missing for keyword search');
+    }
+
+    const should: QueryDslQueryContainer[] = [];
+    const highlightFields: Record<string, SearchHighlightField> = {};
+
+    const mainProperties: string[] = [];
+    const nestedProperties: string[] = [];
+
+    Object.entries(schemaProperties).forEach(([name, prop]) => {
+      if (prop.type === 'nested' && prop.properties) {
+        const nestedShould: QueryDslQueryContainer[] = [];
+        const nestedHighlightFields: Record<string, SearchHighlightField> = {};
+
+        Object.entries(prop.properties).forEach(([nestedName, nestedProp]) => {
+          nestedProperties.push(`${name}.${nestedName}`);
+          if (nestedProp.keyword_searchable) {
+            nestedHighlightFields[`${name}.${nestedName}`] = {};
+            if (nestedProp.wildcard) {
+              nestedShould.push({
+                wildcard: { [`${name}.${nestedName}`]: `*${query}*` },
+              });
+            } else {
+              nestedShould.push({
+                match: { [`${name}.${nestedName}`]: query },
+              });
+            }
+          }
+        });
+
+        should.push({
+          nested: {
+            path: name,
+            inner_hits: {
+              size: limit || DEFAULT_QUERY_LIMIT,
+              highlight: { fields: nestedHighlightFields },
+              _source: nestedProperties,
+            },
+            query: { bool: { should: nestedShould } },
+            score_mode: 'max',
+          },
+        });
+      } else {
+        mainProperties.push(name);
+        if (prop.keyword_searchable) {
+          highlightFields[name] = {};
+          if (prop.wildcard) {
+            should.push({
+              wildcard: { [name]: `*${query}*` },
+            });
+          } else {
+            should.push({
+              match: { [name]: query },
+            });
+          }
+        }
+      }
+    });
+
+    const filter = queryOptions.filters
+      ? QueryClient.transformFilter(queryOptions.filters)
+      : undefined;
+
+    const results = await this.elastic.search({
+      index: indexName,
+      query: {
+        bool: {
+          should: should,
+          filter: filter,
+        },
+      },
+      highlight: {
+        fields: highlightFields,
+      },
+      size: limit || DEFAULT_QUERY_LIMIT,
+      _source: mainProperties,
+    });
+
+    return results.hits.hits.map((hit) => QueryClient.processKeywordHit(hit));
+  }
+
+  public async vectorQuery({
+    indexName,
+    schemaProperties,
+    queryOptions,
+    textEmbeddingModel,
+    multimodalEmbeddingModel,
+    multimodalEnabled,
+  }: {
+    indexName: string;
+    schemaProperties: Record<string, CollectionProperty>;
+    queryOptions: QueryOptions;
+    textEmbeddingModel: TextEmbeddingModel;
+    multimodalEmbeddingModel: MultimodalEmbeddingModel;
+    multimodalEnabled: boolean;
+  }): Promise<HitObject[]> {
+    if (!queryOptions.query) {
+      throw new Error('Query missing for vector search');
+    }
+
+    const mainProperties: string[] = [];
+    const nestedProperties: string[] = [];
+    const textProperties: string[] = [];
+    const multimodalProperties: string[] = [];
+
+    Object.entries(schemaProperties).forEach(([name, prop]) => {
+      if (prop.type === 'nested' && prop.properties) {
+        Object.entries(prop.properties).forEach(([nestedName, nestedProp]) => {
+          nestedProperties.push(`${name}.${nestedName}`);
+          if (nestedProp.vector_searchable) {
+            if (nestedProp.multimodal && multimodalEnabled) {
+              multimodalProperties.push(`${name}.${nestedName}`);
+            } else {
+              textProperties.push(`${name}.${nestedName}`);
+            }
+          }
+        });
+      } else {
+        mainProperties.push(name);
+        if (prop.vector_searchable) {
+          if (prop.multimodal && multimodalEnabled) {
+            multimodalProperties.push(name);
+          } else {
+            textProperties.push(name);
+          }
+        }
+      }
+    });
+
+    if (textProperties.length === 0 && multimodalProperties.length === 0) {
+      throw new Error(`No vector properties found in collection`);
+    }
+
+    let textEmbeddingPromise: Promise<number[][]> | undefined;
+    let multimodalEmbeddingPromise: Promise<number[][]> | undefined;
+
+    if (textProperties.length > 0) {
+      textEmbeddingPromise = this.embeddings.embedText({
+        model: textEmbeddingModel,
+        purpose: 'query',
+        text: [queryOptions.query],
+      });
+    }
+
+    if (multimodalProperties.length > 0) {
+      multimodalEmbeddingPromise = this.embeddings.embedMultimodal({
+        model: multimodalEmbeddingModel,
+        type: 'text',
+        content: [queryOptions.query],
+      });
+    }
+
+    const filter = queryOptions.filters
+      ? QueryClient.transformFilter(queryOptions.filters)
+      : undefined;
+
+    const textResults = textProperties.map(async (prop) => {
+      const queryVector = await textEmbeddingPromise!;
+
+      const knn: KnnQuery = {
+        field: `${prop}_vector`,
+        k: queryOptions.limit || DEFAULT_QUERY_LIMIT,
+        num_candidates: DEFAULT_KNN_NUM_CANDIDATES,
+        query_vector: queryVector[0],
+        filter: filter,
+      };
+
+      if (prop.includes('.')) {
+        knn.inner_hits = {
+          size: queryOptions.limit || DEFAULT_QUERY_LIMIT,
+          _source: nestedProperties,
+        };
+      }
+
+      return this.elastic
+        .search({
+          index: indexName,
+          knn: knn,
+          size: queryOptions.limit || DEFAULT_QUERY_LIMIT,
+          _source: mainProperties,
+        })
+        .then((res) => res.hits.hits.map((hit) => QueryClient.processVectorHit(prop, hit)))
+        .catch((err) => {
+          throw err;
+        });
+    });
+
+    const multimodalResults = multimodalProperties.map(async (prop) => {
+      const queryVector = await multimodalEmbeddingPromise!;
+
+      const knn: KnnQuery = {
+        field: `${prop}_vector`,
+        k: queryOptions.limit || DEFAULT_QUERY_LIMIT,
+        num_candidates: DEFAULT_KNN_NUM_CANDIDATES,
+        query_vector: queryVector[0],
+        filter: filter,
+      };
+
+      if (prop.includes('.')) {
+        knn.inner_hits = {
+          size: queryOptions.limit || DEFAULT_QUERY_LIMIT,
+          _source: nestedProperties,
+        };
+      }
+
+      return this.elastic
+        .search({
+          index: indexName,
+          knn: knn,
+          size: queryOptions.limit || DEFAULT_QUERY_LIMIT,
+          _source: mainProperties,
+        })
+        .then((res) => res.hits.hits.map((hit) => QueryClient.processVectorHit(prop, hit)))
+        .catch((err) => {
+          throw err;
+        });
+    });
+
+    const results = await Promise.all([...textResults, ...multimodalResults]);
+    const hits = results.flat().sort((a, b) => b._score! - a._score!);
+    const nestedProps = new Set(nestedProperties.map((prop) => prop.split('.')[0]!));
+    return QueryClient.mergeHits(hits, [...nestedProps]);
+  }
+
+  public async hybridQuery({
+    indexName,
+    schemaProperties,
+    queryOptions,
+    textEmbeddingModel,
+    multimodalEmbeddingModel,
+    multimodalEnabled,
+  }: {
+    indexName: string;
+    schemaProperties: Record<string, CollectionProperty>;
+    queryOptions: QueryOptions;
+    textEmbeddingModel: TextEmbeddingModel;
+    multimodalEmbeddingModel: MultimodalEmbeddingModel;
+    multimodalEnabled: boolean;
+  }): Promise<HitObject[]> {
+    const keywordQueryPromise = this.keywordQuery({
+      indexName,
+      schemaProperties,
+      queryOptions,
+    });
+
+    const vectorQueryPromise = this.vectorQuery({
+      indexName,
+      schemaProperties,
+      queryOptions,
+      textEmbeddingModel,
+      multimodalEmbeddingModel,
+      multimodalEnabled,
+    });
+
+    const [keywordHits, vectorHits] = await Promise.all([keywordQueryPromise, vectorQueryPromise]);
+
+    const nestedProps: string[] = Object.entries(schemaProperties)
+      .filter(([name, prop]) => prop.type === 'nested' && prop.properties)
+      .map(([name, prop]) => name);
+
+    return QueryClient.blendHits(vectorHits, keywordHits, nestedProps, queryOptions.alpha);
+  }
+
+  public async imageSearch({
+    indexName,
+    schemaProperties,
+    imageSearchOptions,
+    multimodalEmbeddingModel,
+  }: {
+    indexName: string;
+    schemaProperties: Record<string, CollectionProperty>;
+    imageSearchOptions: ImageSearchOptions;
+    multimodalEmbeddingModel: MultimodalEmbeddingModel;
+  }): Promise<HitObject[]> {
+    if (!imageSearchOptions.image) {
+      throw new Error('Query missing for vector search');
+    }
+    const mainProperties: string[] = [];
+    const nestedProperties: string[] = [];
+    const multimodalProperties: string[] = [];
+
+    Object.entries(schemaProperties).forEach(([name, prop]) => {
+      if (prop.type === 'nested' && prop.properties) {
+        Object.entries(prop.properties).forEach(([nestedName, nestedProp]) => {
+          nestedProperties.push(`${name}.${nestedName}`);
+          if (nestedProp.vector_searchable && nestedProp.multimodal) {
+            multimodalProperties.push(`${name}.${nestedName}`);
+          }
+        });
+      } else {
+        mainProperties.push(name);
+        if (prop.vector_searchable) {
+          if (prop.multimodal === true) {
+            multimodalProperties.push(name);
+          }
+        }
+      }
+    });
+
+    if (multimodalProperties.length === 0) {
+      throw new Error(`No multimodal properties in collection`);
+    }
+
+    const base64 = await QueryClient.getImageBase64(imageSearchOptions.image);
+    const multimodalEmbedding = await this.embeddings.embedMultimodal({
+      model: multimodalEmbeddingModel,
+      type: 'text',
+      content: [base64],
+    });
+
+    const filter = imageSearchOptions.filters
+      ? QueryClient.transformFilter(imageSearchOptions.filters)
+      : undefined;
+
+    const multimodalResults = multimodalProperties.map(async (prop) => {
+      const queryVector = multimodalEmbedding;
+
+      const knn: KnnQuery = {
+        field: `${prop}_vector`,
+        k: imageSearchOptions.limit || DEFAULT_QUERY_LIMIT,
+        num_candidates: DEFAULT_KNN_NUM_CANDIDATES,
+        query_vector: queryVector[0],
+        filter: filter,
+      };
+
+      if (prop.includes('.')) {
+        knn.inner_hits = {
+          size: imageSearchOptions.limit || DEFAULT_QUERY_LIMIT,
+          _source: nestedProperties,
+        };
+      }
+
+      return this.elastic
+        .search({
+          index: indexName,
+          knn: knn,
+          size: imageSearchOptions.limit || DEFAULT_QUERY_LIMIT,
+          _source: mainProperties,
+        })
+        .then((res) => res.hits.hits.map((hit) => QueryClient.processVectorHit(prop, hit)))
+        .catch((err) => {
+          throw err;
+        });
+    });
+
+    const results = await Promise.all([...multimodalResults]);
+    const hits = results.flat().sort((a, b) => b._score! - a._score!);
+    const nestedProps = new Set(nestedProperties.map((prop) => prop.split('.')[0]!));
+    return QueryClient.mergeHits(hits, [...nestedProps]);
   }
 
   private static transformFilter(filters: Filter | Filter[]): QueryDslQueryContainer[] {
@@ -250,7 +448,7 @@ export class QueryClient {
     return queryFilter;
   }
 
-  private static formatNoQueryHits({
+  public static formatEmptyQueryHits({
     hits,
     schemaProperties,
     returnProperties,
@@ -288,7 +486,6 @@ export class QueryClient {
     });
 
     const results: object[] = [];
-
     const topLevelReturnProps = returnProperties?.map((prop) => prop.split('.')[0]!);
 
     for (const hit of hits) {
@@ -355,7 +552,7 @@ export class QueryClient {
     return results;
   }
 
-  private static formatQueryHits({
+  public static formatQueryHits({
     hits,
     schemaProperties,
     returnProperties,
@@ -450,98 +647,6 @@ export class QueryClient {
     return hits;
   }
 
-  private async keywordQuery({
-    indexName,
-    schemaProperties,
-    queryOptions,
-  }: {
-    indexName: string;
-    schemaProperties: Record<string, CollectionProperty>;
-    queryOptions: QueryOptions;
-  }): Promise<HitObject[]> {
-    const { query, limit } = queryOptions;
-    if (!query) {
-      throw new Error('Query missing for keyword search');
-    }
-
-    const should: QueryDslQueryContainer[] = [];
-    const highlightFields: Record<string, SearchHighlightField> = {};
-
-    const mainProperties: string[] = [];
-    const nestedProperties: string[] = [];
-
-    Object.entries(schemaProperties).forEach(([name, prop]) => {
-      if (prop.type === 'nested' && prop.properties) {
-        const nestedShould: QueryDslQueryContainer[] = [];
-        const nestedHighlightFields: Record<string, SearchHighlightField> = {};
-
-        Object.entries(prop.properties).forEach(([nestedName, nestedProp]) => {
-          nestedProperties.push(`${name}.${nestedName}`);
-          if (nestedProp.keyword_searchable) {
-            nestedHighlightFields[`${name}.${nestedName}`] = {};
-            if (nestedProp.wildcard) {
-              nestedShould.push({
-                wildcard: { [`${name}.${nestedName}`]: `*${query}*` },
-              });
-            } else {
-              nestedShould.push({
-                match: { [`${name}.${nestedName}`]: query },
-              });
-            }
-          }
-        });
-
-        should.push({
-          nested: {
-            path: name,
-            inner_hits: {
-              size: limit || DEFAULT_QUERY_LIMIT,
-              highlight: { fields: nestedHighlightFields },
-              _source: nestedProperties,
-            },
-            query: { bool: { should: nestedShould } },
-            score_mode: 'max',
-          },
-        });
-      } else {
-        mainProperties.push(name);
-        if (prop.keyword_searchable) {
-          highlightFields[name] = {};
-          if (prop.wildcard) {
-            should.push({
-              wildcard: { [name]: `*${query}*` },
-            });
-          } else {
-            should.push({
-              match: { [name]: query },
-            });
-          }
-        }
-      }
-    });
-
-    const filter = queryOptions.filters
-      ? QueryClient.transformFilter(queryOptions.filters)
-      : undefined;
-
-    const results = await this.elastic.search({
-      index: indexName,
-      query: {
-        bool: {
-          should: should,
-          filter: filter,
-        },
-      },
-      highlight: {
-        fields: highlightFields,
-      },
-      size: limit || DEFAULT_QUERY_LIMIT,
-      _source: mainProperties,
-    });
-
-    return results.hits.hits.map((hit) => QueryClient.processKeywordHit(hit));
-  }
-
   private static processKeywordHit(hit: SearchHit): HitObject {
     const mainObjMatches = hit.highlight ? Object.keys(hit.highlight) : [];
     const nestedPathMatch = new Set<string>(mainObjMatches);
@@ -594,270 +699,6 @@ export class QueryClient {
     return hitObj;
   }
 
-  private async imageVectorQuery({
-    indexName,
-    schemaProperties,
-    imageSearchOptions,
-    collectionKey,
-    integrationKey,
-    environmentId,
-  }: {
-    indexName: string;
-    schemaProperties: Record<string, CollectionProperty>;
-    imageSearchOptions: ImageSearchOptions;
-    collectionKey: string;
-    integrationKey: string;
-    environmentId: string;
-  }): Promise<HitObject[]> {
-    if (!imageSearchOptions.image) {
-      throw new Error('Query missing for vector search');
-    }
-
-    const mainProperties: string[] = [];
-    const nestedProperties: string[] = [];
-    const multimodalProperties: string[] = [];
-
-    Object.entries(schemaProperties).forEach(([name, prop]) => {
-      if (prop.type === 'nested' && prop.properties) {
-        Object.entries(prop.properties).forEach(([nestedName, nestedProp]) => {
-          nestedProperties.push(`${name}.${nestedName}`);
-          if (nestedProp.vector_searchable) {
-            if (nestedProp.multimodal === true) {
-              multimodalProperties.push(`${name}.${nestedName}`);
-            }
-          }
-        });
-      } else {
-        mainProperties.push(name);
-        if (prop.vector_searchable) {
-          if (prop.multimodal === true) {
-            multimodalProperties.push(name);
-          }
-        }
-      }
-    });
-
-    if (multimodalProperties.length === 0) {
-      throw new Error(`No multimodal properties in collection ${collectionKey}`);
-    }
-
-    const collection = await collectionService.retrieveCollection(
-      collectionKey,
-      integrationKey,
-      environmentId
-    );
-
-    if (!collection) {
-      throw new Error(`Failed to retrieve collection with key ${collectionKey}`);
-    }
-
-    const base64 = await QueryClient.getImageBase64(imageSearchOptions.image);
-    const multimodalEmbedding = await this.embeddings.embedMultimodal({
-      model: collection.multimodal_embedding_model as MultimodalEmbeddingModel,
-      type: 'text',
-      content: [base64],
-    });
-
-    const filter = imageSearchOptions.filters
-      ? QueryClient.transformFilter(imageSearchOptions.filters)
-      : undefined;
-
-    const multimodalResults = multimodalProperties.map(async (prop) => {
-      const queryVector = multimodalEmbedding;
-
-      const knn: KnnQuery = {
-        field: `${prop}_vector`,
-        k: imageSearchOptions.limit || DEFAULT_QUERY_LIMIT,
-        num_candidates: DEFAULT_KNN_NUM_CANDIDATES,
-        query_vector: queryVector[0],
-        filter: filter,
-      };
-
-      if (prop.includes('.')) {
-        knn.inner_hits = {
-          size: imageSearchOptions.limit || DEFAULT_QUERY_LIMIT,
-          _source: nestedProperties,
-        };
-      }
-
-      return this.elastic
-        .search({
-          index: indexName,
-          knn: knn,
-          size: imageSearchOptions.limit || DEFAULT_QUERY_LIMIT,
-          _source: mainProperties,
-        })
-        .then((res) => res.hits.hits.map((hit) => QueryClient.processVectorHit(prop, hit)))
-        .catch((err) => {
-          throw err;
-        });
-    });
-
-    const results = await Promise.all([...multimodalResults]);
-    const hits = results.flat().sort((a, b) => b._score! - a._score!);
-    const nestedProps = new Set(nestedProperties.map((prop) => prop.split('.')[0]!));
-    return QueryClient.mergeHits(hits, [...nestedProps]);
-  }
-
-  private async textVectorQuery({
-    indexName,
-    schemaProperties,
-    queryOptions,
-    collectionKey,
-    integrationKey,
-    environmentId,
-  }: {
-    indexName: string;
-    schemaProperties: Record<string, CollectionProperty>;
-    queryOptions: QueryOptions;
-    collectionKey: string;
-    integrationKey: string;
-    environmentId: string;
-  }): Promise<HitObject[]> {
-    if (!queryOptions.query) {
-      throw new Error('Query missing for vector search');
-    }
-
-    const multimodalEnabled = !queryOptions.disableMultimodal;
-
-    const mainProperties: string[] = [];
-    const nestedProperties: string[] = [];
-    const textProperties: string[] = [];
-    const multimodalProperties: string[] = [];
-
-    Object.entries(schemaProperties).forEach(([name, prop]) => {
-      if (prop.type === 'nested' && prop.properties) {
-        Object.entries(prop.properties).forEach(([nestedName, nestedProp]) => {
-          nestedProperties.push(`${name}.${nestedName}`);
-          if (nestedProp.vector_searchable) {
-            if (nestedProp.multimodal === true) {
-              if (multimodalEnabled) {
-                multimodalProperties.push(`${name}.${nestedName}`);
-              }
-            } else {
-              textProperties.push(`${name}.${nestedName}`);
-            }
-          }
-        });
-      } else {
-        mainProperties.push(name);
-        if (prop.vector_searchable) {
-          if (prop.multimodal === true) {
-            if (multimodalEnabled) {
-              multimodalProperties.push(name);
-            }
-          } else {
-            textProperties.push(name);
-          }
-        }
-      }
-    });
-
-    if (textProperties.length === 0 && multimodalProperties.length === 0) {
-      throw new Error(`No vector properties in collection ${collectionKey}`);
-    }
-
-    const collection = await collectionService.retrieveCollection(
-      collectionKey,
-      integrationKey,
-      environmentId
-    );
-
-    if (!collection) {
-      throw new Error(`Failed to retrieve collection with key ${collectionKey}`);
-    }
-
-    let textEmbeddingPromise: Promise<number[][]> | undefined;
-    let multimodalEmbeddingPromise: Promise<number[][]> | undefined;
-
-    if (textProperties.length > 0) {
-      textEmbeddingPromise = this.embeddings.embedText({
-        model: collection.text_embedding_model as TextEmbeddingModel,
-        purpose: 'query',
-        text: [queryOptions.query],
-      });
-    }
-
-    if (multimodalProperties.length > 0) {
-      multimodalEmbeddingPromise = this.embeddings.embedMultimodal({
-        model: collection.multimodal_embedding_model as MultimodalEmbeddingModel,
-        type: 'text',
-        content: [queryOptions.query],
-      });
-    }
-
-    const filter = queryOptions.filters
-      ? QueryClient.transformFilter(queryOptions.filters)
-      : undefined;
-
-    const textResults = textProperties.map(async (prop) => {
-      const queryVector = await textEmbeddingPromise!;
-
-      const knn: KnnQuery = {
-        field: `${prop}_vector`,
-        k: queryOptions.limit || DEFAULT_QUERY_LIMIT,
-        num_candidates: DEFAULT_KNN_NUM_CANDIDATES,
-        query_vector: queryVector[0],
-        filter: filter,
-      };
-
-      if (prop.includes('.')) {
-        knn.inner_hits = {
-          size: queryOptions.limit || DEFAULT_QUERY_LIMIT,
-          _source: nestedProperties,
-        };
-      }
-
-      return this.elastic
-        .search({
-          index: indexName,
-          knn: knn,
-          size: queryOptions.limit || DEFAULT_QUERY_LIMIT,
-          _source: mainProperties,
-        })
-        .then((res) => res.hits.hits.map((hit) => QueryClient.processVectorHit(prop, hit)))
-        .catch((err) => {
-          throw err;
-        });
-    });
-
-    const multimodalResults = multimodalProperties.map(async (prop) => {
-      const queryVector = await multimodalEmbeddingPromise!;
-
-      const knn: KnnQuery = {
-        field: `${prop}_vector`,
-        k: queryOptions.limit || DEFAULT_QUERY_LIMIT,
-        num_candidates: DEFAULT_KNN_NUM_CANDIDATES,
-        query_vector: queryVector[0],
-        filter: filter,
-      };
-
-      if (prop.includes('.')) {
-        knn.inner_hits = {
-          size: queryOptions.limit || DEFAULT_QUERY_LIMIT,
-          _source: nestedProperties,
-        };
-      }
-
-      return this.elastic
-        .search({
-          index: indexName,
-          knn: knn,
-          size: queryOptions.limit || DEFAULT_QUERY_LIMIT,
-          _source: mainProperties,
-        })
-        .then((res) => res.hits.hits.map((hit) => QueryClient.processVectorHit(prop, hit)))
-        .catch((err) => {
-          throw err;
-        });
-    });
-
-    const results = await Promise.all([...textResults, ...multimodalResults]);
-    const hits = results.flat().sort((a, b) => b._score! - a._score!);
-    const nestedProps = new Set(nestedProperties.map((prop) => prop.split('.')[0]!));
-    return QueryClient.mergeHits(hits, [...nestedProps]);
-  }
-
   private static processVectorHit(path: string, hit: SearchHit): HitObject {
     const match = path.split('.')[0]!;
 
@@ -886,26 +727,6 @@ export class QueryClient {
     }
 
     return hitObj;
-  }
-
-  private async blendResults({
-    keywordQueryPromise,
-    vectorQueryPromise,
-    schemaProperties,
-    queryOptions,
-  }: {
-    keywordQueryPromise: Promise<HitObject[]>;
-    vectorQueryPromise: Promise<HitObject[]>;
-    schemaProperties: Record<string, CollectionProperty>;
-    queryOptions: QueryOptions;
-  }): Promise<HitObject[]> {
-    const [keywordHits, vectorHits] = await Promise.all([keywordQueryPromise, vectorQueryPromise]);
-
-    const nestedProps: string[] = Object.entries(schemaProperties)
-      .filter(([name, prop]) => prop.type === 'nested' && prop.properties)
-      .map(([name, prop]) => name);
-
-    return QueryClient.blendHits(vectorHits, keywordHits, nestedProps, queryOptions.alpha);
   }
 
   private static mergeHits(inputArray: HitObject[], nestedProps: string[]): HitObject[] {

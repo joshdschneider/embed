@@ -82,3 +82,18 @@ export enum MultimodalEmbeddingModel {
   AmazonTitanMultimodalG1 = 'amazon.titan-embed-image-v1',
   GoogleVertexMultimodalEmbedding001 = 'multimodalembedding@001',
 }
+
+export const embeddingModelDimensions = {
+  [TextEmbeddingModel.OpenaiTextEmbeddingAda]: 1536,
+  [TextEmbeddingModel.OpenaiTextEmbedding3Small]: 1536,
+  [TextEmbeddingModel.OpenaiTextEmbedding3Large]: 3072,
+  [TextEmbeddingModel.CohereEmbedEnglish3]: 1024,
+  [TextEmbeddingModel.CohereEmbedEnglishLight3]: 384,
+  [TextEmbeddingModel.CohereEmbedMultilingual3]: 1024,
+  [TextEmbeddingModel.CohereEmbedMultilingualLight3]: 384,
+  [TextEmbeddingModel.AmazonTitanTextG1]: 1536,
+  [TextEmbeddingModel.GoogleVertexTextEmbeddingGecko003]: 768,
+  [TextEmbeddingModel.MistralEmbed]: 1024,
+  [MultimodalEmbeddingModel.AmazonTitanMultimodalG1]: 1024,
+  [MultimodalEmbeddingModel.GoogleVertexMultimodalEmbedding001]: 1408,
+};

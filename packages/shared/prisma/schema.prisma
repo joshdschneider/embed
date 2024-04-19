@@ -40,7 +40,7 @@ model Environment {
   enable_new_integrations            Boolean
   default_text_embedding_model       String
   default_multimodal_embedding_model String
-  multimodal_enabled                 Boolean @default(false)
+  multimodal_enabled_by_default      Boolean
   branding                           Json
   created_at                         Int
   updated_at                         Int
@@ -148,19 +148,19 @@ model Integration {
 }
 
 model Collection {
-  unique_key                   String
-  integration_key              String
-  environment_id               String
-  is_enabled                   Boolean
-  default_sync_frequency       String
-  auto_start_sync              Boolean
-  exclude_properties_from_sync String[]
-  text_embedding_model         String
-  multimodal_embedding_model   String
-  has_multimodal_properties    Boolean
-  created_at                   Int
-  updated_at                   Int
-  deleted_at                   Int?
+  unique_key                          String
+  integration_key                     String
+  environment_id                      String
+  is_enabled                          Boolean
+  default_sync_frequency              String
+  auto_start_sync                     Boolean
+  exclude_properties_from_sync        String[]
+  text_embedding_model_override       String?
+  multimodal_embedding_model_override String?
+  multimodal_enabled_override         Boolean?
+  created_at                          Int
+  updated_at                          Int
+  deleted_at                          Int?
 
   syncs   Sync[]
   records Record[]

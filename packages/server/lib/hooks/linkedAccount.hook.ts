@@ -49,6 +49,7 @@ class LinkedAccountHook {
 
     for (const collection of collections) {
       const didCreateTenant = await linkedAccountService.createIndexForLinkedAccount(
+        linkedAccount.environment_id,
         linkedAccount.id,
         linkedAccount.integration_key,
         collection.unique_key
