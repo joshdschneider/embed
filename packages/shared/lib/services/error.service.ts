@@ -1,5 +1,6 @@
 import type { Response } from 'express';
 import logger from '../clients/logger.client';
+import { isProd } from '../utils/constants';
 import { ErrorCode } from '../utils/enums';
 
 interface ErrorObject {
@@ -9,7 +10,11 @@ interface ErrorObject {
 
 class ErrorService {
   public async reportError(err: unknown) {
-    logger.error(`Exception caught: ${JSON.stringify(err, Object.getOwnPropertyNames(err))}`);
+    if (!isProd()) {
+      console.error(err);
+    } else {
+      logger.error(`Exception caught: ${JSON.stringify(err, Object.getOwnPropertyNames(err))}`);
+    }
   }
 
   public errorResponse(res: Response, err: ErrorObject) {

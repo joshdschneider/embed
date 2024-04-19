@@ -1,4 +1,4 @@
-import { HttpMethod, ProxyOptions, ResponseType } from '@embed/node';
+import { HttpMethod, ProxyOptions, ResponseType } from '@embed/providers';
 import { DEFAULT_ERROR_MESSAGE, ErrorCode, errorService, proxyService } from '@embed/shared';
 import axios, { AxiosError } from 'axios';
 import type { Request, Response } from 'express';
