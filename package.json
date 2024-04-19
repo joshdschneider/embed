@@ -14,11 +14,8 @@
     "database:migrate": "npm run database:migrate -w @embed/shared",
     "clean:all": "npm run clean --workspaces",
     "build:all": "npm run build --workspaces",
-    "build:watch": "npm run build:all && tsc -b packages/* --watch",
     "test:all": "npm run test --workspaces",
-    "server:dev": "npm run dev -w @embed/server",
-    "worker:dev": "npm run dev -w @embed/worker",
-    "dev:all": "concurrently \"npm run build:watch\" \"npm run server:dev\" \"npm run worker:dev\""
+    "dev:all": "concurrently \"npm run dev -w @embed/providers\" \"npm run dev -w @embed/shared\" \"npm run dev -w @embed/server\" \"npm run dev -w @embed/worker\""
   },
   "devDependencies": {
     "@tsconfig/recommended": "^1.0.3",

@@ -6,7 +6,8 @@
     "clean": "rimraf tsconfig.tsbuildinfo dist/*",
     "build": "tsc",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "nodemon --exec 'node dist/worker.js' --watch lib --ext 'ts,yaml,json'"
+    "start": "node dist/worker.js",
+    "dev": "nodemon"
   },
   "dependencies": {
     "@embed/shared": "^0.1.0",
