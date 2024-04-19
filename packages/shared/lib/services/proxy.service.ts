@@ -1,5 +1,4 @@
-import { ProxyOptions } from '@embed/node';
-import { AuthScheme, ProviderSpecification } from '@embed/providers';
+import { AuthScheme, ProviderSpecification, ProxyOptions } from '@embed/providers';
 import { LinkedAccount } from '@prisma/client';
 import axios, { AxiosError, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { backOff } from 'exponential-backoff';

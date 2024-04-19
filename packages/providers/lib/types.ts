@@ -1,4 +1,3 @@
-import { ProxyOptions } from '@embed/node';
 import { AxiosResponse } from 'axios';
 import { z } from 'zod';
 
@@ -205,6 +204,32 @@ export const ProviderSpecificationSchema = z.object({
 });
 
 export type ProviderSpecification = z.infer<typeof ProviderSpecificationSchema>;
+
+export type HttpMethod =
+  | 'GET'
+  | 'POST'
+  | 'PATCH'
+  | 'PUT'
+  | 'DELETE'
+  | 'get'
+  | 'post'
+  | 'patch'
+  | 'put'
+  | 'delete';
+
+export type ResponseType = 'arraybuffer' | 'json' | 'text' | 'stream';
+
+export interface ProxyOptions {
+  linkedAccountId: string;
+  endpoint: string;
+  baseUrlOverride?: string;
+  method?: HttpMethod;
+  responseType?: ResponseType;
+  headers?: Record<string, string>;
+  params?: string | Record<string, string | number>;
+  data?: unknown;
+  retries?: number;
+}
 
 export type InternalProxyOptions = Omit<ProxyOptions, 'linkedAccountId'>;
 

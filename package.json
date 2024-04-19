@@ -1,9 +1,6 @@
 {
   "name": "embed",
   "workspaces": [
-    "packages/js",
-    "packages/react",
-    "packages/node",
     "packages/providers",
     "packages/shared",
     "packages/server",
@@ -15,18 +12,19 @@
     "lint:fix": "eslint . --ext .ts,.tsx --fix",
     "database:generate": "npm run database:generate -w @embed/shared",
     "database:migrate": "npm run database:migrate -w @embed/shared",
-    "weaviate:create": "npm run weaviate:create -w @embed/shared",
     "clean:all": "npm run clean --workspaces",
-    "build:all": "npm run database:generate && npm run build --workspaces",
+    "build:all": "npm run build --workspaces",
+    "build:watch": "npm run build:all && tsc -b packages/* --watch",
     "test:all": "npm run test --workspaces",
     "server:dev": "npm run dev -w @embed/server",
     "worker:dev": "npm run dev -w @embed/worker",
-    "docs:dev": "cd docs && npm run dev"
+    "dev:all": "concurrently \"npm run build:watch\" \"npm run server:dev\" \"npm run worker:dev\""
   },
   "devDependencies": {
     "@tsconfig/recommended": "^1.0.3",
     "@typescript-eslint/eslint-plugin": "^6.19.1",
     "@typescript-eslint/parser": "^6.19.1",
+    "concurrently": "^8.2.2",
     "eslint": "^8.56.0",
     "prettier-plugin-organize-imports": "^3.2.4"
   },

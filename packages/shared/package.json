@@ -6,7 +6,6 @@
     "clean": "rimraf tsconfig.tsbuildinfo dist/*",
     "database:generate": "npx prisma generate",
     "database:migrate": "npx prisma migrate dev",
-    "weaviate:create": "ts-node scripts/collections",
     "build": "tsc && ts-node scripts/credentials",
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "node dist/worker.js"
