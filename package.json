@@ -15,7 +15,7 @@
     "clean:all": "npm run clean --workspaces",
     "build:all": "npm run build --workspaces",
     "test:all": "npm run test --workspaces",
-    "dev:all": "concurrently \"npm run dev -w @embed/providers\" \"npm run dev -w @embed/shared\" \"npm run dev -w @embed/server\" \"npm run dev -w @embed/worker\""
+    "dev": "concurrently \"npm run dev -w @embed/providers\" \"npm run dev -w @embed/shared\" \"npm run dev -w @embed/server\" \"npm run dev -w @embed/worker\""
   },
   "devDependencies": {
     "@tsconfig/recommended": "^1.0.3",

@@ -268,27 +268,19 @@ class LinkedAccountService {
   }
 
   public async createIndexForLinkedAccount(
+    environmentId: string,
     linkedAccountId: string,
     integrationKey: string,
     collectionKey: string
   ): Promise<boolean> {
     try {
       const elastic = ElasticClient.getInstance();
-      return await elastic.createIndex({ linkedAccountId, integrationKey, collectionKey });
-    } catch (err) {
-      await errorService.reportError(err);
-      return false;
-    }
-  }
-
-  public async isMultimodalEnabled(linkedAccountId: string): Promise<boolean> {
-    try {
-      const linkedAccount = await database.linkedAccount.findUnique({
-        where: { id: linkedAccountId, deleted_at: null },
-        select: { environment: { select: { multimodal_enabled: true } } },
+      return await elastic.createIndex({
+        environmentId,
+        linkedAccountId,
+        integrationKey,
+        collectionKey,
       });
-
-      return linkedAccount ? linkedAccount.environment.multimodal_enabled : false;
     } catch (err) {
       await errorService.reportError(err);
       return false;

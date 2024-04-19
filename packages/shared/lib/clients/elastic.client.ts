@@ -79,12 +79,95 @@ class ElasticClient {
     collectionKey: string;
     queryOptions: QueryOptions;
   }) {
-    return this.queries.query({
-      environmentId: linkedAccount.environment_id,
-      linkedAccountId: linkedAccount.id,
-      integrationKey: linkedAccount.integration_key,
-      collectionKey,
+    const indexName = ElasticClient.formatIndexName(linkedAccount.id, collectionKey);
+    const providerCollection = await providerService.getProviderCollection(
+      linkedAccount.integration_key,
+      collectionKey
+    );
+
+    if (!providerCollection) {
+      throw new Error(
+        `Failed to get collection ${collectionKey} for provider ${linkedAccount.integration_key}`
+      );
+    }
+
+    const schemaProperties = providerCollection.schema.properties;
+
+    if (!queryOptions?.query) {
+      const emptyHits = await this.queries.emptyQuery({
+        indexName,
+        queryOptions,
+      });
+
+      return QueryClient.formatEmptyQueryHits({
+        hits: emptyHits,
+        schemaProperties,
+        returnProperties: queryOptions.returnProperties,
+      });
+    }
+
+    if (
+      queryOptions.type === 'keyword' ||
+      (queryOptions.type === 'hybrid' && queryOptions.alpha === 0)
+    ) {
+      const keywordHits = await this.queries.keywordQuery({
+        indexName,
+        schemaProperties,
+        queryOptions,
+      });
+
+      return QueryClient.formatQueryHits({
+        hits: keywordHits,
+        schemaProperties,
+        returnProperties: queryOptions.returnProperties,
+      });
+    }
+
+    const modelSettings = await collectionService.getCollectionModelSettings(
+      linkedAccount.environment_id,
+      linkedAccount.integration_key,
+      collectionKey
+    );
+
+    if (!modelSettings) {
+      throw new Error('Failed to get collection model settings');
+    }
+
+    const { textEmbeddingModel, multimodalEmbeddingModel, multimodalEnabled } = modelSettings;
+
+    if (
+      queryOptions.type === 'vector' ||
+      (queryOptions.type === 'hybrid' && queryOptions.alpha === 1)
+    ) {
+      const vectorHits = await this.queries.vectorQuery({
+        indexName,
+        schemaProperties,
+        queryOptions,
+        textEmbeddingModel,
+        multimodalEmbeddingModel,
+        multimodalEnabled,
+      });
+
+      return QueryClient.formatQueryHits({
+        hits: vectorHits,
+        schemaProperties,
+        returnProperties: queryOptions.returnProperties,
+      });
+    }
+
+    const hybridHits = await this.queries.hybridQuery({
+      indexName,
+      schemaProperties,
       queryOptions,
+      textEmbeddingModel,
+      multimodalEmbeddingModel,
+      multimodalEnabled,
+    });
+
+    return QueryClient.formatQueryHits({
+      hits: hybridHits,
+      schemaProperties,
+      returnProperties: queryOptions.returnProperties,
     });
   }
 
@@ -97,12 +180,39 @@ class ElasticClient {
     collectionKey: string;
     imageSearchOptions: ImageSearchOptions;
   }) {
+    const indexName = ElasticClient.formatIndexName(linkedAccount.id, collectionKey);
+    const collection = await providerService.getProviderCollection(
+      linkedAccount.integration_key,
+      collectionKey
+    );
+
+    if (!collection) {
+      throw new Error(
+        `Failed to get collection ${collectionKey} for provider ${linkedAccount.integration_key}`
+      );
+    }
+
+    const schemaProperties = collection.schema.properties;
+    const modelSettings = await collectionService.getCollectionModelSettings(
+      linkedAccount.environment_id,
+      linkedAccount.integration_key,
+      collectionKey
+    );
+
+    if (!modelSettings) {
+      throw new Error('Failed to get collection model settings');
+    }
+
+    const { multimodalEmbeddingModel, multimodalEnabled } = modelSettings;
+    if (!multimodalEnabled) {
+      throw new Error('Multimodal search is not enabled for this collection');
+    }
+
     return this.queries.imageSearch({
-      environmentId: linkedAccount.environment_id,
-      linkedAccountId: linkedAccount.id,
-      integrationKey: linkedAccount.integration_key,
-      collectionKey,
+      indexName,
+      schemaProperties,
       imageSearchOptions,
+      multimodalEmbeddingModel,
     });
   }
 
@@ -111,22 +221,45 @@ class ElasticClient {
   }
 
   public async createIndex({
+    environmentId,
     linkedAccountId,
     integrationKey,
     collectionKey,
   }: {
+    environmentId: string;
     linkedAccountId: string;
     integrationKey: string;
     collectionKey: string;
   }): Promise<boolean> {
-    const collection = await providerService.getProviderCollection(integrationKey, collectionKey);
-    if (!collection) {
+    const modelSettings = await collectionService.getCollectionModelSettings(
+      environmentId,
+      integrationKey,
+      collectionKey
+    );
+
+    if (!modelSettings) {
+      throw new Error('Failed to get collection model settings');
+    }
+
+    const providerCollection = await providerService.getProviderCollection(
+      integrationKey,
+      collectionKey
+    );
+
+    if (!providerCollection) {
       throw new Error(`Failed to get collection schema for ${collectionKey}`);
     }
 
     const properties: [string, MappingProperty][] = [['hash', { type: 'keyword', index: false }]];
-    for (const [schemaName, schemaProps] of Object.entries(collection.schema.properties)) {
-      properties.push(...IndexClient.transformProperty(schemaName, schemaProps));
+    for (const [schemaName, schemaProps] of Object.entries(providerCollection.schema.properties)) {
+      properties.push(
+        ...IndexClient.transformProperty(
+          schemaName,
+          schemaProps,
+          modelSettings.textEmbeddingModel,
+          modelSettings.multimodalEmbeddingModel
+        )
+      );
     }
 
     const indexName = ElasticClient.formatIndexName(linkedAccountId, collectionKey);
@@ -272,23 +405,25 @@ class ElasticClient {
       throw new Error(`Failed to get collection schema for ${collectionKey}`);
     }
 
-    const collection = await collectionService.retrieveCollection(
-      collectionKey,
+    const modelSettings = await collectionService.getCollectionModelSettings(
+      environmentId,
       integrationKey,
-      environmentId
+      collectionKey
     );
 
-    if (!collection) {
-      throw new Error(`Failed to get collection for linked account ${linkedAccountId}`);
+    if (!modelSettings) {
+      throw new Error('Failed to get collection model settings');
     }
 
+    const { textEmbeddingModel, multimodalEmbeddingModel } = modelSettings;
+    const schemaProperties = providerCollection.schema.properties;
     const vectorizedObjects: Record<string, any>[] = [];
 
     for (const obj of objects) {
       const vectorizedObject = await this.vectorizeObject({
-        textEmbeddingModel: collection.text_embedding_model as TextEmbeddingModel,
-        multimodalEmbeddingModel: collection.multimodal_embedding_model as MultimodalEmbeddingModel,
-        schemaProperties: providerCollection.schema.properties,
+        textEmbeddingModel,
+        multimodalEmbeddingModel,
+        schemaProperties,
         obj,
       });
 
@@ -328,20 +463,23 @@ class ElasticClient {
       throw new Error(`Failed to get collection schema for ${collectionKey}`);
     }
 
-    const collection = await collectionService.retrieveCollection(
-      collectionKey,
+    const modelSettings = await collectionService.getCollectionModelSettings(
+      environmentId,
       integrationKey,
-      environmentId
+      collectionKey
     );
 
-    if (!collection) {
-      throw new Error(`Failed to get collection for linked account ${linkedAccountId}`);
+    if (!modelSettings) {
+      throw new Error('Failed to get collection model settings');
     }
 
+    const { textEmbeddingModel, multimodalEmbeddingModel } = modelSettings;
+    const schemaProperties = providerCollection.schema.properties;
+
     const vectorObj = await this.vectorizeObject({
-      textEmbeddingModel: collection.text_embedding_model as TextEmbeddingModel,
-      multimodalEmbeddingModel: collection.multimodal_embedding_model as MultimodalEmbeddingModel,
-      schemaProperties: providerCollection.schema.properties,
+      textEmbeddingModel,
+      multimodalEmbeddingModel,
+      schemaProperties,
       obj: object,
     });
 
@@ -381,16 +519,18 @@ class ElasticClient {
       throw new Error(`Failed to get collection schema for ${collectionKey}`);
     }
 
-    const collection = await collectionService.retrieveCollection(
-      collectionKey,
+    const modelSettings = await collectionService.getCollectionModelSettings(
+      environmentId,
       integrationKey,
-      environmentId
+      collectionKey
     );
 
-    if (!collection) {
-      throw new Error(`Failed to get collection for linked account ${linkedAccountId}`);
+    if (!modelSettings) {
+      throw new Error('Failed to get collection model settings');
     }
 
+    const { textEmbeddingModel, multimodalEmbeddingModel } = modelSettings;
+    const schemaProperties = providerCollection.schema.properties;
     const indexName = ElasticClient.formatIndexName(linkedAccountId, collectionKey);
 
     const results = await this.elastic.search({
@@ -413,9 +553,9 @@ class ElasticClient {
     for (const { id, _id } of matchingObjects) {
       const obj = objects.find((obj) => obj.id === id)!;
       const vectorObj = await this.vectorizeObject({
-        textEmbeddingModel: collection.text_embedding_model as TextEmbeddingModel,
-        multimodalEmbeddingModel: collection.multimodal_embedding_model as MultimodalEmbeddingModel,
-        schemaProperties: providerCollection.schema.properties,
+        textEmbeddingModel,
+        multimodalEmbeddingModel,
+        schemaProperties,
         obj,
       });
 

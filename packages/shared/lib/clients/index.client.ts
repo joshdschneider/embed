@@ -1,10 +1,17 @@
 import { MappingProperty } from '@elastic/elasticsearch/lib/api/types';
 import { CollectionProperty } from '@embed/providers';
+import {
+  MultimodalEmbeddingModel,
+  TextEmbeddingModel,
+  embeddingModelDimensions,
+} from '../utils/enums';
 
 export class IndexClient {
   public static transformStringProperty(
     name: string,
-    prop: CollectionProperty
+    prop: CollectionProperty,
+    textEmbeddingModel: TextEmbeddingModel,
+    multimodalEmbeddingModel: MultimodalEmbeddingModel
   ): [string, MappingProperty][] {
     let mappingProperty: MappingProperty;
 
@@ -21,7 +28,14 @@ export class IndexClient {
     const mappingProperties: [string, MappingProperty][] = [[name, mappingProperty]];
 
     if (prop.vector_searchable) {
-      mappingProperties.push([`${name}_vector`, { type: 'dense_vector' }]);
+      let dims: number;
+      if (prop.multimodal) {
+        dims = embeddingModelDimensions[multimodalEmbeddingModel];
+      } else {
+        dims = embeddingModelDimensions[textEmbeddingModel];
+      }
+
+      mappingProperties.push([`${name}_vector`, { type: 'dense_vector', dims }]);
     }
 
     return mappingProperties;
@@ -66,7 +80,9 @@ export class IndexClient {
 
   public static transformNestedProperty(
     name: string,
-    prop: CollectionProperty
+    prop: CollectionProperty,
+    textEmbeddingModel: TextEmbeddingModel,
+    multimodalEmbeddingModel: MultimodalEmbeddingModel
   ): [string, MappingProperty][] {
     if (!prop.properties) {
       throw new Error('Nested property missing properties');
@@ -74,7 +90,14 @@ export class IndexClient {
 
     const properties: [string, MappingProperty][] = [['hash', { type: 'keyword', index: false }]];
     for (const [nestedName, nestedProp] of Object.entries(prop.properties)) {
-      properties.push(...IndexClient.transformProperty(nestedName, nestedProp));
+      properties.push(
+        ...IndexClient.transformProperty(
+          nestedName,
+          nestedProp,
+          textEmbeddingModel,
+          multimodalEmbeddingModel
+        )
+      );
     }
 
     return [[name, { type: 'nested', properties: Object.fromEntries(properties) }]];
@@ -82,11 +105,18 @@ export class IndexClient {
 
   public static transformProperty(
     name: string,
-    prop: CollectionProperty
+    prop: CollectionProperty,
+    textEmbeddingModel: TextEmbeddingModel,
+    multimodalEmbeddingModel: MultimodalEmbeddingModel
   ): [string, MappingProperty][] {
     switch (prop.type) {
       case 'string':
-        return IndexClient.transformStringProperty(name, prop);
+        return IndexClient.transformStringProperty(
+          name,
+          prop,
+          textEmbeddingModel,
+          multimodalEmbeddingModel
+        );
       case 'number':
         return [[name, { type: 'float', index: prop.filterable }]];
       case 'integer':
@@ -100,7 +130,12 @@ export class IndexClient {
       case 'array':
         return IndexClient.transformArrayProperty(name, prop);
       case 'nested':
-        return IndexClient.transformNestedProperty(name, prop);
+        return IndexClient.transformNestedProperty(
+          name,
+          prop,
+          textEmbeddingModel,
+          multimodalEmbeddingModel
+        );
 
       default:
         throw new Error(`Unsupported property type: ${prop.type}`);

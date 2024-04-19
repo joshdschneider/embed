@@ -11,7 +11,7 @@ interface ErrorObject {
 class ErrorService {
   public async reportError(err: unknown) {
     if (!isProd()) {
-      console.error(err);
+      console.dir(err, { depth: null });
     } else {
       logger.error(`Exception caught: ${JSON.stringify(err, Object.getOwnPropertyNames(err))}`);
     }

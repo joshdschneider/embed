@@ -126,8 +126,9 @@ export interface CollectionObject {
   default_sync_frequency: string;
   auto_start_sync: boolean;
   exclude_properties_from_sync: string[];
-  text_embedding_model: string;
-  multimodal_embedding_model: string;
+  text_embedding_model_override: string | null;
+  multimodal_embedding_model_override: string | null;
+  multimodal_enabled_override: boolean | null;
   created_at: number;
   updated_at: number;
 }

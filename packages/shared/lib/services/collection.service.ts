@@ -1,6 +1,7 @@
 import { Collection, LinkedAccount } from '@prisma/client';
 import ElasticClient from '../clients/elastic.client';
 import { database } from '../utils/database';
+import { MultimodalEmbeddingModel, TextEmbeddingModel } from '../utils/enums';
 import { now } from '../utils/helpers';
 import { ImageSearchOptions, QueryOptions } from '../utils/types';
 import errorService from './error.service';
@@ -119,6 +120,63 @@ class CollectionService {
         collectionKey,
         imageSearchOptions,
       });
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
+    }
+  }
+
+  public async getCollectionModelSettings(
+    environmentId: string,
+    integrationKey: string,
+    collectionKey: string
+  ): Promise<{
+    textEmbeddingModel: TextEmbeddingModel;
+    multimodalEmbeddingModel: MultimodalEmbeddingModel;
+    multimodalEnabled: boolean;
+  } | null> {
+    try {
+      const collection = await database.collection.findUnique({
+        where: {
+          unique_key_integration_key_environment_id: {
+            unique_key: collectionKey,
+            integration_key: integrationKey,
+            environment_id: environmentId,
+          },
+          deleted_at: null,
+        },
+        include: {
+          integration: { select: { environment: true } },
+        },
+      });
+
+      if (!collection) {
+        throw new Error('Failed to get default collection settings');
+      }
+
+      const {
+        text_embedding_model_override,
+        multimodal_embedding_model_override,
+        multimodal_enabled_override,
+        integration,
+      } = collection;
+
+      const {
+        default_text_embedding_model,
+        default_multimodal_embedding_model,
+        multimodal_enabled_by_default,
+      } = integration.environment;
+
+      const textEmbeddingModel = text_embedding_model_override || default_text_embedding_model;
+      const multimodalEmbeddingModel =
+        multimodal_embedding_model_override || default_multimodal_embedding_model;
+      const multimodalEnabled = multimodal_enabled_override ?? multimodal_enabled_by_default;
+
+      return {
+        textEmbeddingModel: textEmbeddingModel as TextEmbeddingModel,
+        multimodalEmbeddingModel: multimodalEmbeddingModel as MultimodalEmbeddingModel,
+        multimodalEnabled,
+      };
     } catch (err) {
       await errorService.reportError(err);
       return null;
