@@ -8,7 +8,8 @@
     "tsc": "tsc",
     "build": "run-s tsc copy",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "nodemon --exec 'node dist/index.js' --watch lib --ext 'ts,js,json,ejs'"
+    "start": "node dist/index.js",
+    "dev": "nodemon"
   },
   "dependencies": {
     "@embed/shared": "^0.1.0",

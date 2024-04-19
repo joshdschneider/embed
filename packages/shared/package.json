@@ -8,7 +8,7 @@
     "database:migrate": "npx prisma migrate dev",
     "build": "tsc && ts-node scripts/credentials",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "node dist/worker.js"
+    "dev": "nodemon"
   },
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.529.1",
