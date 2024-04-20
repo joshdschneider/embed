@@ -235,13 +235,7 @@ export type InternalProxyOptions = Omit<ProxyOptions, 'linkedAccountId'>;
 
 export type MethodProxyOptions = Omit<InternalProxyOptions, 'method'>;
 
-enum LogLevel {
-  Info = 'info',
-  Debug = 'debug',
-  Error = 'error',
-  Warn = 'warn',
-  Verbose = 'verbose',
-}
+type LogLevel = 'info' | 'debug' | 'error' | 'warn' | 'verbose';
 
 type ActivityLog = {
   id: string;
@@ -258,7 +252,7 @@ export interface SourceObject {
 }
 
 export declare class BaseContext {
-  activityId?: string | null;
+  activityId: string | null;
   proxy<T = any>(options: InternalProxyOptions): Promise<AxiosResponse<T>>;
   get<T = any>(options: MethodProxyOptions): Promise<AxiosResponse<T>>;
   post<T = any>(options: MethodProxyOptions): Promise<AxiosResponse<T>>;
@@ -271,7 +265,6 @@ export declare class BaseContext {
     level: LogLevel;
     message: string;
     payload?: object | undefined;
-    timestamp: number;
   }): Promise<ActivityLog | null>;
 }
 

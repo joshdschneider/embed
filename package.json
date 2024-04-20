@@ -13,6 +13,10 @@
     "database:generate": "npm run database:generate -w @embed/shared",
     "database:migrate": "npm run database:migrate -w @embed/shared",
     "clean:all": "npm run clean --workspaces",
+    "build:providers": "npm run build -w @embed/providers",
+    "build:server": "npm run build -w @embed/server",
+    "build:shared": "npm run build -w @embed/shared",
+    "build:worker": "npm run build -w @embed/worker",
     "build:all": "npm run build --workspaces",
     "test:all": "npm run test --workspaces",
     "dev": "concurrently \"npm run dev -w @embed/providers\" \"npm run dev -w @embed/shared\" \"npm run dev -w @embed/server\" \"npm run dev -w @embed/worker\""

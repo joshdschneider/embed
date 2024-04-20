@@ -231,48 +231,55 @@ class ElasticClient {
     integrationKey: string;
     collectionKey: string;
   }): Promise<boolean> {
-    const modelSettings = await collectionService.getCollectionModelSettings(
-      environmentId,
-      integrationKey,
-      collectionKey
-    );
-
-    if (!modelSettings) {
-      throw new Error('Failed to get collection model settings');
-    }
-
-    const providerCollection = await providerService.getProviderCollection(
-      integrationKey,
-      collectionKey
-    );
-
-    if (!providerCollection) {
-      throw new Error(`Failed to get collection schema for ${collectionKey}`);
-    }
-
-    const properties: [string, MappingProperty][] = [['hash', { type: 'keyword', index: false }]];
-    for (const [schemaName, schemaProps] of Object.entries(providerCollection.schema.properties)) {
-      properties.push(
-        ...IndexClient.transformProperty(
-          schemaName,
-          schemaProps,
-          modelSettings.textEmbeddingModel,
-          modelSettings.multimodalEmbeddingModel
-        )
+    try {
+      const modelSettings = await collectionService.getCollectionModelSettings(
+        environmentId,
+        integrationKey,
+        collectionKey
       );
+
+      if (!modelSettings) {
+        throw new Error('Failed to get collection model settings');
+      }
+
+      const providerCollection = await providerService.getProviderCollection(
+        integrationKey,
+        collectionKey
+      );
+
+      if (!providerCollection) {
+        throw new Error(`Failed to get collection schema for ${collectionKey}`);
+      }
+
+      const properties: [string, MappingProperty][] = [['hash', { type: 'keyword', index: false }]];
+      for (const [schemaName, schemaProps] of Object.entries(
+        providerCollection.schema.properties
+      )) {
+        properties.push(
+          ...IndexClient.transformProperty(
+            schemaName,
+            schemaProps,
+            modelSettings.textEmbeddingModel,
+            modelSettings.multimodalEmbeddingModel
+          )
+        );
+      }
+
+      const indexName = ElasticClient.formatIndexName(linkedAccountId, collectionKey);
+      const index: IndicesCreateRequest = {
+        index: indexName,
+        mappings: {
+          dynamic: 'strict',
+          properties: Object.fromEntries(properties),
+        },
+      };
+
+      const res = await this.elastic.indices.create(index);
+      return res.acknowledged;
+    } catch (err) {
+      await errorService.reportError(err);
+      return false;
     }
-
-    const indexName = ElasticClient.formatIndexName(linkedAccountId, collectionKey);
-    const index: IndicesCreateRequest = {
-      index: indexName,
-      mappings: {
-        dynamic: 'strict',
-        properties: Object.fromEntries(properties),
-      },
-    };
-
-    const res = await this.elastic.indices.create(index);
-    return res.acknowledged;
   }
 
   private async vectorizeObject({
@@ -396,49 +403,57 @@ class ElasticClient {
       return true;
     }
 
-    const providerCollection = await providerService.getProviderCollection(
-      integrationKey,
-      collectionKey
-    );
+    try {
+      const providerCollection = await providerService.getProviderCollection(
+        integrationKey,
+        collectionKey
+      );
 
-    if (!providerCollection) {
-      throw new Error(`Failed to get collection schema for ${collectionKey}`);
-    }
+      if (!providerCollection) {
+        throw new Error(`Failed to get collection schema for ${collectionKey}`);
+      }
 
-    const modelSettings = await collectionService.getCollectionModelSettings(
-      environmentId,
-      integrationKey,
-      collectionKey
-    );
+      const modelSettings = await collectionService.getCollectionModelSettings(
+        environmentId,
+        integrationKey,
+        collectionKey
+      );
 
-    if (!modelSettings) {
-      throw new Error('Failed to get collection model settings');
-    }
+      if (!modelSettings) {
+        throw new Error('Failed to get collection model settings');
+      }
 
-    const { textEmbeddingModel, multimodalEmbeddingModel } = modelSettings;
-    const schemaProperties = providerCollection.schema.properties;
-    const vectorizedObjects: Record<string, any>[] = [];
+      const { textEmbeddingModel, multimodalEmbeddingModel } = modelSettings;
+      const schemaProperties = providerCollection.schema.properties;
+      const vectorizedObjects: Record<string, any>[] = [];
 
-    for (const obj of objects) {
-      const vectorizedObject = await this.vectorizeObject({
-        textEmbeddingModel,
-        multimodalEmbeddingModel,
-        schemaProperties,
+      for (const obj of objects) {
+        const vectorizedObject = await this.vectorizeObject({
+          textEmbeddingModel,
+          multimodalEmbeddingModel,
+          schemaProperties,
+          obj,
+        });
+
+        vectorizedObjects.push(vectorizedObject);
+      }
+
+      const indexName = ElasticClient.formatIndexName(linkedAccountId, collectionKey);
+      const operations = vectorizedObjects.flatMap((obj) => [
+        { index: { _index: indexName } },
         obj,
+      ]);
+
+      const bulkResponse = await this.elastic.bulk({
+        refresh: true,
+        operations,
       });
 
-      vectorizedObjects.push(vectorizedObject);
+      return bulkResponse.errors === false;
+    } catch (err) {
+      await errorService.reportError(err);
+      return false;
     }
-
-    const indexName = ElasticClient.formatIndexName(linkedAccountId, collectionKey);
-    const operations = vectorizedObjects.flatMap((obj) => [{ index: { _index: indexName } }, obj]);
-
-    const bulkResponse = await this.elastic.bulk({
-      refresh: true,
-      operations,
-    });
-
-    return bulkResponse.errors === false;
   }
 
   public async upsertObject({
@@ -454,43 +469,48 @@ class ElasticClient {
     collectionKey: string;
     object: SourceObjectWithHash;
   }): Promise<boolean> {
-    const providerCollection = await providerService.getProviderCollection(
-      integrationKey,
-      collectionKey
-    );
+    try {
+      const providerCollection = await providerService.getProviderCollection(
+        integrationKey,
+        collectionKey
+      );
 
-    if (!providerCollection) {
-      throw new Error(`Failed to get collection schema for ${collectionKey}`);
+      if (!providerCollection) {
+        throw new Error(`Failed to get collection schema for ${collectionKey}`);
+      }
+
+      const modelSettings = await collectionService.getCollectionModelSettings(
+        environmentId,
+        integrationKey,
+        collectionKey
+      );
+
+      if (!modelSettings) {
+        throw new Error('Failed to get collection model settings');
+      }
+
+      const { textEmbeddingModel, multimodalEmbeddingModel } = modelSettings;
+      const schemaProperties = providerCollection.schema.properties;
+
+      const vectorObj = await this.vectorizeObject({
+        textEmbeddingModel,
+        multimodalEmbeddingModel,
+        schemaProperties,
+        obj: object,
+      });
+
+      const indexName = ElasticClient.formatIndexName(linkedAccountId, collectionKey);
+
+      const response = await this.elastic.index({
+        index: indexName,
+        document: vectorObj,
+      });
+
+      return response.result === 'created' || response.result === 'updated';
+    } catch (err) {
+      await errorService.reportError(err);
+      return false;
     }
-
-    const modelSettings = await collectionService.getCollectionModelSettings(
-      environmentId,
-      integrationKey,
-      collectionKey
-    );
-
-    if (!modelSettings) {
-      throw new Error('Failed to get collection model settings');
-    }
-
-    const { textEmbeddingModel, multimodalEmbeddingModel } = modelSettings;
-    const schemaProperties = providerCollection.schema.properties;
-
-    const vectorObj = await this.vectorizeObject({
-      textEmbeddingModel,
-      multimodalEmbeddingModel,
-      schemaProperties,
-      obj: object,
-    });
-
-    const indexName = ElasticClient.formatIndexName(linkedAccountId, collectionKey);
-
-    const response = await this.elastic.index({
-      index: indexName,
-      document: vectorObj,
-    });
-
-    return response.result === 'created' || response.result === 'updated';
   }
 
   public async updateObjects({
@@ -510,65 +530,70 @@ class ElasticClient {
       return true;
     }
 
-    const providerCollection = await providerService.getProviderCollection(
-      integrationKey,
-      collectionKey
-    );
+    try {
+      const providerCollection = await providerService.getProviderCollection(
+        integrationKey,
+        collectionKey
+      );
 
-    if (!providerCollection) {
-      throw new Error(`Failed to get collection schema for ${collectionKey}`);
-    }
+      if (!providerCollection) {
+        throw new Error(`Failed to get collection schema for ${collectionKey}`);
+      }
 
-    const modelSettings = await collectionService.getCollectionModelSettings(
-      environmentId,
-      integrationKey,
-      collectionKey
-    );
+      const modelSettings = await collectionService.getCollectionModelSettings(
+        environmentId,
+        integrationKey,
+        collectionKey
+      );
 
-    if (!modelSettings) {
-      throw new Error('Failed to get collection model settings');
-    }
+      if (!modelSettings) {
+        throw new Error('Failed to get collection model settings');
+      }
 
-    const { textEmbeddingModel, multimodalEmbeddingModel } = modelSettings;
-    const schemaProperties = providerCollection.schema.properties;
-    const indexName = ElasticClient.formatIndexName(linkedAccountId, collectionKey);
+      const { textEmbeddingModel, multimodalEmbeddingModel } = modelSettings;
+      const schemaProperties = providerCollection.schema.properties;
+      const indexName = ElasticClient.formatIndexName(linkedAccountId, collectionKey);
 
-    const results = await this.elastic.search({
-      index: indexName,
-      query: { terms: { 'id.keyword': objects.map((obj) => obj.id) } },
-      _source: ['id'],
-    });
-
-    const matchingObjects = results.hits.hits.map((hit: SearchHit<any>) => ({
-      _id: hit._id,
-      id: hit._source.id,
-    }));
-
-    if (matchingObjects.length === 0) {
-      return true;
-    }
-
-    const operations: object[] = [];
-
-    for (const { id, _id } of matchingObjects) {
-      const obj = objects.find((obj) => obj.id === id)!;
-      const vectorObj = await this.vectorizeObject({
-        textEmbeddingModel,
-        multimodalEmbeddingModel,
-        schemaProperties,
-        obj,
+      const results = await this.elastic.search({
+        index: indexName,
+        query: { terms: { 'id.keyword': objects.map((obj) => obj.id) } },
+        _source: ['id'],
       });
 
-      operations.push({ update: { _index: indexName, _id } });
-      operations.push({ doc: vectorObj });
+      const matchingObjects = results.hits.hits.map((hit: SearchHit<any>) => ({
+        _id: hit._id,
+        id: hit._source.id,
+      }));
+
+      if (matchingObjects.length !== objects.length) {
+        throw new Error('Mismatch between objects to update and objects found in index');
+      }
+
+      const operations: object[] = [];
+
+      for (const { id, _id } of matchingObjects) {
+        const obj = objects.find((obj) => obj.id === id)!;
+        const vectorObj = await this.vectorizeObject({
+          textEmbeddingModel,
+          multimodalEmbeddingModel,
+          schemaProperties,
+          obj,
+        });
+
+        operations.push({ update: { _index: indexName, _id } });
+        operations.push({ doc: vectorObj });
+      }
+
+      const bulkResponse = await this.elastic.bulk({
+        refresh: true,
+        operations,
+      });
+
+      return bulkResponse.errors === false;
+    } catch (err) {
+      await errorService.reportError(err);
+      return false;
     }
-
-    const bulkResponse = await this.elastic.bulk({
-      refresh: true,
-      operations,
-    });
-
-    return bulkResponse.errors === false;
   }
 
   public async deleteObjects({
@@ -584,13 +609,18 @@ class ElasticClient {
       return true;
     }
 
-    const indexName = ElasticClient.formatIndexName(linkedAccountId, collectionKey);
-    const response = await this.elastic.deleteByQuery({
-      index: indexName,
-      query: { terms: { 'id.keyword': objectIds } },
-    });
+    try {
+      const indexName = ElasticClient.formatIndexName(linkedAccountId, collectionKey);
+      const response = await this.elastic.deleteByQuery({
+        index: indexName,
+        query: { terms: { 'id.keyword': objectIds } },
+      });
 
-    return response.failures?.length === 0;
+      return response.failures?.length === 0;
+    } catch (err) {
+      await errorService.reportError(err);
+      return false;
+    }
   }
 
   public async deleteAllObjects({
@@ -600,13 +630,18 @@ class ElasticClient {
     linkedAccountId: string;
     collectionKey: string;
   }): Promise<boolean> {
-    const indexName = ElasticClient.formatIndexName(linkedAccountId, collectionKey);
-    const response = await this.elastic.deleteByQuery({
-      index: indexName,
-      query: { match_all: {} },
-    });
+    try {
+      const indexName = ElasticClient.formatIndexName(linkedAccountId, collectionKey);
+      const response = await this.elastic.deleteByQuery({
+        index: indexName,
+        query: { match_all: {} },
+      });
 
-    return response.failures?.length === 0;
+      return response.failures?.length === 0;
+    } catch (err) {
+      await errorService.reportError(err);
+      return false;
+    }
   }
 
   public async deleteIndex(linkedAccountId: string, collectionKey: string): Promise<boolean> {

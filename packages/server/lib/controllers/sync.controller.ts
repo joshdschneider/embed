@@ -1,16 +1,10 @@
 import {
   DEFAULT_ERROR_MESSAGE,
   ErrorCode,
-  LogAction,
-  LogLevel,
-  Resource,
   SyncRunStatus,
   SyncStatus,
-  activityService,
   errorService,
-  generateId,
   linkedAccountService,
-  now,
   syncService,
 } from '@embed/shared';
 import type { Request, Response } from 'express';
@@ -200,7 +194,6 @@ class SyncController {
     }
 
     const sync = await syncService.retrieveSync(linkedAccountId, collectionKey);
-
     if (!sync) {
       return errorService.errorResponse(res, {
         code: ErrorCode.NotFound,
@@ -208,22 +201,8 @@ class SyncController {
       });
     }
 
-    const activityId = await activityService.createActivity({
-      id: generateId(Resource.Activity),
-      environment_id: sync.environment_id,
-      integration_key: sync.integration_key,
-      linked_account_id: sync.linked_account_id,
-      collection_key: sync.collection_key,
-      link_token_id: null,
-      action_key: null,
-      level: LogLevel.Info,
-      action: LogAction.Sync,
-      timestamp: now(),
-    });
-
     try {
-      const startedSync = await syncService.startSync(sync, activityId);
-
+      const startedSync = await syncService.startSync(sync);
       if (!startedSync) {
         return errorService.errorResponse(res, {
           code: ErrorCode.InternalServerError,
@@ -271,7 +250,6 @@ class SyncController {
     }
 
     const sync = await syncService.retrieveSync(linkedAccountId, collectionKey);
-
     if (!sync) {
       return errorService.errorResponse(res, {
         code: ErrorCode.NotFound,
@@ -279,22 +257,8 @@ class SyncController {
       });
     }
 
-    const activityId = await activityService.createActivity({
-      id: generateId(Resource.Activity),
-      environment_id: sync.environment_id,
-      integration_key: sync.integration_key,
-      linked_account_id: sync.linked_account_id,
-      collection_key: sync.collection_key,
-      link_token_id: null,
-      action_key: null,
-      level: LogLevel.Info,
-      action: LogAction.Sync,
-      timestamp: now(),
-    });
-
     try {
-      const stoppedSync = await syncService.stopSync(sync, activityId);
-
+      const stoppedSync = await syncService.stopSync(sync);
       if (!stoppedSync) {
         throw new Error('Failed to stop sync');
       }
@@ -314,12 +278,6 @@ class SyncController {
       res.status(200).json(syncObject);
     } catch (err) {
       await errorService.reportError(err);
-
-      await activityService.createActivityLog(activityId, {
-        level: LogLevel.Error,
-        timestamp: now(),
-        message: 'Failed to stop sync',
-      });
 
       return errorService.errorResponse(res, {
         code: ErrorCode.InternalServerError,
@@ -352,21 +310,8 @@ class SyncController {
       });
     }
 
-    const activityId = await activityService.createActivity({
-      id: generateId(Resource.Activity),
-      environment_id: sync.environment_id,
-      integration_key: sync.integration_key,
-      linked_account_id: sync.linked_account_id,
-      collection_key: sync.collection_key,
-      link_token_id: null,
-      action_key: null,
-      level: LogLevel.Info,
-      action: LogAction.Sync,
-      timestamp: now(),
-    });
-
     try {
-      const triggeredSync = await syncService.triggerSync(sync, activityId);
+      const triggeredSync = await syncService.triggerSync(sync);
       if (!triggeredSync) {
         return errorService.errorResponse(res, {
           code: ErrorCode.InternalServerError,
@@ -389,12 +334,6 @@ class SyncController {
       res.status(200).json(syncObject);
     } catch (err) {
       await errorService.reportError(err);
-
-      await activityService.createActivityLog(activityId, {
-        level: LogLevel.Error,
-        timestamp: now(),
-        message: 'Failed to trigger sync',
-      });
 
       return errorService.errorResponse(res, {
         code: ErrorCode.InternalServerError,
@@ -421,7 +360,6 @@ class SyncController {
 
     try {
       const syncRuns = await syncService.listSyncRuns(linkedAccountId, collectionKey);
-
       if (!syncRuns) {
         return errorService.errorResponse(res, {
           code: ErrorCode.InternalServerError,
