@@ -223,6 +223,12 @@ async function processPdf(file: GoogleDriveFile, context: SyncContext): Promise<
 
     return [];
   } catch (err) {
+    await context.createActivityLog({
+      level: 'warn',
+      message: 'Failed to process .pdf file',
+      payload: { file },
+    });
+
     await context.reportError(err);
     return [];
   }
@@ -255,6 +261,12 @@ async function processDocx(file: GoogleDriveFile, context: SyncContext): Promise
 
     return [];
   } catch (err) {
+    await context.createActivityLog({
+      level: 'warn',
+      message: 'Failed to process .docx file',
+      payload: { file },
+    });
+
     await context.reportError(err);
     return [];
   }
@@ -287,6 +299,12 @@ async function processPptx(file: GoogleDriveFile, context: SyncContext): Promise
 
     return [];
   } catch (err) {
+    await context.createActivityLog({
+      level: 'warn',
+      message: 'Failed to process .pptx file',
+      payload: { file },
+    });
+
     await context.reportError(err);
     return [];
   }
@@ -308,6 +326,12 @@ async function processText(file: GoogleDriveFile, context: SyncContext): Promise
     const output = await splitter.createDocuments([response.data]);
     return output.map((doc) => doc.pageContent);
   } catch (err) {
+    await context.createActivityLog({
+      level: 'warn',
+      message: 'Failed to process .txt file',
+      payload: { file },
+    });
+
     await context.reportError(err);
     return [];
   }
@@ -331,6 +355,12 @@ async function processJson(file: GoogleDriveFile, context: SyncContext): Promise
     const output = await splitter.createDocuments([jsonString]);
     return output.map((doc) => doc.pageContent);
   } catch (err) {
+    await context.createActivityLog({
+      level: 'warn',
+      message: 'Failed to process .json file',
+      payload: { file },
+    });
+
     await context.reportError(err);
     return [];
   }
@@ -351,6 +381,12 @@ async function processImage(file: GoogleDriveFile, context: SyncContext): Promis
 
     return Buffer.from(response.data, 'binary').toString('base64');
   } catch (err) {
+    await context.createActivityLog({
+      level: 'warn',
+      message: 'Failed to process image file',
+      payload: { file },
+    });
+
     await context.reportError(err);
     return null;
   }
@@ -399,6 +435,12 @@ async function processAudio(file: GoogleDriveFile, context: SyncContext): Promis
     const output = await splitter.createDocuments([content]);
     return output.map((doc) => doc.pageContent);
   } catch (err) {
+    await context.createActivityLog({
+      level: 'warn',
+      message: 'Failed to process audio file',
+      payload: { file },
+    });
+
     await context.reportError(err);
     return [];
   }

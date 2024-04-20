@@ -1,10 +1,13 @@
 import { Registry } from '@embed/providers';
 import {
   ActionArgs,
+  LogAction,
+  LogLevel,
   Resource,
   SyncArgs,
   SyncContext,
   SyncRunStatus,
+  activityService,
   collectionService,
   errorService,
   generateId,
@@ -16,11 +19,48 @@ import { TerminatedFailure, TimeoutFailure } from '@temporalio/workflow';
 import { ActionFailureArgs, SyncFailureArgs } from './types';
 
 export async function triggerSync(args: SyncArgs): Promise<void> {
+  const activityId = await activityService.createActivity({
+    id: generateId(Resource.Activity),
+    environment_id: args.environmentId,
+    integration_key: args.integrationKey,
+    linked_account_id: args.linkedAccountId,
+    link_token_id: null,
+    action_key: null,
+    collection_key: args.collectionKey,
+    level: LogLevel.Info,
+    action: LogAction.SyncRun,
+    timestamp: now(),
+  });
+
+  const sync = await syncService.retrieveSync(args.linkedAccountId, args.collectionKey);
+  if (!sync) {
+    const err = new Error('Sync not found in the database');
+    await activityService.createActivityLog(activityId, {
+      message: 'Sync failed',
+      level: LogLevel.Error,
+      timestamp: now(),
+      payload: { error: err.message },
+    });
+
+    return await errorService.reportError(err);
+  }
+
+  await activityService.createActivityLog(activityId, {
+    message: 'Sync started',
+    level: LogLevel.Info,
+    timestamp: now(),
+    payload: {
+      integration: args.integrationKey,
+      collection: args.collectionKey,
+      linked_account: args.linkedAccountId,
+    },
+  });
+
   const temporalRunId = Context.current().info.workflowExecution.runId;
   const syncRun = await syncService.createSyncRun({
     id: generateId(Resource.SyncRun),
-    linked_account_id: args.linkedAccountId,
-    collection_key: args.collectionKey,
+    linked_account_id: sync.linked_account_id,
+    collection_key: sync.collection_key,
     status: SyncRunStatus.Running,
     temporal_run_id: temporalRunId,
     records_added: 0,
@@ -32,16 +72,23 @@ export async function triggerSync(args: SyncArgs): Promise<void> {
 
   if (!syncRun) {
     const err = new Error('Failed to create sync run in the database');
-    await syncService.handleSyncFailure(args.linkedAccountId, args.collectionKey);
+    await activityService.createActivityLog(activityId, {
+      message: 'Sync failed',
+      level: LogLevel.Error,
+      timestamp: now(),
+      payload: { error: err.message },
+    });
+
+    await syncService.handleSyncFailure(sync.linked_account_id, sync.collection_key);
     return await errorService.reportError(err);
   }
 
   try {
     const temporalContext: Context = Context.current();
     const modelSettings = await collectionService.getCollectionModelSettings(
-      args.environmentId,
-      args.integrationKey,
-      args.collectionKey
+      sync.environment_id,
+      sync.integration_key,
+      sync.collection_key
     );
 
     if (!modelSettings) {
@@ -49,15 +96,16 @@ export async function triggerSync(args: SyncArgs): Promise<void> {
     }
 
     const lastSyncedAt = await syncService.getLastSyncedAt(
-      args.linkedAccountId,
-      args.collectionKey
+      sync.linked_account_id,
+      sync.collection_key
     );
 
     const syncContext = new SyncContext({
-      environmentId: args.environmentId,
-      linkedAccountId: args.linkedAccountId,
-      integrationKey: args.integrationKey,
-      collectionKey: args.collectionKey,
+      environmentId: sync.environment_id,
+      linkedAccountId: sync.linked_account_id,
+      integrationKey: sync.integration_key,
+      collectionKey: sync.collection_key,
+      activityId: activityId,
       multimodalEnabled: modelSettings.multimodalEnabled,
       syncRunId: syncRun.id,
       lastSyncedAt: lastSyncedAt,
@@ -77,12 +125,23 @@ export async function triggerSync(args: SyncArgs): Promise<void> {
     await syncService.updateSync(args.linkedAccountId, args.collectionKey, {
       last_synced_at: now(),
     });
+
+    await activityService.createActivityLog(activityId, {
+      message: 'Sync completed',
+      level: LogLevel.Info,
+      timestamp: now(),
+      payload: results,
+    });
   } catch (err) {
-    await syncService.updateSyncRun(syncRun.id, {
-      status: SyncRunStatus.Failed,
+    await syncService.updateSyncRun(syncRun.id, { status: SyncRunStatus.Failed });
+    await activityService.createActivityLog(activityId, {
+      message: 'Sync failed',
+      level: LogLevel.Error,
+      timestamp: now(),
+      payload: { error: 'Internal server error' },
     });
 
-    await syncService.handleSyncFailure(args.linkedAccountId, args.collectionKey);
+    await syncService.handleSyncFailure(sync.linked_account_id, sync.collection_key);
     return await errorService.reportError(err);
   }
 }

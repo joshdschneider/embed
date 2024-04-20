@@ -3,14 +3,7 @@ import { StringValue } from 'ms';
 import ElasticClient from '../clients/elastic.client';
 import TemporalClient from '../clients/temporal.client';
 import { database } from '../utils/database';
-import {
-  LogAction,
-  LogLevel,
-  Resource,
-  SyncRunStatus,
-  SyncScheduleStatus,
-  SyncStatus,
-} from '../utils/enums';
+import { LogLevel, Resource, SyncRunStatus, SyncScheduleStatus, SyncStatus } from '../utils/enums';
 import { generateId, getFrequencyInterval, now } from '../utils/helpers';
 import activityService from './activity.service';
 import errorService from './error.service';
@@ -52,20 +45,7 @@ class SyncService {
         return;
       }
 
-      const newActivityId = await activityService.createActivity({
-        id: generateId(Resource.Activity),
-        environment_id: sync.environment_id,
-        integration_key: sync.integration_key,
-        linked_account_id: sync.linked_account_id,
-        collection_key: sync.collection_key,
-        link_token_id: null,
-        action_key: null,
-        level: LogLevel.Info,
-        action: LogAction.Sync,
-        timestamp: now(),
-      });
-
-      await this.startSync(sync, newActivityId);
+      await this.startSync(sync);
     } catch (err) {
       await errorService.reportError(err);
 
@@ -82,48 +62,23 @@ class SyncService {
     }
   }
 
-  public async startSync(sync: Sync, activityId: string | null): Promise<Sync | null> {
+  public async startSync(sync: Sync): Promise<Sync | null> {
     try {
       const syncSchedule = await this.unpauseSchedule(sync.linked_account_id, sync.collection_key);
       if (!syncSchedule) {
         throw new Error('Failed to unpause sync schedule');
       }
 
-      const updatedSync = await this.updateSync(sync.linked_account_id, sync.collection_key, {
+      return await this.updateSync(sync.linked_account_id, sync.collection_key, {
         status: SyncStatus.Running,
       });
-
-      await activityService.createActivityLog(activityId, {
-        level: LogLevel.Info,
-        message: 'Sync started',
-        timestamp: now(),
-        payload: {
-          linked_account: sync.linked_account_id,
-          integration: sync.integration_key,
-          collection: sync.collection_key,
-        },
-      });
-
-      return updatedSync;
     } catch (err) {
       await errorService.reportError(err);
-
-      await activityService.createActivityLog(activityId, {
-        level: LogLevel.Error,
-        message: 'Failed to start sync due to an internal error',
-        timestamp: now(),
-        payload: {
-          linked_account: sync.linked_account_id,
-          integration: sync.integration_key,
-          collection: sync.collection_key,
-        },
-      });
-
       return null;
     }
   }
 
-  public async stopSync(sync: Sync, activityId: string | null): Promise<Sync | null> {
+  public async stopSync(sync: Sync): Promise<Sync | null> {
     try {
       const syncRuns = await this.listSyncRuns(sync.linked_account_id, sync.collection_key);
       if (!syncRuns) {
@@ -142,41 +97,16 @@ class SyncService {
         throw new Error('Failed to unpause sync schedule');
       }
 
-      const updatedSync = await this.updateSync(sync.linked_account_id, sync.collection_key, {
+      return await this.updateSync(sync.linked_account_id, sync.collection_key, {
         status: SyncStatus.Stopped,
       });
-
-      await activityService.createActivityLog(activityId, {
-        level: LogLevel.Info,
-        message: 'Sync stopped',
-        timestamp: now(),
-        payload: {
-          linked_account: sync.linked_account_id,
-          integration: sync.integration_key,
-          collection: sync.collection_key,
-        },
-      });
-
-      return updatedSync;
     } catch (err) {
       await errorService.reportError(err);
-
-      await activityService.createActivityLog(activityId, {
-        level: LogLevel.Error,
-        message: 'Failed to stop sync due to an internal error',
-        timestamp: now(),
-        payload: {
-          linked_account: sync.linked_account_id,
-          integration: sync.integration_key,
-          collection: sync.collection_key,
-        },
-      });
-
       return null;
     }
   }
 
-  public async triggerSync(sync: Sync, activityId: string | null): Promise<Sync | null> {
+  public async triggerSync(sync: Sync): Promise<Sync | null> {
     try {
       const syncSchedule = await this.getSyncSchedule(sync.linked_account_id, sync.collection_key);
       if (!syncSchedule) {
@@ -194,32 +124,9 @@ class SyncService {
         throw new Error('Failed to trigger sync schedule in Temporal');
       }
 
-      await activityService.createActivityLog(activityId, {
-        level: LogLevel.Info,
-        message: 'Sync triggered',
-        timestamp: now(),
-        payload: {
-          linked_account: sync.linked_account_id,
-          integration: sync.integration_key,
-          collection: sync.collection_key,
-        },
-      });
-
       return sync;
     } catch (err) {
       await errorService.reportError(err);
-
-      await activityService.createActivityLog(activityId, {
-        level: LogLevel.Error,
-        message: 'Failed to trigger sync due to an internal error',
-        timestamp: now(),
-        payload: {
-          linked_account: sync.linked_account_id,
-          integration: sync.integration_key,
-          collection: sync.collection_key,
-        },
-      });
-
       return null;
     }
   }
