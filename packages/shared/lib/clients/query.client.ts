@@ -36,36 +36,44 @@ export class QueryClient {
 
   public async emptyQuery({
     indexName,
+    schemaProperties,
     queryOptions,
   }: {
     indexName: string;
+    schemaProperties: Record<string, CollectionProperty>;
     queryOptions?: QueryOptions;
-  }): Promise<SearchHit[]> {
+  }): Promise<object[]> {
     const req: SearchRequest = {
       index: indexName,
       size: queryOptions?.limit || DEFAULT_QUERY_LIMIT,
     };
 
-    if (queryOptions?.filters) {
-      const filter = QueryClient.transformFilter(queryOptions.filters);
+    if (queryOptions?.filter) {
+      const filter = QueryClient.transformFilter(queryOptions.filter, schemaProperties);
       req.query = { bool: { filter: filter } };
     } else {
       req.query = { match_all: {} };
     }
 
     const res = await this.elastic.search(req);
-    return res.hits.hits;
+    return QueryClient.formatEmptyQueryHits({
+      hits: res.hits.hits,
+      schemaProperties,
+      returnProperties: queryOptions?.returnProperties,
+    });
   }
 
   public async keywordQuery({
     indexName,
     schemaProperties,
     queryOptions,
+    noFormat,
   }: {
     indexName: string;
     schemaProperties: Record<string, CollectionProperty>;
     queryOptions: QueryOptions;
-  }): Promise<HitObject[]> {
+    noFormat?: boolean;
+  }) {
     const { query, limit } = queryOptions;
     if (!query) {
       throw new Error('Query missing for keyword search');
@@ -73,12 +81,12 @@ export class QueryClient {
 
     const should: QueryDslQueryContainer[] = [];
     const highlightFields: Record<string, SearchHighlightField> = {};
-
-    const mainProperties: string[] = [];
+    const mainProperties: string[] = ['hash'];
     const nestedProperties: string[] = [];
 
     Object.entries(schemaProperties).forEach(([name, prop]) => {
       if (prop.type === 'nested' && prop.properties) {
+        nestedProperties.push(`${name}.hash`);
         const nestedShould: QueryDslQueryContainer[] = [];
         const nestedHighlightFields: Record<string, SearchHighlightField> = {};
 
@@ -127,11 +135,11 @@ export class QueryClient {
       }
     });
 
-    const filter = queryOptions.filters
-      ? QueryClient.transformFilter(queryOptions.filters)
+    const filter = queryOptions.filter
+      ? QueryClient.transformFilter(queryOptions.filter, schemaProperties)
       : undefined;
 
-    const results = await this.elastic.search({
+    const res = await this.elastic.search({
       index: indexName,
       query: {
         bool: {
@@ -146,7 +154,22 @@ export class QueryClient {
       _source: mainProperties,
     });
 
-    return results.hits.hits.map((hit) => QueryClient.processKeywordHit(hit));
+    const keywordHits = res.hits.hits.map((hit) => {
+      return QueryClient.processKeywordHit(hit);
+    });
+
+    const nestedProps = new Set(nestedProperties.map((prop) => prop.split('.')[0]!));
+    QueryClient.normalizeScores(keywordHits, [...nestedProps]);
+
+    if (noFormat) {
+      return keywordHits;
+    }
+
+    return QueryClient.formatQueryHits({
+      hits: keywordHits,
+      schemaProperties,
+      returnProperties: queryOptions.returnProperties,
+    });
   }
 
   public async vectorQuery({
@@ -156,6 +179,7 @@ export class QueryClient {
     textEmbeddingModel,
     multimodalEmbeddingModel,
     multimodalEnabled,
+    noFormat,
   }: {
     indexName: string;
     schemaProperties: Record<string, CollectionProperty>;
@@ -163,18 +187,20 @@ export class QueryClient {
     textEmbeddingModel: TextEmbeddingModel;
     multimodalEmbeddingModel: MultimodalEmbeddingModel;
     multimodalEnabled: boolean;
-  }): Promise<HitObject[]> {
+    noFormat?: boolean;
+  }) {
     if (!queryOptions.query) {
       throw new Error('Query missing for vector search');
     }
 
-    const mainProperties: string[] = [];
+    const mainProperties: string[] = ['hash'];
     const nestedProperties: string[] = [];
     const textProperties: string[] = [];
     const multimodalProperties: string[] = [];
 
     Object.entries(schemaProperties).forEach(([name, prop]) => {
       if (prop.type === 'nested' && prop.properties) {
+        nestedProperties.push(`${name}.hash`);
         Object.entries(prop.properties).forEach(([nestedName, nestedProp]) => {
           nestedProperties.push(`${name}.${nestedName}`);
           if (nestedProp.vector_searchable) {
@@ -220,8 +246,8 @@ export class QueryClient {
       });
     }
 
-    const filter = queryOptions.filters
-      ? QueryClient.transformFilter(queryOptions.filters)
+    const filter = queryOptions.filter
+      ? QueryClient.transformFilter(queryOptions.filter, schemaProperties)
       : undefined;
 
     const textResults = textProperties.map(async (prop) => {
@@ -249,7 +275,11 @@ export class QueryClient {
           size: queryOptions.limit || DEFAULT_QUERY_LIMIT,
           _source: mainProperties,
         })
-        .then((res) => res.hits.hits.map((hit) => QueryClient.processVectorHit(prop, hit)))
+        .then((res) =>
+          res.hits.hits.map((hit) => {
+            return QueryClient.processVectorHit(prop, hit);
+          })
+        )
         .catch((err) => {
           throw err;
         });
@@ -280,7 +310,11 @@ export class QueryClient {
           size: queryOptions.limit || DEFAULT_QUERY_LIMIT,
           _source: mainProperties,
         })
-        .then((res) => res.hits.hits.map((hit) => QueryClient.processVectorHit(prop, hit)))
+        .then((res) =>
+          res.hits.hits.map((hit) => {
+            return QueryClient.processVectorHit(prop, hit);
+          })
+        )
         .catch((err) => {
           throw err;
         });
@@ -289,7 +323,19 @@ export class QueryClient {
     const results = await Promise.all([...textResults, ...multimodalResults]);
     const hits = results.flat().sort((a, b) => b._score! - a._score!);
     const nestedProps = new Set(nestedProperties.map((prop) => prop.split('.')[0]!));
-    return QueryClient.mergeHits(hits, [...nestedProps]);
+
+    QueryClient.normalizeScores(hits, [...nestedProps]);
+    const vectorHits = QueryClient.mergeHits(hits, [...nestedProps]);
+
+    if (noFormat) {
+      return vectorHits;
+    }
+
+    return QueryClient.formatQueryHits({
+      hits: vectorHits,
+      schemaProperties,
+      returnProperties: queryOptions.returnProperties,
+    });
   }
 
   public async hybridQuery({
@@ -306,11 +352,12 @@ export class QueryClient {
     textEmbeddingModel: TextEmbeddingModel;
     multimodalEmbeddingModel: MultimodalEmbeddingModel;
     multimodalEnabled: boolean;
-  }): Promise<HitObject[]> {
+  }): Promise<object[]> {
     const keywordQueryPromise = this.keywordQuery({
       indexName,
       schemaProperties,
       queryOptions,
+      noFormat: true,
     });
 
     const vectorQueryPromise = this.vectorQuery({
@@ -320,6 +367,7 @@ export class QueryClient {
       textEmbeddingModel,
       multimodalEmbeddingModel,
       multimodalEnabled,
+      noFormat: true,
     });
 
     const [keywordHits, vectorHits] = await Promise.all([keywordQueryPromise, vectorQueryPromise]);
@@ -328,23 +376,37 @@ export class QueryClient {
       .filter(([name, prop]) => prop.type === 'nested' && prop.properties)
       .map(([name, prop]) => name);
 
-    return QueryClient.blendHits(vectorHits, keywordHits, nestedProps, queryOptions.alpha);
+    const blendedHits = QueryClient.blendHits(
+      vectorHits as HitObject[],
+      keywordHits as HitObject[],
+      nestedProps,
+      queryOptions.alpha
+    );
+
+    return QueryClient.formatQueryHits({
+      hits: blendedHits,
+      schemaProperties,
+      returnProperties: queryOptions.returnProperties,
+    });
   }
 
   public async imageSearch({
     indexName,
     schemaProperties,
+    returnProperties,
     imageSearchOptions,
     multimodalEmbeddingModel,
   }: {
     indexName: string;
     schemaProperties: Record<string, CollectionProperty>;
+    returnProperties?: string[];
     imageSearchOptions: ImageSearchOptions;
     multimodalEmbeddingModel: MultimodalEmbeddingModel;
-  }): Promise<HitObject[]> {
+  }) {
     if (!imageSearchOptions.image) {
       throw new Error('Query missing for vector search');
     }
+
     const mainProperties: string[] = [];
     const nestedProperties: string[] = [];
     const multimodalProperties: string[] = [];
@@ -379,7 +441,7 @@ export class QueryClient {
     });
 
     const filter = imageSearchOptions.filters
-      ? QueryClient.transformFilter(imageSearchOptions.filters)
+      ? QueryClient.transformFilter(imageSearchOptions.filters, schemaProperties)
       : undefined;
 
     const multimodalResults = multimodalProperties.map(async (prop) => {
@@ -416,31 +478,113 @@ export class QueryClient {
     const results = await Promise.all([...multimodalResults]);
     const hits = results.flat().sort((a, b) => b._score! - a._score!);
     const nestedProps = new Set(nestedProperties.map((prop) => prop.split('.')[0]!));
-    return QueryClient.mergeHits(hits, [...nestedProps]);
+    const mergedHits = QueryClient.mergeHits(hits, [...nestedProps]);
+
+    return QueryClient.formatQueryHits({
+      hits: mergedHits,
+      schemaProperties,
+      returnProperties,
+    });
   }
 
-  private static transformFilter(filters: Filter | Filter[]): QueryDslQueryContainer[] {
+  private static normalizeScores(hits: HitObject[], nestedProps: string[]) {
+    const scores = hits.map((hit) => hit._score ?? 0).filter((score) => !isNaN(score));
+    if (scores.length === 0) {
+      return;
+    }
+
+    const minScore = Math.min(...scores);
+    const maxScore = Math.max(...scores);
+
+    if (maxScore === minScore) {
+      hits.forEach((hit) => {
+        hit._score = 1;
+        nestedProps.forEach((prop) => {
+          const nestedItems = hit._source[prop];
+          if (Array.isArray(nestedItems)) {
+            nestedItems.forEach((item) => (item._score = 1));
+          }
+        });
+      });
+      return;
+    }
+
+    hits.forEach((hit) => {
+      hit._score = ((hit._score ?? 0) - minScore) / (maxScore - minScore);
+      nestedProps.forEach((prop) => {
+        const nestedItems = hit._source[prop];
+        if (Array.isArray(nestedItems)) {
+          nestedItems.forEach((item) => {
+            item._score = ((item._score ?? 0) - minScore) / (maxScore - minScore);
+          });
+        }
+      });
+    });
+  }
+
+  private static transformFilter(
+    filters: Filter | Filter[],
+    schemaProperties: Record<string, CollectionProperty>
+  ): QueryDslQueryContainer[] {
     const queryFilter: QueryDslQueryContainer[] = [];
     const queryOptionsFilters = Array.isArray(filters) ? filters : [filters];
+
+    const mustAppendKeyword: string[] = [];
+    Object.entries(schemaProperties).forEach(([name, prop]) => {
+      if (prop.filterable && prop.keyword_searchable) {
+        mustAppendKeyword.push(name);
+      }
+
+      if (prop.type === 'nested' && prop.properties) {
+        Object.entries(prop.properties).forEach(([nestedName, nestedProp]) => {
+          if (nestedProp.filterable && nestedProp.keyword_searchable) {
+            mustAppendKeyword.push(`${name}.${nestedName}`);
+          }
+        });
+      }
+    });
 
     queryOptionsFilters.forEach((filter) => {
       if (filter) {
         if ('terms' in filter) {
-          queryFilter.push({
-            terms: filter.terms,
-          });
+          const field = Object.keys(filter.terms)[0];
+          if (field && mustAppendKeyword.includes(field)) {
+            queryFilter.push({
+              terms: { [`${field}.keyword`]: filter.terms[field]! },
+            });
+          } else {
+            queryFilter.push({
+              terms: filter.terms,
+            });
+          }
         }
 
         if ('term' in filter) {
-          queryFilter.push({
-            term: filter.term,
-          });
+          const field = Object.keys(filter.term)[0];
+          if (field && mustAppendKeyword.includes(field)) {
+            queryFilter.push({
+              term: { [`${field}.keyword`]: filter.term[field] },
+            });
+          } else {
+            queryFilter.push({
+              term: filter.term,
+            });
+          }
         }
 
         if ('range' in filter) {
-          queryFilter.push({
-            range: filter.range as Partial<Record<string, QueryDslRangeQuery>>,
-          });
+          const field = Object.keys(filter.range)[0];
+          if (field && mustAppendKeyword.includes(field)) {
+            queryFilter.push({
+              range: {
+                [`${field}.keyword`]: filter.range[field],
+              } as Partial<Record<string, QueryDslRangeQuery>>,
+            });
+          } else {
+            queryFilter.push({
+              range: filter.range as Partial<Record<string, QueryDslRangeQuery>>,
+            });
+          }
         }
       }
     });
@@ -457,10 +601,10 @@ export class QueryClient {
     schemaProperties: Record<string, CollectionProperty>;
     returnProperties?: string[];
   }) {
-    const hiddenProps: string[] = [];
+    const hiddenProps: string[] = ['hash'];
     const noReturnByDefault: string[] = [];
     const nestedProps: string[] = [];
-    const hiddenNestedProps: string[] = [];
+    const hiddenNestedProps: string[] = ['hash'];
 
     Object.entries(schemaProperties).forEach(([k, v]) => {
       if (v.hidden === true) {
@@ -556,12 +700,14 @@ export class QueryClient {
     hits,
     schemaProperties,
     returnProperties,
+    limit,
   }: {
     hits: HitObject[];
     schemaProperties: Record<string, CollectionProperty>;
     returnProperties?: string[];
+    limit?: number;
   }) {
-    const hiddenProps: string[] = [];
+    const hiddenProps: string[] = ['hash'];
     const nestedProps: string[] = [];
     const hiddenNestedProps: string[] = [];
 
@@ -572,6 +718,7 @@ export class QueryClient {
 
       if (v.type === 'nested' && !!v.properties) {
         nestedProps.push(k);
+        hiddenNestedProps.push(`${k}.hash`);
 
         Object.entries(v.properties).forEach(([nestedKey, nestedValue]) => {
           if (nestedValue.hidden === true) {
@@ -582,35 +729,51 @@ export class QueryClient {
     });
 
     const topLevelReturnProps = returnProperties?.map((prop) => prop.split('.')[0]!);
+    const results: HitObject[] = [];
 
     for (const hit of hits) {
-      if (hit._score && hit._score < DEFAULT_SCORE_THRESHOLD) {
-        const index = hits.indexOf(hit);
-        hits.splice(index, 1);
-        continue;
-      }
+      if (hit._score && hit._score > DEFAULT_SCORE_THRESHOLD) {
+        const result = { ...hit };
 
-      for (const key in hit._source) {
-        if (
-          (topLevelReturnProps && !topLevelReturnProps.includes(key)) ||
-          hiddenProps.includes(key) ||
-          key.endsWith('_vector')
-        ) {
-          delete hit._source[key];
+        for (const key in result._source) {
+          if (
+            (topLevelReturnProps && !topLevelReturnProps.includes(key)) ||
+            hiddenProps.includes(key) ||
+            key.endsWith('_vector')
+          ) {
+            delete result._source[key];
+          }
         }
-      }
 
-      for (const nestedProp of nestedProps) {
-        const nestedHits = hit._source[nestedProp];
-        if (Array.isArray(nestedHits) && nestedHits.length > 0) {
-          for (const nestedHit of nestedHits) {
-            if (nestedHit._score && nestedHit._score < DEFAULT_SCORE_THRESHOLD) {
-              const index = nestedHits.indexOf(nestedHit);
-              nestedHits.splice(index, 1);
-              continue;
+        for (const nestedProp of nestedProps) {
+          const nested = result._source[nestedProp];
+          const nestedResults: NestedHitObject[] = [];
+
+          if (Array.isArray(nested) && nested.length > 0) {
+            for (const nestedHit of nested) {
+              if (nestedHit._score && nestedHit._score > DEFAULT_SCORE_THRESHOLD) {
+                for (const key in nestedHit._source) {
+                  const includesEither =
+                    returnProperties?.includes(nestedProp) ||
+                    returnProperties?.includes(`${nestedProp}.${key}`);
+                  if (
+                    (returnProperties && !includesEither) ||
+                    hiddenNestedProps.includes(`${nestedProp}.${key}`) ||
+                    key.endsWith('_vector')
+                  ) {
+                    delete nestedHit._source[key];
+                  }
+                }
+
+                nestedResults.push(nestedHit);
+              }
             }
 
-            for (const key in nestedHit._source) {
+            const nestedArr = nestedResults.slice(0, limit || DEFAULT_QUERY_LIMIT);
+            const nestedSources = nestedArr.map((hit) => hit._source);
+            result._source[nestedProp] = nestedSources;
+          } else if (nested && typeof nested === 'object') {
+            for (const key in nested._source) {
               const includesEither =
                 returnProperties?.includes(nestedProp) ||
                 returnProperties?.includes(`${nestedProp}.${key}`);
@@ -619,32 +782,18 @@ export class QueryClient {
                 hiddenNestedProps.includes(`${nestedProp}.${key}`) ||
                 key.endsWith('_vector')
               ) {
-                delete nestedHit._source[key];
-              }
-            }
-          }
-        } else if (nestedHits && typeof nestedHits === 'object') {
-          if (nestedHits._score && nestedHits._score < DEFAULT_SCORE_THRESHOLD) {
-            hit._source[nestedProp] = nestedHits._source;
-          } else {
-            for (const key in nestedHits._source) {
-              const includesEither =
-                returnProperties?.includes(nestedProp) ||
-                returnProperties?.includes(`${nestedProp}.${key}`);
-              if (
-                (returnProperties && !includesEither) ||
-                hiddenNestedProps.includes(`${nestedProp}.${key}`) ||
-                key.endsWith('_vector')
-              ) {
-                hit._source[nestedProp] = nestedHits._source;
+                delete result._source[key];
               }
             }
           }
         }
+
+        results.push(result);
       }
     }
 
-    return hits;
+    const resultsArr = results.slice(0, limit || DEFAULT_QUERY_LIMIT);
+    return resultsArr.map((hit) => hit._source);
   }
 
   private static processKeywordHit(hit: SearchHit): HitObject {
@@ -735,58 +884,96 @@ export class QueryClient {
     for (const obj of inputArray) {
       if (results.has(obj._source.id)) {
         const existing = results.get(obj._source.id)!;
-        QueryClient.mergeObjects(existing, obj, nestedProps);
+        const merged = QueryClient.mergeObjects(existing, obj, nestedProps);
+        results.set(obj._source.id, merged);
       } else {
-        const clonedObj = JSON.parse(JSON.stringify(obj));
-        results.set(obj._source.id, clonedObj);
+        results.set(obj._source.id, obj);
       }
     }
 
     return Array.from(results.values()).sort((a, b) => (b._score ?? 0) - (a._score ?? 0));
   }
 
-  private static mergeObjects(existing: HitObject, newObj: HitObject, nestedProps: string[]) {
-    existing._score = Math.max(existing._score ?? 0, newObj._score ?? 0);
-    existing._match = Array.from(new Set([...existing._match, ...newObj._match]));
+  private static mergeObjects(
+    existingObj: HitObject,
+    newObj: HitObject,
+    nestedProps: string[]
+  ): HitObject {
+    const mergedObj = { ...existingObj };
 
-    for (const prop of nestedProps) {
-      const existingProp = existing._source[prop];
-      const newProp = newObj._source[prop];
+    mergedObj._score = Math.max(existingObj._score ?? 0, newObj._score ?? 0);
+    mergedObj._match = Array.from(new Set([...existingObj._match, ...newObj._match]));
 
-      if (Array.isArray(existingProp) && Array.isArray(newProp)) {
-        QueryClient.mergeNestedArrays(existingProp, newProp);
-      } else if (typeof existingProp === 'object' && typeof newProp === 'object') {
-        QueryClient.mergeNestedObjects(existingProp, newProp);
-      }
-    }
-  }
-
-  private static mergeNestedArrays(
-    existingNested: NestedHitObject[],
-    newNested: NestedHitObject[]
-  ): void {
-    const hashIndex = new Map<string, NestedHitObject>();
-
-    for (const item of existingNested) {
-      hashIndex.set(item._source.hash, item);
-    }
-
-    for (const item of newNested) {
-      if (hashIndex.has(item._source.hash)) {
-        const existingItem = hashIndex.get(item._source.hash)!;
-        existingItem._score = Math.max(existingItem._score ?? 0, item._score ?? 0);
-        existingItem._match = Array.from(new Set([...existingItem._match, ...item._match]));
+    for (const key in newObj._source) {
+      if (!nestedProps.includes(key)) {
+        if (key in existingObj._source) {
+          const existingScore = existingObj._source[key]._score ?? 0;
+          const newScore = newObj._source[key]._score ?? 0;
+          if (newScore > existingScore) {
+            mergedObj._source[key] = newObj._source[key];
+          }
+        } else {
+          mergedObj._source[key] = newObj._source[key];
+        }
       } else {
-        existingNested.push(item);
+        if (Array.isArray(existingObj._source[key]) || Array.isArray(newObj._source[key])) {
+          const existingArray = existingObj._source[key] || [];
+          const newArray = newObj._source[key] || [];
+          const hashIndex = new Map<string, NestedHitObject>();
+          for (const item of existingArray) {
+            hashIndex.set(item._source.hash, item);
+          }
+
+          for (const item of newArray) {
+            if (hashIndex.has(item._source.hash)) {
+              const existingItem = hashIndex.get(item._source.hash)!;
+              const mergedItem = QueryClient.mergeNestedObjects(existingItem, item);
+              hashIndex.set(item._source.hash, mergedItem);
+            } else {
+              hashIndex.set(item._source.hash, item);
+            }
+          }
+
+          mergedObj._source[key] = Array.from(hashIndex.values()).sort(
+            (a, b) => (b._score ?? 0) - (a._score ?? 0)
+          );
+        } else if (
+          typeof existingObj._source[key] === 'object' ||
+          typeof newObj._source[key] === 'object'
+        ) {
+          mergedObj._source[key] = QueryClient.mergeNestedObjects(
+            existingObj._source[key],
+            newObj._source[key]
+          );
+        }
       }
     }
 
-    existingNested.sort((a, b) => (b._score ?? 0) - (a._score ?? 0));
+    return mergedObj;
   }
 
-  private static mergeNestedObjects(existingObj: NestedHitObject, newObj: NestedHitObject): void {
-    existingObj._score = Math.max(existingObj._score ?? 0, newObj._score ?? 0);
-    existingObj._match = Array.from(new Set([...existingObj._match, ...newObj._match]));
+  private static mergeNestedObjects(
+    existingObj: NestedHitObject,
+    newObj: NestedHitObject
+  ): NestedHitObject {
+    const mergedObj = { ...existingObj };
+
+    mergedObj._score = Math.max(existingObj._score ?? 0, newObj._score ?? 0);
+    mergedObj._match = Array.from(new Set([...existingObj._match, ...newObj._match]));
+
+    for (const key in newObj._source) {
+      if (key in existingObj._source) {
+        const existingScore = existingObj._source[key]._score ?? 0;
+        const newScore = newObj._source[key]._score ?? 0;
+        if (newScore > existingScore) {
+          mergedObj._source[key] = newObj._source[key];
+        }
+      } else {
+        mergedObj._source[key] = newObj._source[key];
+      }
+    }
+
+    return mergedObj;
   }
 
   private static blendHits(
@@ -799,15 +986,14 @@ export class QueryClient {
 
     for (const hit of vectorHits) {
       hit._score = (hit._score ?? 0) * alpha;
-
       for (const nestedProp of nestedProps) {
-        const nestedHits = hit._source[nestedProp];
-        if (Array.isArray(nestedHits) && nestedHits.length > 0) {
-          for (const nestedHit of nestedHits) {
+        const nested = hit._source[nestedProp];
+        if (Array.isArray(nested) && nested.length > 0) {
+          for (const nestedHit of nested) {
             nestedHit._score = (nestedHit._score ?? 0) * alpha;
           }
-        } else if (typeof nestedHits === 'object') {
-          nestedHits._score = (nestedHits._score ?? 0) * alpha;
+        } else if (typeof nested === 'object') {
+          nested._score = (nested._score ?? 0) * alpha;
         }
       }
 
@@ -816,72 +1002,81 @@ export class QueryClient {
 
     for (const hit of keywordHits) {
       hit._score = (hit._score ?? 0) * (1 - alpha);
-
       for (const nestedProp of nestedProps) {
-        const nestedHits = hit._source[nestedProp];
-        if (Array.isArray(nestedHits) && nestedHits.length > 0) {
-          for (const nestedHit of nestedHits) {
+        const nested = hit._source[nestedProp];
+        if (Array.isArray(nested) && nested.length > 0) {
+          for (const nestedHit of nested) {
             nestedHit._score = (nestedHit._score ?? 0) * (1 - alpha);
           }
         } else {
-          nestedHits._score = (nestedHits._score ?? 0) * (1 - alpha);
+          nested._score = (nested._score ?? 0) * (1 - alpha);
         }
       }
 
       if (results.has(hit._source.id)) {
         const existing = results.get(hit._source.id)!;
-        QueryClient.blendObjects(existing, hit, nestedProps);
+        const blended = QueryClient.blendObjects(existing, hit, nestedProps);
+        results.set(hit._source.id, blended);
       } else {
-        const clonedObj = JSON.parse(JSON.stringify(hit));
-        results.set(hit._source.id, clonedObj);
+        results.set(hit._source.id, hit);
       }
     }
 
     return Array.from(results.values()).sort((a, b) => (b._score ?? 0) - (a._score ?? 0));
   }
 
-  private static blendObjects(existing: HitObject, newObj: HitObject, nestedProps: string[]) {
-    existing._score = (existing._score ?? 0) + (newObj._score ?? 0);
-    existing._match = Array.from(new Set([...existing._match, ...newObj._match]));
+  private static blendObjects(existingObj: HitObject, newObj: HitObject, nestedProps: string[]) {
+    const blendedObj = { ...existingObj };
 
-    for (const prop of nestedProps) {
-      const existingProp = existing._source[prop];
-      const newProp = newObj._source[prop];
+    blendedObj._score = Math.max(existingObj._score ?? 0, newObj._score ?? 0);
+    blendedObj._match = Array.from(new Set([...existingObj._match, ...newObj._match]));
 
-      if (Array.isArray(existingProp) && Array.isArray(newProp)) {
-        QueryClient.blendNestedArrays(existingProp, newProp);
-      } else if (typeof existingProp === 'object' && typeof newProp === 'object') {
-        QueryClient.blendNestedObjects(existingProp, newProp);
-      }
-    }
-  }
-
-  private static blendNestedArrays(
-    existingNested: NestedHitObject[],
-    newNested: NestedHitObject[]
-  ): void {
-    const hashIndex = new Map<string, NestedHitObject>();
-
-    for (const item of existingNested) {
-      hashIndex.set(item._source.hash, item);
-    }
-
-    for (const item of newNested) {
-      if (hashIndex.has(item._source.hash)) {
-        const existingItem = hashIndex.get(item._source.hash)!;
-        existingItem._score = (existingItem._score ?? 0) + (item._score ?? 0);
-        existingItem._match = Array.from(new Set([...existingItem._match, ...item._match]));
+    for (const key in newObj._source) {
+      if (!nestedProps.includes(key)) {
+        if (key in existingObj._source) {
+          const existingScore = existingObj._source[key]._score ?? 0;
+          const newScore = newObj._source[key]._score ?? 0;
+          if (newScore > existingScore) {
+            blendedObj._source[key] = newObj._source[key];
+          }
+        } else {
+          blendedObj._source[key] = newObj._source[key];
+        }
       } else {
-        existingNested.push(item);
+        if (Array.isArray(existingObj._source[key]) || Array.isArray(newObj._source[key])) {
+          const existingArray = existingObj._source[key];
+          const newArray = newObj._source[key];
+          const hashIndex = new Map<string, NestedHitObject>();
+          for (const item of existingArray) {
+            hashIndex.set(item._source.hash, item);
+          }
+
+          for (const item of newArray) {
+            if (hashIndex.has(item._source.hash)) {
+              const existingItem = hashIndex.get(item._source.hash)!;
+              const mergedItem = QueryClient.mergeNestedObjects(existingItem, item);
+              hashIndex.set(item._source.hash, mergedItem);
+            } else {
+              hashIndex.set(item._source.hash, item);
+            }
+          }
+
+          blendedObj._source[key] = Array.from(hashIndex.values()).sort(
+            (a, b) => (b._score ?? 0) - (a._score ?? 0)
+          );
+        } else if (
+          typeof existingObj._source[key] === 'object' ||
+          typeof newObj._source[key] === 'object'
+        ) {
+          blendedObj._source[key] = QueryClient.mergeNestedObjects(
+            existingObj._source[key],
+            newObj._source[key]
+          );
+        }
       }
     }
 
-    existingNested.sort((a, b) => (b._score ?? 0) - (a._score ?? 0));
-  }
-
-  private static blendNestedObjects(existingObj: NestedHitObject, newObj: NestedHitObject): void {
-    existingObj._score = (existingObj._score ?? 0) + (newObj._score ?? 0);
-    existingObj._match = Array.from(new Set([...existingObj._match, ...newObj._match]));
+    return blendedObj;
   }
 
   private static async getImageBase64(input: string): Promise<string> {

@@ -94,15 +94,10 @@ class ElasticClient {
     const schemaProperties = providerCollection.schema.properties;
 
     if (!queryOptions?.query) {
-      const emptyHits = await this.queries.emptyQuery({
+      return this.queries.emptyQuery({
         indexName,
-        queryOptions,
-      });
-
-      return QueryClient.formatEmptyQueryHits({
-        hits: emptyHits,
         schemaProperties,
-        returnProperties: queryOptions.returnProperties,
+        queryOptions,
       });
     }
 
@@ -110,16 +105,10 @@ class ElasticClient {
       queryOptions.type === 'keyword' ||
       (queryOptions.type === 'hybrid' && queryOptions.alpha === 0)
     ) {
-      const keywordHits = await this.queries.keywordQuery({
+      return this.queries.keywordQuery({
         indexName,
         schemaProperties,
         queryOptions,
-      });
-
-      return QueryClient.formatQueryHits({
-        hits: keywordHits,
-        schemaProperties,
-        returnProperties: queryOptions.returnProperties,
       });
     }
 
@@ -139,7 +128,7 @@ class ElasticClient {
       queryOptions.type === 'vector' ||
       (queryOptions.type === 'hybrid' && queryOptions.alpha === 1)
     ) {
-      const vectorHits = await this.queries.vectorQuery({
+      return this.queries.vectorQuery({
         indexName,
         schemaProperties,
         queryOptions,
@@ -147,27 +136,15 @@ class ElasticClient {
         multimodalEmbeddingModel,
         multimodalEnabled,
       });
-
-      return QueryClient.formatQueryHits({
-        hits: vectorHits,
-        schemaProperties,
-        returnProperties: queryOptions.returnProperties,
-      });
     }
 
-    const hybridHits = await this.queries.hybridQuery({
+    return this.queries.hybridQuery({
       indexName,
       schemaProperties,
       queryOptions,
       textEmbeddingModel,
       multimodalEmbeddingModel,
       multimodalEnabled,
-    });
-
-    return QueryClient.formatQueryHits({
-      hits: hybridHits,
-      schemaProperties,
-      returnProperties: queryOptions.returnProperties,
     });
   }
 
@@ -192,6 +169,7 @@ class ElasticClient {
       );
     }
 
+    const returnProperties = imageSearchOptions.returnProperties;
     const schemaProperties = collection.schema.properties;
     const modelSettings = await collectionService.getCollectionModelSettings(
       linkedAccount.environment_id,
@@ -211,6 +189,7 @@ class ElasticClient {
     return this.queries.imageSearch({
       indexName,
       schemaProperties,
+      returnProperties,
       imageSearchOptions,
       multimodalEmbeddingModel,
     });

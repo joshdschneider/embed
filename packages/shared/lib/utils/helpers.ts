@@ -191,3 +191,36 @@ export function hashObjects(
     return objWithHash;
   });
 }
+
+function truncateString(str: string, maxLength: number): string {
+  return str.length > maxLength ? str.substring(0, maxLength) + '...' : str;
+}
+
+function truncateDeep(obj: any, maxLength: number): any {
+  if (typeof obj !== 'object' || obj === null) {
+    return obj;
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map((item) => truncateDeep(item, maxLength));
+  }
+
+  const truncatedObject: any = {};
+  for (const key in obj) {
+    if (key.endsWith('_vector')) {
+      delete obj[key];
+    }
+
+    const value = obj[key];
+    if (typeof value === 'string') {
+      truncatedObject[key] = truncateString(value, maxLength);
+    } else {
+      truncatedObject[key] = truncateDeep(value, maxLength);
+    }
+  }
+  return truncatedObject;
+}
+
+export function logObjects(objects: any[], maxLength: number = 40): string[] {
+  return objects.map((obj) => truncateDeep(obj, maxLength));
+}

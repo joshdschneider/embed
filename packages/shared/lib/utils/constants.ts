@@ -174,7 +174,7 @@ export const DEFAULT_ENABLE_NEW_INTEGRATIONS = true;
 
 export const DEFAULT_QUERY_LIMIT = 10;
 export const DEFAULT_KNN_NUM_CANDIDATES = 100;
-export const DEFAULT_SCORE_THRESHOLD = 0.3;
+export const DEFAULT_SCORE_THRESHOLD = 0;
 
 export const DEFAULT_PROXY_ATTEMPTS = 3;
 export const DEFAULT_PROXY_RESPONSE_TYPE = 'json';
