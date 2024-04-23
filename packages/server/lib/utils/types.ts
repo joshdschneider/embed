@@ -293,7 +293,7 @@ export const PaginationParametersSchema = z.object({
 export const QueryCollectionRequestSchema = z.object({
   type: z.enum(['vector', 'hybrid', 'keyword']).optional(),
   query: z.string().optional(),
-  filters: z.any().optional(),
+  filter: z.any().optional(),
   returnProperties: z.array(z.string()).optional(),
   limit: z.number().optional(),
   alpha: z.number().min(0).max(1).optional(),

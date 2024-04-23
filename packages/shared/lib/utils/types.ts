@@ -40,7 +40,7 @@ export type Branding = {
 export type QueryOptions = {
   type?: 'vector' | 'hybrid' | 'keyword';
   query?: string;
-  filters?: any;
+  filter?: any;
   returnProperties?: string[];
   limit?: number;
   alpha?: number;

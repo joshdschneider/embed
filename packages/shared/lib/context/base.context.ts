@@ -6,6 +6,7 @@ import activityService from '../services/activity.service';
 import errorService from '../services/error.service';
 import proxyService from '../services/proxy.service';
 import { LogLevel } from '../utils/enums';
+import { now } from '../utils/helpers';
 
 export interface BaseContextOptions {
   environmentId: string;
@@ -63,8 +64,10 @@ export class BaseContext {
     level: LogLevel;
     message: string;
     payload?: object | undefined;
-    timestamp: number;
   }): Promise<ActivityLog | null> {
-    return await activityService.createActivityLog(this.activityId, activityLog);
+    return await activityService.createActivityLog(this.activityId, {
+      ...activityLog,
+      timestamp: now(),
+    });
   }
 }

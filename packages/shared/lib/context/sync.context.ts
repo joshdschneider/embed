@@ -23,7 +23,6 @@ export class SyncContext extends BaseContext {
   public multimodalEnabled: boolean;
   public syncRunId: string;
   public lastSyncedAt: number | null;
-
   private addedKeys: string[];
   private updatedKeys: string[];
   private deletedKeys: string[];
