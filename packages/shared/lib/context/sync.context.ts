@@ -158,7 +158,7 @@ export class SyncContext extends BaseContext {
           payload: { error: 'Internal server error' },
         });
 
-        await recordService.deleteRecords(this.linkedAccountId, this.collectionKey, addedKeys);
+        await recordService.deleteRecordsByIds(this.linkedAccountId, this.collectionKey, addedKeys);
         this.addedKeys = this.addedKeys.filter((key) => !addedKeys.includes(key));
       }
 
@@ -181,7 +181,11 @@ export class SyncContext extends BaseContext {
           payload: { error: 'Internal server error' },
         });
 
-        await recordService.deleteRecords(this.linkedAccountId, this.collectionKey, updatedKeys);
+        await recordService.deleteRecordsByIds(
+          this.linkedAccountId,
+          this.collectionKey,
+          updatedKeys
+        );
         this.updatedKeys = this.updatedKeys.filter((key) => !updatedKeys.includes(key));
       }
 
@@ -221,6 +225,8 @@ export class SyncContext extends BaseContext {
       if (deletedKeys.length > 0) {
         const elastic = ElasticClient.getInstance();
         const didPruneDeleted = await elastic.deleteObjects({
+          environmentId: this.environmentId,
+          integrationKey: this.integrationKey,
           collectionKey: this.collectionKey,
           linkedAccountId: this.linkedAccountId,
           objectIds: deletedKeys,

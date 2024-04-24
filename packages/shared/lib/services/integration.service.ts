@@ -2,7 +2,8 @@ import { Action, Collection, Integration } from '@prisma/client';
 import fs from 'fs';
 import yaml from 'js-yaml';
 import path from 'path';
-import { DEFAULT_AUTO_START_SYNC, DEFAULT_SYNC_FREQUENCY } from '../utils/constants';
+import ElasticClient from '../clients/elastic.client';
+import { DEFAULT_SYNC_AUTO_START, DEFAULT_SYNC_FREQUENCY } from '../utils/constants';
 import { database } from '../utils/database';
 import { now } from '../utils/helpers';
 import encryptionService from './encryption.service';
@@ -105,7 +106,7 @@ class IntegrationService {
             environment_id: environmentId,
             is_enabled: v.default_enabled || false,
             default_sync_frequency: v.default_sync_frequency || DEFAULT_SYNC_FREQUENCY,
-            auto_start_sync: v.default_auto_start_sync || DEFAULT_AUTO_START_SYNC,
+            auto_start_sync: v.default_sync_auto_start ?? DEFAULT_SYNC_AUTO_START,
             exclude_properties_from_sync: [],
             text_embedding_model_override: null,
             multimodal_embedding_model_override: null,
@@ -117,11 +118,19 @@ class IntegrationService {
         });
 
         if (collections.length > 0) {
-          const createdCollections = await database.collection.createMany({
-            data: [...collections],
-          });
+          const elastic = ElasticClient.getInstance();
+          for (const collection of collections) {
+            await database.collection.create({ data: collection });
+            const indexCreated = await elastic.createIndex({
+              environmentId: collection.environment_id,
+              integrationKey: collection.integration_key,
+              collectionKey: collection.unique_key,
+            });
 
-          collectionsAdded += createdCollections.count;
+            if (indexCreated) {
+              collectionsAdded++;
+            }
+          }
         }
 
         const actionKeys = integration.actions.map((action) => action.unique_key);
