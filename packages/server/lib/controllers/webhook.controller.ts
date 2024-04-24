@@ -5,11 +5,12 @@ import {
   Resource,
   errorService,
   generateId,
+  generateWebhookSigningSecret,
   now,
+  webhookService,
 } from '@embed/shared';
 import type { Request, Response } from 'express';
-import webhookService from '../services/webhook.service';
-import { generateWebhookSigningSecret, zodError } from '../utils/helpers';
+import { zodError } from '../utils/helpers';
 import {
   CreateWebhookRequestSchema,
   UpdateWebhookRequestSchema,

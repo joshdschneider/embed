@@ -1,10 +1,10 @@
 import {
   ACCOUNT_ID_LOCALS_KEY,
   DEFAULT_ERROR_MESSAGE,
-  ENVIRONMENT_ID_LOCALS_KEY,
-  ErrorCode,
   EMBED_AUTH_TOKEN_KEY,
   EMBED_ENVIRONMENT_KEY,
+  ENVIRONMENT_ID_LOCALS_KEY,
+  ErrorCode,
   environmentService,
   errorService,
   getAuthTokenSecret,
@@ -12,7 +12,7 @@ import {
 } from '@embed/shared';
 import Cookies from 'cookies';
 import { NextFunction, Request, Response } from 'express';
-import { jwtVerify } from 'jose';
+import { errors, jwtVerify } from 'jose';
 
 class AuthService {
   public async verifyApiKey(apiKey: string, req: Request, res: Response, next: NextFunction) {
@@ -96,12 +96,18 @@ class AuthService {
         next();
       }
     } catch (err) {
-      await errorService.reportError(err);
-
-      return errorService.errorResponse(res, {
-        code: ErrorCode.InternalServerError,
-        message: DEFAULT_ERROR_MESSAGE,
-      });
+      if (err instanceof errors.JOSEError && err.code === 'ERR_JWT_EXPIRED') {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.Unauthorized,
+          message: 'Please sign in to continue',
+        });
+      } else {
+        await errorService.reportError(err);
+        return errorService.errorResponse(res, {
+          code: ErrorCode.InternalServerError,
+          message: DEFAULT_ERROR_MESSAGE,
+        });
+      }
     }
   }
 

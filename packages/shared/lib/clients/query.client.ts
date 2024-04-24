@@ -169,6 +169,7 @@ export class QueryClient {
       hits: keywordHits,
       schemaProperties,
       returnProperties: queryOptions.returnProperties,
+      limit: queryOptions.limit,
     });
   }
 
@@ -335,6 +336,7 @@ export class QueryClient {
       hits: vectorHits,
       schemaProperties,
       returnProperties: queryOptions.returnProperties,
+      limit: queryOptions.limit,
     });
   }
 
@@ -387,6 +389,7 @@ export class QueryClient {
       hits: blendedHits,
       schemaProperties,
       returnProperties: queryOptions.returnProperties,
+      limit: queryOptions.limit,
     });
   }
 
@@ -484,6 +487,7 @@ export class QueryClient {
       hits: mergedHits,
       schemaProperties,
       returnProperties,
+      limit: imageSearchOptions.limit,
     });
   }
 

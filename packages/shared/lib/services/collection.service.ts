@@ -5,6 +5,7 @@ import { MultimodalEmbeddingModel, TextEmbeddingModel } from '../utils/enums';
 import { now } from '../utils/helpers';
 import { ImageSearchOptions, QueryOptions } from '../utils/types';
 import errorService from './error.service';
+import linkedAccountService from './linkedAccount.service';
 import recordService from './record.service';
 import syncService from './sync.service';
 
@@ -183,6 +184,86 @@ class CollectionService {
     }
   }
 
+  public async resyncCollection(collection: Collection): Promise<boolean> {
+    try {
+      const syncs = await database.sync.findMany({
+        where: {
+          environment_id: collection.environment_id,
+          integration_key: collection.integration_key,
+          collection_key: collection.unique_key,
+          deleted_at: null,
+        },
+      });
+
+      for (const sync of syncs) {
+        const hasRecords = await recordService.hasRecords(
+          sync.linked_account_id,
+          sync.collection_key
+        );
+
+        const indexDeleted = await this.deleteCollectionIndex(
+          sync.linked_account_id,
+          sync.collection_key
+        );
+
+        if (!indexDeleted) {
+          return false;
+        }
+
+        const indexCreated = await linkedAccountService.createIndexForLinkedAccount({
+          environmentId: collection.environment_id,
+          integrationKey: collection.integration_key,
+          collectionKey: collection.unique_key,
+          linkedAccountId: sync.linked_account_id,
+        });
+
+        if (!indexCreated) {
+          return false;
+        }
+
+        if (hasRecords) {
+          await syncService.triggerSync(sync);
+        }
+      }
+
+      return true;
+    } catch (err) {
+      await errorService.reportError(err);
+      return false;
+    }
+  }
+
+  public async deleteCollectionIndex(
+    linkedAccountId: string,
+    collectionKey: string
+  ): Promise<boolean> {
+    try {
+      const recordsDeleted = await recordService.deleteAllRecords(linkedAccountId, collectionKey);
+      if (!recordsDeleted) {
+        return false;
+      }
+
+      const elastic = ElasticClient.getInstance();
+      const indexDeleted = await elastic.deleteIndex({
+        linkedAccountId,
+        collectionKey,
+      });
+
+      if (!indexDeleted) {
+        return false;
+      }
+
+      await syncService.updateSync(linkedAccountId, collectionKey, {
+        last_synced_at: null,
+      });
+
+      return true;
+    } catch (err) {
+      await errorService.reportError(err);
+      return false;
+    }
+  }
+
   public async clearCollectionRecords(
     linkedAccountId: string,
     collectionKey: string
@@ -194,7 +275,11 @@ class CollectionService {
       }
 
       const elastic = ElasticClient.getInstance();
-      const objectsDeleted = await elastic.deleteAllObjects({ linkedAccountId, collectionKey });
+      const objectsDeleted = await elastic.deleteAllObjects({
+        linkedAccountId,
+        collectionKey,
+      });
+
       if (!objectsDeleted) {
         return false;
       }
