@@ -83,7 +83,9 @@ export class QueryClient {
     queryOptions: QueryOptions;
     noFormat?: boolean;
   }) {
-    const { query, limit } = queryOptions;
+    const query = queryOptions.query;
+    const limit = queryOptions.limit || DEFAULT_QUERY_LIMIT;
+
     if (!query) {
       throw new Error('Query missing for keyword search');
     }
@@ -157,19 +159,14 @@ export class QueryClient {
           filter: { term: { linked_account_id: linkedAccountId } },
         },
       },
-      highlight: {
-        fields: highlightFields,
-      },
-      size: limit || DEFAULT_QUERY_LIMIT,
+      highlight: { fields: highlightFields },
+      size: limit,
       _source: mainProperties,
     });
 
-    const keywordHits = res.hits.hits.map((hit) => {
-      return QueryClient.processKeywordHit(hit);
-    });
-
+    const keywordHits = res.hits.hits.map((hit) => QueryClient.processKeywordHit(hit));
     const nestedProps = new Set(nestedProperties.map((prop) => prop.split('.')[0]!));
-    QueryClient.normalizeScores(keywordHits, [...nestedProps]);
+    QueryClient.normalizeScores(keywordHits, [...nestedProps], limit);
 
     if (noFormat) {
       return keywordHits;
@@ -202,7 +199,10 @@ export class QueryClient {
     multimodalEnabled: boolean;
     noFormat?: boolean;
   }) {
-    if (!queryOptions.query) {
+    const query = queryOptions.query;
+    const limit = queryOptions.limit || DEFAULT_QUERY_LIMIT;
+
+    if (!query) {
       throw new Error('Query missing for vector search');
     }
 
@@ -247,7 +247,7 @@ export class QueryClient {
       textEmbeddingPromise = this.embeddings.embedText({
         model: textEmbeddingModel,
         purpose: 'query',
-        text: [queryOptions.query],
+        text: [query],
       });
     }
 
@@ -255,7 +255,7 @@ export class QueryClient {
       multimodalEmbeddingPromise = this.embeddings.embedMultimodal({
         model: multimodalEmbeddingModel,
         type: 'text',
-        content: [queryOptions.query],
+        content: [query],
       });
     }
 
@@ -268,7 +268,7 @@ export class QueryClient {
 
       const knn: KnnQuery = {
         field: `${prop}_vector`,
-        k: queryOptions.limit || DEFAULT_QUERY_LIMIT,
+        k: limit,
         num_candidates: DEFAULT_KNN_NUM_CANDIDATES,
         query_vector: queryVector[0],
         filter: {
@@ -281,7 +281,7 @@ export class QueryClient {
 
       if (prop.includes('.')) {
         knn.inner_hits = {
-          size: queryOptions.limit || DEFAULT_QUERY_LIMIT,
+          size: limit,
           _source: nestedProperties,
         };
       }
@@ -290,7 +290,7 @@ export class QueryClient {
         .search({
           index: indexName,
           knn: knn,
-          size: queryOptions.limit || DEFAULT_QUERY_LIMIT,
+          size: limit,
           _source: mainProperties,
         })
         .then((res) =>
@@ -308,7 +308,7 @@ export class QueryClient {
 
       const knn: KnnQuery = {
         field: `${prop}_vector`,
-        k: queryOptions.limit || DEFAULT_QUERY_LIMIT,
+        k: limit,
         num_candidates: DEFAULT_KNN_NUM_CANDIDATES,
         query_vector: queryVector[0],
         filter: {
@@ -321,7 +321,7 @@ export class QueryClient {
 
       if (prop.includes('.')) {
         knn.inner_hits = {
-          size: queryOptions.limit || DEFAULT_QUERY_LIMIT,
+          size: limit,
           _source: nestedProperties,
         };
       }
@@ -330,7 +330,7 @@ export class QueryClient {
         .search({
           index: indexName,
           knn: knn,
-          size: queryOptions.limit || DEFAULT_QUERY_LIMIT,
+          size: limit,
           _source: mainProperties,
         })
         .then((res) =>
@@ -346,9 +346,8 @@ export class QueryClient {
     const results = await Promise.all([...textResults, ...multimodalResults]);
     const hits = results.flat().sort((a, b) => b._score! - a._score!);
     const nestedProps = new Set(nestedProperties.map((prop) => prop.split('.')[0]!));
-
-    QueryClient.normalizeScores(hits, [...nestedProps]);
     const vectorHits = QueryClient.mergeHits(hits, [...nestedProps]);
+    QueryClient.normalizeScores(vectorHits, [...nestedProps], limit);
 
     if (noFormat) {
       return vectorHits;
@@ -358,7 +357,7 @@ export class QueryClient {
       hits: vectorHits,
       schemaProperties,
       returnProperties: queryOptions.returnProperties,
-      limit: queryOptions.limit,
+      limit: limit,
     });
   }
 
@@ -434,7 +433,10 @@ export class QueryClient {
     imageSearchOptions: ImageSearchOptions;
     multimodalEmbeddingModel: MultimodalEmbeddingModel;
   }) {
-    if (!imageSearchOptions.image) {
+    const image = imageSearchOptions.image;
+    const limit = imageSearchOptions.limit || DEFAULT_QUERY_LIMIT;
+
+    if (!image) {
       throw new Error('Query missing for vector search');
     }
 
@@ -464,7 +466,7 @@ export class QueryClient {
       throw new Error(`No multimodal properties in collection`);
     }
 
-    const base64 = await QueryClient.getImageBase64(imageSearchOptions.image);
+    const base64 = await QueryClient.getImageBase64(image);
     const multimodalEmbedding = await this.embeddings.embedMultimodal({
       model: multimodalEmbeddingModel,
       type: 'text',
@@ -480,7 +482,7 @@ export class QueryClient {
 
       const knn: KnnQuery = {
         field: `${prop}_vector`,
-        k: imageSearchOptions.limit || DEFAULT_QUERY_LIMIT,
+        k: limit,
         num_candidates: DEFAULT_KNN_NUM_CANDIDATES,
         query_vector: queryVector[0],
         filter: {
@@ -493,7 +495,7 @@ export class QueryClient {
 
       if (prop.includes('.')) {
         knn.inner_hits = {
-          size: imageSearchOptions.limit || DEFAULT_QUERY_LIMIT,
+          size: limit,
           _source: nestedProperties,
         };
       }
@@ -502,7 +504,7 @@ export class QueryClient {
         .search({
           index: indexName,
           knn: knn,
-          size: imageSearchOptions.limit || DEFAULT_QUERY_LIMIT,
+          size: limit,
           _source: mainProperties,
         })
         .then((res) => res.hits.hits.map((hit) => QueryClient.processVectorHit(prop, hit)))
@@ -520,17 +522,17 @@ export class QueryClient {
       hits: mergedHits,
       schemaProperties,
       returnProperties,
-      limit: imageSearchOptions.limit,
+      limit,
     });
   }
 
-  private static normalizeScores(hits: HitObject[], nestedProps: string[]) {
+  private static normalizeScores(hits: HitObject[], nestedProps: string[], limit: number) {
     const scores = hits.map((hit) => hit._score ?? 0).filter((score) => !isNaN(score));
     if (scores.length === 0) {
       return;
     }
 
-    const minScore = Math.min(...scores);
+    const minScore = hits.length < limit ? Math.min(...scores) : 0;
     const maxScore = Math.max(...scores);
 
     if (maxScore === minScore) {
