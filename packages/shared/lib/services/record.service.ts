@@ -111,7 +111,7 @@ class RecordService {
     }
   }
 
-  public async deleteRecords(
+  public async deleteRecordsByIds(
     linkedAccountId: string,
     collectionKey: string,
     externalIds: string[]
@@ -128,19 +128,20 @@ class RecordService {
       });
 
       const deletedSuffix = '_deleted_' + now().toString();
-      const updatePromises = recordsToDelete.map((rec) => {
-        return database.record.update({
-          where: { id: rec.id, deleted_at: null },
-          data: {
-            external_id: rec.external_id + deletedSuffix,
-            hash: rec.hash + deletedSuffix,
-            deleted_at: now(),
-          },
-          select: { external_id: true },
-        });
-      });
+      const deletedRecords = await database.$transaction(
+        recordsToDelete.map((rec) => {
+          return database.record.update({
+            where: { id: rec.id },
+            data: {
+              external_id: rec.external_id + deletedSuffix,
+              hash: rec.hash + deletedSuffix,
+              deleted_at: now(),
+            },
+            select: { external_id: true },
+          });
+        })
+      );
 
-      const deletedRecords = await Promise.all(updatePromises);
       return { deletedKeys: deletedRecords.map((rec) => rec.external_id) };
     } catch (err) {
       await errorService.reportError(err);
@@ -148,11 +149,20 @@ class RecordService {
     }
   }
 
-  public async deleteAllRecords(linkedAccountId: string, collectionKey: string): Promise<boolean> {
+  public async deleteRecordsForCollection({
+    environmentId,
+    integrationKey,
+    collectionKey,
+  }: {
+    environmentId: string;
+    integrationKey: string;
+    collectionKey: string;
+  }): Promise<boolean> {
     try {
       const recordsToDelete = await database.record.findMany({
         where: {
-          linked_account_id: linkedAccountId,
+          environment_id: environmentId,
+          integration_key: integrationKey,
           collection_key: collectionKey,
           deleted_at: null,
         },
@@ -160,19 +170,20 @@ class RecordService {
       });
 
       const deletedSuffix = '_deleted_' + now().toString();
-      const updatePromises = recordsToDelete.map((rec) => {
-        return database.record.update({
-          where: { id: rec.id, deleted_at: null },
-          data: {
-            external_id: rec.external_id + deletedSuffix,
-            hash: rec.hash + deletedSuffix,
-            deleted_at: now(),
-          },
-          select: { external_id: true },
-        });
-      });
+      await database.$transaction(
+        recordsToDelete.map((rec) => {
+          return database.record.update({
+            where: { id: rec.id },
+            data: {
+              external_id: rec.external_id + deletedSuffix,
+              hash: rec.hash + deletedSuffix,
+              deleted_at: now(),
+            },
+            select: { external_id: true },
+          });
+        })
+      );
 
-      await Promise.all(updatePromises);
       return true;
     } catch (err) {
       await errorService.reportError(err);
@@ -180,17 +191,42 @@ class RecordService {
     }
   }
 
-  public async hasRecords(linkedAccountId: string, collectionKey: string): Promise<boolean> {
+  public async deleteRecordsForLinkedAccount({
+    environmentId,
+    integrationKey,
+    linkedAccountId,
+  }: {
+    environmentId: string;
+    integrationKey: string;
+    linkedAccountId: string;
+  }): Promise<boolean> {
     try {
-      const record = await database.record.findFirst({
+      const recordsToDelete = await database.record.findMany({
         where: {
+          environment_id: environmentId,
+          integration_key: integrationKey,
           linked_account_id: linkedAccountId,
-          collection_key: collectionKey,
           deleted_at: null,
         },
+        select: { id: true, external_id: true, hash: true },
       });
 
-      return !!record;
+      const deletedSuffix = '_deleted_' + now().toString();
+      await database.$transaction(
+        recordsToDelete.map((rec) => {
+          return database.record.update({
+            where: { id: rec.id },
+            data: {
+              external_id: rec.external_id + deletedSuffix,
+              hash: rec.hash + deletedSuffix,
+              deleted_at: now(),
+            },
+            select: { external_id: true },
+          });
+        })
+      );
+
+      return true;
     } catch (err) {
       await errorService.reportError(err);
       return false;

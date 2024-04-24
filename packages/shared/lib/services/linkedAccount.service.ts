@@ -9,6 +9,7 @@ import { now } from '../utils/helpers';
 import encryptionService from './encryption.service';
 import errorService from './error.service';
 import integrationService from './integration.service';
+import recordService from './record.service';
 import syncService from './sync.service';
 
 class LinkedAccountService {
@@ -210,10 +211,24 @@ class LinkedAccountService {
         return null;
       }
 
+      await recordService.deleteRecordsForLinkedAccount({
+        environmentId: linkedAccount.environment_id,
+        integrationKey: linkedAccount.integration_key,
+        linkedAccountId,
+      });
+
       const syncs = await syncService.listSyncs(linkedAccountId);
       if (syncs) {
+        const elastic = ElasticClient.getInstance();
         for (const sync of syncs) {
-          await syncService.deleteSync(linkedAccount.id, sync.collection_key);
+          await elastic.deleteLinkedAccountObjects({
+            environmentId: sync.environment_id,
+            integrationKey: sync.integration_key,
+            collectionKey: sync.collection_key,
+            linkedAccountId,
+          });
+
+          await syncService.deleteSync(sync);
         }
       }
 
@@ -264,31 +279,6 @@ class LinkedAccountService {
     } catch (err) {
       await errorService.reportError(err);
       return null;
-    }
-  }
-
-  public async createIndexForLinkedAccount({
-    environmentId,
-    linkedAccountId,
-    integrationKey,
-    collectionKey,
-  }: {
-    environmentId: string;
-    linkedAccountId: string;
-    integrationKey: string;
-    collectionKey: string;
-  }): Promise<boolean> {
-    try {
-      const elastic = ElasticClient.getInstance();
-      return await elastic.createIndex({
-        environmentId,
-        linkedAccountId,
-        integrationKey,
-        collectionKey,
-      });
-    } catch (err) {
-      await errorService.reportError(err);
-      return false;
     }
   }
 }
