@@ -1,6 +1,5 @@
 import { Collection, Sync, SyncRun, SyncSchedule } from '@prisma/client';
 import { StringValue } from 'ms';
-import ElasticClient from '../clients/elastic.client';
 import TemporalClient from '../clients/temporal.client';
 import { database } from '../utils/database';
 import { LogLevel, Resource, SyncRunStatus, SyncScheduleStatus, SyncStatus } from '../utils/enums';
@@ -246,6 +245,30 @@ class SyncService {
     try {
       return await database.sync.findMany({
         where: { linked_account_id: linkedAccountId, deleted_at: null },
+      });
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
+    }
+  }
+
+  public async listSyncsForCollection({
+    environmentId,
+    integrationKey,
+    collectionKey,
+  }: {
+    environmentId: string;
+    integrationKey: string;
+    collectionKey: string;
+  }): Promise<Sync[] | null> {
+    try {
+      return await database.sync.findMany({
+        where: {
+          environment_id: environmentId,
+          integration_key: integrationKey,
+          collection_key: collectionKey,
+          deleted_at: null,
+        },
       });
     } catch (err) {
       await errorService.reportError(err);
@@ -588,8 +611,10 @@ class SyncService {
     }
   }
 
-  public async deleteSync(linkedAccountId: string, collectionKey: string): Promise<Sync | null> {
+  public async deleteSync(sync: Sync): Promise<Sync | null> {
     try {
+      const linkedAccountId = sync.linked_account_id;
+      const collectionKey = sync.collection_key;
       const temporal = await TemporalClient.getInstance();
       const temporalSyncScheduleId = TemporalClient.generateSyncScheduleId(
         linkedAccountId,
@@ -615,9 +640,6 @@ class SyncService {
           await temporal.terminateSyncRun(syncRun.temporal_run_id);
         }
       }
-
-      const elastic = ElasticClient.getInstance();
-      await elastic.deleteIndex({ linkedAccountId, collectionKey });
 
       return await this.updateSync(linkedAccountId, collectionKey, {
         status: SyncStatus.Stopped,

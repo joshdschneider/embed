@@ -35,10 +35,12 @@ export class QueryClient {
   }
 
   public async emptyQuery({
+    linkedAccountId,
     indexName,
     schemaProperties,
     queryOptions,
   }: {
+    linkedAccountId: string;
     indexName: string;
     schemaProperties: Record<string, CollectionProperty>;
     queryOptions?: QueryOptions;
@@ -50,9 +52,14 @@ export class QueryClient {
 
     if (queryOptions?.filter) {
       const filter = QueryClient.transformFilter(queryOptions.filter, schemaProperties);
-      req.query = { bool: { filter: filter } };
+      req.query = {
+        bool: {
+          must: filter,
+          filter: { term: { linked_account_id: linkedAccountId } },
+        },
+      };
     } else {
-      req.query = { match_all: {} };
+      req.query = { term: { linked_account_id: linkedAccountId } };
     }
 
     const res = await this.elastic.search(req);
@@ -64,11 +71,13 @@ export class QueryClient {
   }
 
   public async keywordQuery({
+    linkedAccountId,
     indexName,
     schemaProperties,
     queryOptions,
     noFormat,
   }: {
+    linkedAccountId: string;
     indexName: string;
     schemaProperties: Record<string, CollectionProperty>;
     queryOptions: QueryOptions;
@@ -144,7 +153,8 @@ export class QueryClient {
       query: {
         bool: {
           should: should,
-          filter: filter,
+          must: filter,
+          filter: { term: { linked_account_id: linkedAccountId } },
         },
       },
       highlight: {
@@ -174,6 +184,7 @@ export class QueryClient {
   }
 
   public async vectorQuery({
+    linkedAccountId,
     indexName,
     schemaProperties,
     queryOptions,
@@ -182,6 +193,7 @@ export class QueryClient {
     multimodalEnabled,
     noFormat,
   }: {
+    linkedAccountId: string;
     indexName: string;
     schemaProperties: Record<string, CollectionProperty>;
     queryOptions: QueryOptions;
@@ -259,7 +271,12 @@ export class QueryClient {
         k: queryOptions.limit || DEFAULT_QUERY_LIMIT,
         num_candidates: DEFAULT_KNN_NUM_CANDIDATES,
         query_vector: queryVector[0],
-        filter: filter,
+        filter: {
+          bool: {
+            must: filter,
+            filter: { term: { linked_account_id: linkedAccountId } },
+          },
+        },
       };
 
       if (prop.includes('.')) {
@@ -294,7 +311,12 @@ export class QueryClient {
         k: queryOptions.limit || DEFAULT_QUERY_LIMIT,
         num_candidates: DEFAULT_KNN_NUM_CANDIDATES,
         query_vector: queryVector[0],
-        filter: filter,
+        filter: {
+          bool: {
+            must: filter,
+            filter: { term: { linked_account_id: linkedAccountId } },
+          },
+        },
       };
 
       if (prop.includes('.')) {
@@ -341,6 +363,7 @@ export class QueryClient {
   }
 
   public async hybridQuery({
+    linkedAccountId,
     indexName,
     schemaProperties,
     queryOptions,
@@ -348,6 +371,7 @@ export class QueryClient {
     multimodalEmbeddingModel,
     multimodalEnabled,
   }: {
+    linkedAccountId: string;
     indexName: string;
     schemaProperties: Record<string, CollectionProperty>;
     queryOptions: QueryOptions;
@@ -356,6 +380,7 @@ export class QueryClient {
     multimodalEnabled: boolean;
   }): Promise<object[]> {
     const keywordQueryPromise = this.keywordQuery({
+      linkedAccountId,
       indexName,
       schemaProperties,
       queryOptions,
@@ -363,6 +388,7 @@ export class QueryClient {
     });
 
     const vectorQueryPromise = this.vectorQuery({
+      linkedAccountId,
       indexName,
       schemaProperties,
       queryOptions,
@@ -394,12 +420,14 @@ export class QueryClient {
   }
 
   public async imageSearch({
+    linkedAccountId,
     indexName,
     schemaProperties,
     returnProperties,
     imageSearchOptions,
     multimodalEmbeddingModel,
   }: {
+    linkedAccountId: string;
     indexName: string;
     schemaProperties: Record<string, CollectionProperty>;
     returnProperties?: string[];
@@ -455,7 +483,12 @@ export class QueryClient {
         k: imageSearchOptions.limit || DEFAULT_QUERY_LIMIT,
         num_candidates: DEFAULT_KNN_NUM_CANDIDATES,
         query_vector: queryVector[0],
-        filter: filter,
+        filter: {
+          bool: {
+            must: filter,
+            filter: { term: { linked_account_id: linkedAccountId } },
+          },
+        },
       };
 
       if (prop.includes('.')) {
@@ -1048,7 +1081,7 @@ export class QueryClient {
         }
       } else {
         if (Array.isArray(existingObj._source[key]) || Array.isArray(newObj._source[key])) {
-          const existingArray = existingObj._source[key];
+          const existingArray = existingObj._source[key] || [];
           const newArray = newObj._source[key];
           const hashIndex = new Map<string, NestedHitObject>();
           for (const item of existingArray) {

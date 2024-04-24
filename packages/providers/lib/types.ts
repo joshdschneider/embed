@@ -150,7 +150,7 @@ export const CollectionsSchema = z.record(
     schema: CollectionSchemaSchema,
     default_enabled: z.boolean().optional(),
     default_sync_frequency: z.string().optional(),
-    default_auto_start_sync: z.boolean().optional(),
+    default_sync_auto_start: z.boolean().optional(),
     required_scopes: z.array(z.string()).optional(),
     has_multimodal_properties: z.boolean(),
   })

@@ -164,7 +164,7 @@ export const SYNC_TASK_QUEUE = 'syncs';
 export const ACTIONS_TASK_QUEUE = 'actions';
 
 export const DEFAULT_SYNC_FREQUENCY = '1d';
-export const DEFAULT_AUTO_START_SYNC = false;
+export const DEFAULT_SYNC_AUTO_START = false;
 
 export const DEFAULT_TEXT_EMBEDDING_MODEL = TextEmbeddingModel.OpenaiTextEmbedding3Small;
 export const DEFAULT_MULTIMODAL_EMBEDDING_MODEL = MultimodalEmbeddingModel.AmazonTitanMultimodalG1;
