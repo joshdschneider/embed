@@ -43,7 +43,6 @@ export enum LogAction {
 export enum SyncStatus {
   Running = 'running',
   Stopped = 'stopped',
-  Success = 'success',
   Error = 'error',
 }
 

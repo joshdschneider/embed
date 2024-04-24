@@ -34,14 +34,14 @@ export async function triggerSync(args: SyncArgs): Promise<void> {
 
   const sync = await syncService.retrieveSync(args.linkedAccountId, args.collectionKey);
   if (!sync) {
-    const err = new Error('Sync not found in the database');
     await activityService.createActivityLog(activityId, {
       message: 'Sync failed',
       level: LogLevel.Error,
       timestamp: now(),
-      payload: { error: err.message },
+      payload: { error: 'Sync does not exist' },
     });
 
+    const err = new Error('Sync not found in the database');
     return await errorService.reportError(err);
   }
 
@@ -71,15 +71,15 @@ export async function triggerSync(args: SyncArgs): Promise<void> {
   });
 
   if (!syncRun) {
-    const err = new Error('Failed to create sync run in the database');
     await activityService.createActivityLog(activityId, {
       message: 'Sync failed',
       level: LogLevel.Error,
       timestamp: now(),
-      payload: { error: err.message },
+      payload: { error: 'Internal server error' },
     });
 
-    await syncService.handleSyncFailure(sync.linked_account_id, sync.collection_key);
+    await syncService.handleSyncFailure({ sync, activityId });
+    const err = new Error('Failed to create sync run in the database');
     return await errorService.reportError(err);
   }
 
@@ -122,10 +122,7 @@ export async function triggerSync(args: SyncArgs): Promise<void> {
     });
 
     syncContext.finish();
-    await syncService.updateSync(args.linkedAccountId, args.collectionKey, {
-      last_synced_at: now(),
-    });
-
+    await syncService.handleSyncSuccess({ sync, activityId, results });
     await activityService.createActivityLog(activityId, {
       message: 'Sync completed',
       level: LogLevel.Info,
@@ -141,7 +138,7 @@ export async function triggerSync(args: SyncArgs): Promise<void> {
       payload: { error: 'Internal server error' },
     });
 
-    await syncService.handleSyncFailure(sync.linked_account_id, sync.collection_key);
+    await syncService.handleSyncFailure({ sync, activityId });
     return await errorService.reportError(err);
   }
 }
@@ -178,8 +175,14 @@ export async function reportFailure(args: SyncFailureArgs | ActionFailureArgs): 
   }
 
   if (args.type === 'sync') {
-    await syncService.handleSyncFailure(args.args.linkedAccountId, args.args.collectionKey);
-    // surface error to the user
+    const sync = await syncService.retrieveSync(args.args.linkedAccountId, args.args.collectionKey);
+    if (sync) {
+      await syncService.handleSyncFailure({
+        sync,
+        reason: message,
+        activityId: null,
+      });
+    }
   } else if (args.type === 'action') {
     message = 'Action failed';
   }

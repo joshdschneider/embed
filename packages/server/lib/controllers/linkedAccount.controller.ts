@@ -4,13 +4,13 @@ import {
   ErrorCode,
   errorService,
   linkedAccountService,
+  Metadata,
 } from '@embed/shared';
 import type { Request, Response } from 'express';
 import { zodError } from '../utils/helpers';
 import {
   LinkedAccountDeletedObject,
   LinkedAccountObject,
-  Metadata,
   PaginationParametersSchema,
   UpdateLinkedAccountRequestSchema,
 } from '../utils/types';

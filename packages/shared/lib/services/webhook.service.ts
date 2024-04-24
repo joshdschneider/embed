@@ -1,18 +1,19 @@
-import type { LinkedAccount, Webhook, WebhookEvent } from '@embed/shared';
-import {
-  LogLevel,
-  Resource,
-  activityService,
-  database,
-  encryptionService,
-  environmentService,
-  errorService,
-  generateId,
-  now,
-} from '@embed/shared';
+import { LinkedAccount, Sync, Webhook, WebhookEvent } from '@prisma/client';
 import { backOff } from 'exponential-backoff';
-import { getWebhookSignatureHeader } from '../utils/helpers';
-import { LinkedAccountWebhookEvent, Metadata, WebhookBody } from '../utils/types';
+import { database } from '../utils/database';
+import { LogLevel, Resource } from '../utils/enums';
+import { generateId, getWebhookSignatureHeader, now } from '../utils/helpers';
+import {
+  LinkedAccountWebhookEvent,
+  Metadata,
+  SyncWebhookBody,
+  SyncWebhookEvent,
+  WebhookBody,
+} from '../utils/types';
+import activityService from './activity.service';
+import encryptionService from './encryption.service';
+import environmentService from './environment.service';
+import errorService from './error.service';
 
 class WebhookService {
   public async createWebhook(webhook: Webhook): Promise<Webhook | null> {
@@ -131,7 +132,6 @@ class WebhookService {
 
     try {
       const signatureHeader = getWebhookSignatureHeader(JSON.stringify(data), webhook.secret);
-
       const response = await backOff(
         () => {
           return fetch(webhook.url, {
@@ -165,17 +165,15 @@ class WebhookService {
   }
 
   public async sendLinkedAccountWebhook({
-    environmentId,
     linkedAccount,
     activityId,
     action,
   }: {
-    environmentId: string;
     linkedAccount: LinkedAccount;
     activityId: string | null;
     action: 'created' | 'updated';
   }): Promise<void> {
-    const webhooks = await this.listWebhooks(environmentId);
+    const webhooks = await this.listWebhooks(linkedAccount.environment_id);
     if (!webhooks) {
       await activityService.createActivityLog(activityId, {
         timestamp: now(),
@@ -191,7 +189,7 @@ class WebhookService {
       return;
     }
 
-    const environment = await environmentService.getEnvironmentById(environmentId);
+    const environment = await environmentService.getEnvironmentById(linkedAccount.environment_id);
     if (!environment) {
       await activityService.createActivityLog(activityId, {
         timestamp: now(),
@@ -204,7 +202,6 @@ class WebhookService {
     }
 
     let event: LinkedAccountWebhookEvent;
-
     if (action === 'created') {
       event = 'linked_account.created';
     } else if (action === 'updated') {
@@ -220,7 +217,7 @@ class WebhookService {
       return await errorService.reportError(err);
     }
 
-    const results = [];
+    const res = [];
 
     try {
       for (const webhook of enabledWebhooks) {
@@ -235,12 +232,11 @@ class WebhookService {
             updated_at: linkedAccount.updated_at,
           });
 
-          results.push({ delivered, url: webhook.url });
+          res.push({ delivered, url: webhook.url });
         }
       }
 
-      const deliveredCount = results.filter((result) => result.delivered).length;
-
+      const deliveredCount = res.filter((result) => result.delivered).length;
       if (deliveredCount === 0) {
         throw new Error('Failed to deliver webhook(s)');
       }
@@ -254,7 +250,7 @@ class WebhookService {
         timestamp: now(),
         level: LogLevel.Info,
         message,
-        payload: { event, results },
+        payload: { event, results: res },
       });
     } catch (err) {
       await errorService.reportError(err);
@@ -263,7 +259,121 @@ class WebhookService {
         timestamp: now(),
         level: LogLevel.Error,
         message: `Failed to deliver webhook due to an internal error`,
-        payload: { event, results },
+        payload: { event, results: res },
+      });
+    }
+  }
+
+  public async sendSyncWebhook({
+    sync,
+    activityId,
+    action,
+    results,
+    reason,
+  }: {
+    sync: Sync;
+    activityId: string | null;
+    action: 'succeeded' | 'failed';
+    results?: {
+      records_added: number;
+      records_updated: number;
+      records_deleted: number;
+    };
+    reason?: string;
+  }): Promise<void> {
+    const webhooks = await this.listWebhooks(sync.environment_id);
+    if (!webhooks) {
+      await activityService.createActivityLog(activityId, {
+        timestamp: now(),
+        level: LogLevel.Error,
+        message: `Failed to deliver webhook due to an internal error`,
+      });
+
+      const err = new Error('Failed to list webhooks');
+      return await errorService.reportError(err);
+    }
+
+    const enabledWebhooks = webhooks.filter((webhook) => webhook.is_enabled);
+    if (enabledWebhooks.length === 0) {
+      return;
+    }
+
+    const environment = await environmentService.getEnvironmentById(sync.environment_id);
+    if (!environment) {
+      await activityService.createActivityLog(activityId, {
+        timestamp: now(),
+        level: LogLevel.Error,
+        message: `Failed to deliver webhook due to an internal error`,
+      });
+
+      const err = new Error('Failed to retrieve environment');
+      return await errorService.reportError(err);
+    }
+
+    let event: SyncWebhookEvent;
+    if (action === 'succeeded') {
+      event = 'sync.succeeded';
+    } else if (action === 'failed') {
+      event = 'sync.failed';
+    } else {
+      await activityService.createActivityLog(activityId, {
+        timestamp: now(),
+        level: LogLevel.Error,
+        message: `Failed to deliver webhook due to an internal error`,
+      });
+
+      const err = new Error(`Unsupported action: ${action}`);
+      return await errorService.reportError(err);
+    }
+
+    const res = [];
+
+    try {
+      for (const webhook of enabledWebhooks) {
+        if (webhook.event_subscriptions.includes(event)) {
+          const body: SyncWebhookBody = {
+            event: event,
+            integration: sync.integration_key,
+            linked_account: sync.linked_account_id,
+            collection: sync.collection_key,
+            timestamp: now(),
+          };
+
+          if (event === 'sync.succeeded' && results) {
+            body.results = results;
+          } else if (event === 'sync.failed' && reason) {
+            body.reason = reason;
+          }
+
+          const delivered = await this.sendWebhook(webhook, body);
+          res.push({ delivered, url: webhook.url });
+        }
+      }
+
+      const deliveredCount = res.filter((result) => result.delivered).length;
+      if (deliveredCount === 0) {
+        throw new Error('Failed to deliver webhook(s)');
+      }
+
+      const message =
+        deliveredCount === enabledWebhooks.length
+          ? `Webhook delivered to ${deliveredCount} endpoints`
+          : `Webhook delivered to ${deliveredCount} out of ${enabledWebhooks.length} endpoints`;
+
+      await activityService.createActivityLog(activityId, {
+        timestamp: now(),
+        level: LogLevel.Info,
+        message,
+        payload: { event, results: res },
+      });
+    } catch (err) {
+      await errorService.reportError(err);
+
+      await activityService.createActivityLog(activityId, {
+        timestamp: now(),
+        level: LogLevel.Error,
+        message: `Failed to deliver webhook due to an internal error`,
+        payload: { event, results: res },
       });
     }
   }

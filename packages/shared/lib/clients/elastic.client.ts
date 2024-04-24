@@ -623,7 +623,13 @@ class ElasticClient {
     }
   }
 
-  public async deleteIndex(linkedAccountId: string, collectionKey: string): Promise<boolean> {
+  public async deleteIndex({
+    linkedAccountId,
+    collectionKey,
+  }: {
+    linkedAccountId: string;
+    collectionKey: string;
+  }): Promise<boolean> {
     try {
       const indexName = ElasticClient.formatIndexName(linkedAccountId, collectionKey);
       const response = await this.elastic.indices.delete({ index: indexName });

@@ -100,3 +100,35 @@ export type NestedHitObject = {
   _match: string[];
   _source: NestedSourceObjectWithHash;
 };
+
+export type Metadata = Record<string, any> | null;
+
+export type LinkedAccountWebhookEvent = 'linked_account.created' | 'linked_account.updated';
+
+export interface LinkedAccountWebhookBody {
+  event: LinkedAccountWebhookEvent;
+  integration: string;
+  linked_account: string;
+  configuration: Record<string, any>;
+  metadata: Metadata;
+  created_at: number;
+  updated_at: number;
+}
+
+export type SyncWebhookEvent = 'sync.succeeded' | 'sync.failed';
+
+export interface SyncWebhookBody {
+  event: SyncWebhookEvent;
+  integration: string;
+  linked_account: string;
+  collection: string;
+  results?: {
+    records_added: number;
+    records_updated: number;
+    records_deleted: number;
+  };
+  reason?: string;
+  timestamp: number;
+}
+
+export type WebhookBody = LinkedAccountWebhookBody | SyncWebhookBody;

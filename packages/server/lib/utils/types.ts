@@ -1,5 +1,5 @@
 import { AuthScheme } from '@embed/providers';
-import { Branding, SyncRunStatus, SyncStatus } from '@embed/shared';
+import { Branding, Metadata, SyncRunStatus, SyncStatus } from '@embed/shared';
 import { z } from 'zod';
 
 export enum EnvironmentType {
@@ -83,20 +83,6 @@ export interface BasicTemplateData extends DefaultTemplateData {
   };
 }
 
-export type LinkedAccountWebhookEvent = 'linked_account.created' | 'linked_account.updated';
-
-export interface LinkedAccountWebhookBody {
-  event: LinkedAccountWebhookEvent;
-  integration: string;
-  linked_account: string;
-  configuration: Record<string, any>;
-  metadata: Metadata;
-  created_at: number;
-  updated_at: number;
-}
-
-export type WebhookBody = LinkedAccountWebhookBody;
-
 export interface IntegrationObject {
   object: 'integration';
   unique_key: string;
@@ -160,8 +146,6 @@ export interface ActionRunObject {
   created_at: number;
   updated_at: number;
 }
-
-export type Metadata = Record<string, any> | null;
 
 export interface LinkTokenObject {
   object: 'link_token';

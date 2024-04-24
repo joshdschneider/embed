@@ -79,6 +79,18 @@ export function missesInterpolationParam(str: string, replacers: Record<string, 
   return /\${([^{}]*)}/g.test(interpolatedStr);
 }
 
+export function generateWebhookSigningSecret(): string {
+  return crypto.randomBytes(32).toString('hex');
+}
+
+export function getWebhookSignatureHeader(
+  payload: string,
+  secret: string
+): { 'X-Embed-Signature': string } {
+  const hash = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+  return { 'X-Embed-Signature': `sha256=${hash}` };
+}
+
 export function deconstructObject(
   obj: Record<string, any>,
   parentKey = '',

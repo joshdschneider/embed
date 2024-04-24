@@ -21,6 +21,7 @@ import linkedAccountService from './services/linkedAccount.service';
 import providerService from './services/provider.service';
 import proxyService from './services/proxy.service';
 import syncService from './services/sync.service';
+import webhookService from './services/webhook.service';
 import { MultimodalEmbeddingModel, TextEmbeddingModel } from './utils/enums';
 
 export * from './utils/constants';
@@ -67,4 +68,5 @@ export {
   providerService,
   proxyService,
   syncService,
+  webhookService,
 };

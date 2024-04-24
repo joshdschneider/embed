@@ -179,6 +179,23 @@ class RecordService {
       return false;
     }
   }
+
+  public async hasRecords(linkedAccountId: string, collectionKey: string): Promise<boolean> {
+    try {
+      const record = await database.record.findFirst({
+        where: {
+          linked_account_id: linkedAccountId,
+          collection_key: collectionKey,
+          deleted_at: null,
+        },
+      });
+
+      return !!record;
+    } catch (err) {
+      await errorService.reportError(err);
+      return false;
+    }
+  }
 }
 
 export default new RecordService();

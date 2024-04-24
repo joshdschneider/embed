@@ -33,18 +33,6 @@ export function generateSecretKey(environment: EnvironmentType, byteLength = 16)
   return `sk_${prefix}_${crypto.randomBytes(byteLength).toString('hex')}`;
 }
 
-export function generateWebhookSigningSecret(): string {
-  return crypto.randomBytes(32).toString('hex');
-}
-
-export function getWebhookSignatureHeader(
-  payload: string,
-  secret: string
-): { 'X-Embed-Signature': string } {
-  const hash = crypto.createHmac('sha256', secret).update(payload).digest('hex');
-  return { 'X-Embed-Signature': `sha256=${hash}` };
-}
-
 export function zodError(err: ZodError) {
   return err.issues.map((i) => `${i.path.join('.')} ${i.message}`).join(', ');
 }

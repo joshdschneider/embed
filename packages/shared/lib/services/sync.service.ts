@@ -7,6 +7,7 @@ import { LogLevel, Resource, SyncRunStatus, SyncScheduleStatus, SyncStatus } fro
 import { generateId, getFrequencyInterval, now } from '../utils/helpers';
 import activityService from './activity.service';
 import errorService from './error.service';
+import webhookService from './webhook.service';
 
 class SyncService {
   public async initializeSync({
@@ -176,14 +177,46 @@ class SyncService {
     }
   }
 
-  public async handleSyncFailure(
-    linkedAccountId: string,
-    collectionKey: string
-  ): Promise<Sync | null> {
-    await this.pauseSchedule(linkedAccountId, collectionKey);
+  public async handleSyncSuccess({
+    sync,
+    results,
+    activityId,
+  }: {
+    sync: Sync;
+    results: { records_added: number; records_updated: number; records_deleted: number };
+    activityId: string | null;
+  }): Promise<void> {
+    await this.updateSync(sync.linked_account_id, sync.collection_key, {
+      last_synced_at: now(),
+    });
 
-    return await this.updateSync(linkedAccountId, collectionKey, {
+    webhookService.sendSyncWebhook({
+      action: 'succeeded',
+      sync,
+      activityId,
+      results,
+    });
+  }
+
+  public async handleSyncFailure({
+    sync,
+    activityId,
+    reason,
+  }: {
+    sync: Sync;
+    activityId: string | null;
+    reason?: string;
+  }): Promise<void> {
+    await this.pauseSchedule(sync.linked_account_id, sync.collection_key);
+    await this.updateSync(sync.linked_account_id, sync.collection_key, {
       status: SyncStatus.Error,
+    });
+
+    webhookService.sendSyncWebhook({
+      action: 'failed',
+      sync,
+      activityId,
+      reason,
     });
   }
 
@@ -584,7 +617,7 @@ class SyncService {
       }
 
       const elastic = ElasticClient.getInstance();
-      await elastic.deleteIndex(linkedAccountId, collectionKey);
+      await elastic.deleteIndex({ linkedAccountId, collectionKey });
 
       return await this.updateSync(linkedAccountId, collectionKey, {
         status: SyncStatus.Stopped,

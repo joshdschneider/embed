@@ -86,8 +86,29 @@ export class EmbeddingClient {
     return backOff(requestWithBackoff, { numOfAttempts: 5 });
   }
 
-  private async withCohere(model: TextEmbeddingModel, purpose: EmbeddingPurpose, text: string[]) {
+  private async withCohere(
+    model: TextEmbeddingModel,
+    purpose: EmbeddingPurpose,
+    text: string[]
+  ): Promise<number[][]> {
     const cohere = getCohere();
+
+    if (text.length > 96) {
+      const texts = [];
+      let i = 0;
+      while (i < text.length) {
+        texts.push(text.slice(i, i + 96));
+        i += 96;
+      }
+
+      const embeddings = await Promise.all(
+        texts.map(async (chunk) => {
+          return this.withCohere(model, purpose, chunk);
+        })
+      );
+
+      return embeddings.flat();
+    }
 
     const requestWithBackoff = async () => {
       const response = await cohere.embed({

@@ -88,6 +88,9 @@ class EnvironmentService {
         where: { id: environmentId },
         data: {
           enable_new_integrations: environment.enable_new_integrations,
+          multimodal_enabled_by_default: environment.multimodal_enabled_by_default,
+          default_text_embedding_model: environment.default_text_embedding_model,
+          default_multimodal_embedding_model: environment.default_multimodal_embedding_model,
           branding: environment.branding || undefined,
           updated_at: now(),
         },

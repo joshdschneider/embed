@@ -267,12 +267,17 @@ class LinkedAccountService {
     }
   }
 
-  public async createIndexForLinkedAccount(
-    environmentId: string,
-    linkedAccountId: string,
-    integrationKey: string,
-    collectionKey: string
-  ): Promise<boolean> {
+  public async createIndexForLinkedAccount({
+    environmentId,
+    linkedAccountId,
+    integrationKey,
+    collectionKey,
+  }: {
+    environmentId: string;
+    linkedAccountId: string;
+    integrationKey: string;
+    collectionKey: string;
+  }): Promise<boolean> {
     try {
       const elastic = ElasticClient.getInstance();
       return await elastic.createIndex({
