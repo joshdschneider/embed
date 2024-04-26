@@ -11,7 +11,7 @@ import {
   providerService,
 } from '@embed/shared';
 import type { Request, Response } from 'express';
-import type { ConsentTemplateData, ErrorTemplateData, ListTemplateData } from '../utils/types';
+import type { ApiKeyTemplateData, ConsentTemplateData, ErrorTemplateData } from '../utils/types';
 
 class LinkPreviewController {
   public async listView(req: Request, res: Response) {
@@ -73,16 +73,20 @@ class LinkPreviewController {
         };
       });
 
-      const data: ListTemplateData = {
-        is_preview: true,
+      const data: ApiKeyTemplateData = {
         server_url: serverUrl,
         link_token: '_',
-        integrations: integrationsList,
+        integration: {
+          unique_key: 'klaviyo',
+          name: '',
+          logo_url: '',
+          logo_url_dark_mode: '',
+        },
         branding,
         prefers_dark_mode: prefersDarkMode,
       };
 
-      res.render('list', data);
+      res.render('api-key', data);
     } catch (err) {
       await errorService.reportError(err);
 

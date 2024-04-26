@@ -1,5 +1,4 @@
-import { AuthScheme, ProviderSpecification } from '@embed/providers';
-import type { Integration } from '@embed/shared';
+import { AuthScheme } from '@embed/providers';
 import {
   DEFAULT_ERROR_MESSAGE,
   LogLevel,
@@ -21,18 +20,11 @@ import {
   extractConfigurationKeys,
   formatKeyToReadableText,
 } from '../utils/helpers';
-import {
-  ApiKeyTemplateData,
-  BasicTemplateData,
-  ConfigTemplateData,
-  ConsentTemplateData,
-  ListTemplateData,
-} from '../utils/types';
+import { ApiKeyTemplateData, BasicTemplateData, ConfigTemplateData } from '../utils/types';
 
 class LinkController {
-  public async listView(req: Request, res: Response) {
+  public async routeView(req: Request, res: Response) {
     const token = req.params['token'];
-
     let linkMethod = req.query['link_method'] as string | undefined;
     let wsClientId = req.query['ws_client_id'] as string | undefined;
     let redirectUrl = req.query['redirect_url'] as string | undefined;
@@ -50,7 +42,6 @@ class LinkController {
     }
 
     const linkToken = await linkTokenService.getLinkTokenById(token);
-
     if (!linkToken) {
       return await publisher.publishError(res, {
         error: 'Invalid link token',
@@ -81,315 +72,8 @@ class LinkController {
     const branding = await environmentService.getEnvironmentBranding(linkToken.environment_id);
 
     try {
-      const serverUrl = getServerUrl();
-      if (!serverUrl) {
-        throw new Error('SERVER_URL is undefined');
-      }
-
-      if (!linkToken.can_choose_integration) {
-        return res.redirect(`${serverUrl}/link/${linkToken.id}/i/${linkToken.integration_key}`);
-      }
-
       if (linkToken.expires_at < now()) {
         const errorMessage = 'Link token expired';
-
-        await activityService.createActivityLog(activityId, {
-          timestamp: now(),
-          level: LogLevel.Error,
-          message: errorMessage,
-        });
-
-        return await publisher.publishError(res, {
-          error: errorMessage,
-          wsClientId,
-          linkMethod,
-          redirectUrl,
-          branding,
-          prefersDarkMode,
-        });
-      }
-
-      const integrations = await integrationService.listIntegrations(linkToken.environment_id);
-
-      if (!integrations) {
-        throw new Error(`Failed to list integrations for environment ${linkToken.environment_id}`);
-      }
-
-      const enabledIntegrations = integrations.filter((integration) => integration.is_enabled);
-
-      const integrationsWithSpec = await Promise.all(
-        enabledIntegrations.map(async (integration) => {
-          const providerSpec = await providerService.getProviderSpec(integration.unique_key);
-
-          if (!providerSpec) {
-            const err = new Error(`Provider specification not found for ${integration.unique_key}`);
-            await errorService.reportError(err);
-          }
-
-          return { ...integration, provider_spec: providerSpec };
-        })
-      );
-
-      const integrationsFiltered = integrationsWithSpec.filter(
-        (integration) => integration.provider_spec !== null
-      ) as (Integration & { provider_spec: ProviderSpecification })[];
-
-      const integrationsList = integrationsFiltered.map((integration) => {
-        return {
-          unique_key: integration.unique_key,
-          name: integration.provider_spec.name,
-          logo_url: integration.provider_spec.logo_url,
-          logo_url_dark_mode: integration.provider_spec.logo_url_dark_mode,
-        };
-      });
-
-      await activityService.createActivityLog(activityId, {
-        timestamp: now(),
-        level: LogLevel.Info,
-        message: `User viewed select integration screen`,
-      });
-
-      const data: ListTemplateData = {
-        is_preview: false,
-        server_url: serverUrl,
-        link_token: token,
-        integrations: integrationsList,
-        branding,
-        prefers_dark_mode: prefersDarkMode,
-      };
-
-      res.render('list', data);
-    } catch (err) {
-      await errorService.reportError(err);
-
-      await activityService.createActivityLog(activityId, {
-        timestamp: now(),
-        level: LogLevel.Error,
-        message: 'Internal server error',
-      });
-
-      return await publisher.publishError(res, {
-        error: DEFAULT_ERROR_MESSAGE,
-        wsClientId,
-        linkMethod,
-        redirectUrl,
-        branding,
-        prefersDarkMode,
-      });
-    }
-  }
-
-  public async consentView(req: Request, res: Response) {
-    const token = req.params['token'];
-    const integrationKey = req.params['integration'];
-
-    if (!token) {
-      return await publisher.publishError(res, {
-        error: 'Link token missing',
-      });
-    }
-
-    const linkToken = await linkTokenService.getLinkTokenById(token);
-    if (!linkToken) {
-      return await publisher.publishError(res, {
-        error: 'Invalid link token',
-      });
-    }
-
-    const linkMethod = linkToken.link_method || undefined;
-    const wsClientId = linkToken.websocket_client_id || undefined;
-    const redirectUrl = linkToken.redirect_url || undefined;
-    const prefersDarkMode = linkToken.prefers_dark_mode || false;
-
-    const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
-    const branding = await environmentService.getEnvironmentBranding(linkToken.environment_id);
-
-    try {
-      if (!integrationKey) {
-        const errorMessage = 'No integration selected';
-
-        await activityService.createActivityLog(activityId, {
-          timestamp: now(),
-          level: LogLevel.Error,
-          message: errorMessage,
-        });
-
-        return await publisher.publishError(res, {
-          error: errorMessage,
-          wsClientId,
-          linkMethod,
-          redirectUrl,
-          branding,
-          prefersDarkMode,
-        });
-      }
-
-      if (!linkToken.can_choose_integration && integrationKey !== linkToken.integration_key) {
-        const errorMessage = `Invalid integration`;
-
-        await activityService.createActivityLog(activityId, {
-          timestamp: now(),
-          level: LogLevel.Error,
-          message: errorMessage,
-        });
-
-        return await publisher.publishError(res, {
-          error: errorMessage,
-          wsClientId,
-          linkMethod,
-          redirectUrl,
-          branding,
-          prefersDarkMode,
-        });
-      }
-
-      if (linkToken.expires_at < now()) {
-        const errorMessage = 'Link token expired';
-
-        await activityService.createActivityLog(activityId, {
-          timestamp: now(),
-          level: LogLevel.Error,
-          message: errorMessage,
-        });
-
-        return await publisher.publishError(res, {
-          error: errorMessage,
-          wsClientId,
-          linkMethod,
-          redirectUrl,
-          branding,
-          prefersDarkMode,
-        });
-      }
-
-      const serverUrl = getServerUrl();
-      if (!serverUrl) {
-        throw new Error('SERVER_URL is undefined');
-      }
-
-      const integration = await integrationService.getIntegrationByKey(
-        integrationKey,
-        linkToken.environment_id
-      );
-
-      if (!integration) {
-        throw new Error(`Failed to retrieve integration ${integrationKey}`);
-      }
-
-      if (!integration.is_enabled) {
-        const errorMessage = 'Integration is disabled';
-
-        await activityService.createActivityLog(activityId, {
-          timestamp: now(),
-          level: LogLevel.Error,
-          message: errorMessage,
-        });
-
-        return await publisher.publishError(res, {
-          error: errorMessage,
-          wsClientId,
-          linkMethod,
-          redirectUrl,
-          branding,
-          prefersDarkMode,
-        });
-      }
-
-      const providerSpec = await providerService.getProviderSpec(integration.unique_key);
-      if (!providerSpec) {
-        throw new Error(`Provider specification not found for ${integration.unique_key}`);
-      }
-
-      await activityService.createActivityLog(activityId, {
-        timestamp: now(),
-        level: LogLevel.Info,
-        message: `User viewed consent screen`,
-      });
-
-      const data: ConsentTemplateData = {
-        is_preview: false,
-        server_url: serverUrl,
-        link_token: token,
-        can_choose_integration: linkToken.can_choose_integration,
-        integration: {
-          unique_key: integration.unique_key,
-          name: providerSpec.name,
-          logo_url: providerSpec.logo_url,
-          logo_url_dark_mode: providerSpec.logo_url_dark_mode,
-        },
-        branding,
-        prefers_dark_mode: prefersDarkMode,
-      };
-
-      res.render('consent', data);
-    } catch (err) {
-      await errorService.reportError(err);
-
-      await activityService.createActivityLog(activityId, {
-        timestamp: now(),
-        level: LogLevel.Error,
-        message: 'Internal server error',
-      });
-
-      return await publisher.publishError(res, {
-        error: DEFAULT_ERROR_MESSAGE,
-        wsClientId,
-        linkMethod,
-        redirectUrl,
-        branding,
-        prefersDarkMode,
-      });
-    }
-  }
-
-  public async saveConsent(req: Request, res: Response) {
-    const token = req.params['token'];
-    const provider = req.params['integration'];
-
-    if (!token) {
-      return await publisher.publishError(res, {
-        error: 'Link token missing',
-      });
-    }
-
-    const linkToken = await linkTokenService.getLinkTokenById(token);
-    if (!linkToken) {
-      return await publisher.publishError(res, {
-        error: 'Invalid link token',
-      });
-    }
-
-    const linkMethod = linkToken.link_method || undefined;
-    const wsClientId = linkToken.websocket_client_id || undefined;
-    const redirectUrl = linkToken.redirect_url || undefined;
-    const prefersDarkMode = linkToken.prefers_dark_mode || false;
-
-    const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
-    const branding = await environmentService.getEnvironmentBranding(linkToken.environment_id);
-
-    try {
-      if (linkToken.expires_at < now()) {
-        const errorMessage = 'Link token expired';
-
-        await activityService.createActivityLog(activityId, {
-          timestamp: now(),
-          level: LogLevel.Error,
-          message: errorMessage,
-        });
-
-        return await publisher.publishError(res, {
-          error: errorMessage,
-          wsClientId,
-          linkMethod,
-          redirectUrl,
-          branding,
-          prefersDarkMode,
-        });
-      }
-
-      if (!provider) {
-        const errorMessage = 'No integration selected';
-
         await activityService.createActivityLog(activityId, {
           timestamp: now(),
           level: LogLevel.Error,
@@ -407,17 +91,16 @@ class LinkController {
       }
 
       const integration = await integrationService.getIntegrationByKey(
-        provider,
+        linkToken.integration_key,
         linkToken.environment_id
       );
 
       if (!integration) {
-        throw new Error(`Failed to retrieve integration ${provider}`);
+        throw new Error(`Failed to retrieve integration with key ${linkToken.integration_key}`);
       }
 
       if (!integration.is_enabled) {
         const errorMessage = 'Integration is disabled';
-
         await activityService.createActivityLog(activityId, {
           timestamp: now(),
           level: LogLevel.Error,
@@ -433,20 +116,6 @@ class LinkController {
           prefersDarkMode,
         });
       }
-
-      const updatedLinkToken = await linkTokenService.updateLinkToken(linkToken.id, {
-        integration_key: integration.unique_key,
-        consent_given: true,
-        consent_timestamp: now(),
-      });
-
-      if (!updatedLinkToken) {
-        throw new Error(`Failed to update link token ${linkToken.id}`);
-      }
-
-      await activityService.updateActivity(activityId, {
-        integration_key: integration.unique_key,
-      });
 
       const providerSpec = await providerService.getProviderSpec(integration.unique_key);
       if (!providerSpec) {
@@ -465,7 +134,6 @@ class LinkController {
         case AuthScheme.OAuth1:
         case AuthScheme.OAuth2:
           const oauthUrl = `${baseUrl}/oauth`;
-
           await activityService.createActivityLog(activityId, {
             timestamp: now(),
             level: LogLevel.Info,
@@ -475,7 +143,6 @@ class LinkController {
           return res.redirect(oauthUrl);
         case AuthScheme.ApiKey:
           const apiKeyUrl = `${baseUrl}/api-key`;
-
           await activityService.createActivityLog(activityId, {
             timestamp: now(),
             level: LogLevel.Info,
@@ -485,7 +152,6 @@ class LinkController {
           return res.redirect(apiKeyUrl);
         case AuthScheme.Basic:
           const basicUrl = `${baseUrl}/basic`;
-
           await activityService.createActivityLog(activityId, {
             timestamp: now(),
             level: LogLevel.Info,
@@ -507,8 +173,6 @@ class LinkController {
             id: linkedAccountId,
             environment_id: linkToken.environment_id,
             integration_key: integration.unique_key,
-            consent_given: linkToken.consent_given,
-            consent_timestamp: linkToken.consent_timestamp,
             configuration: null,
             credentials: JSON.stringify({ type: AuthScheme.None }),
             credentials_iv: null,
@@ -566,7 +230,6 @@ class LinkController {
       }
     } catch (err) {
       await errorService.reportError(err);
-
       await activityService.createActivityLog(activityId, {
         timestamp: now(),
         level: LogLevel.Error,
@@ -610,45 +273,6 @@ class LinkController {
     try {
       if (linkToken.expires_at < now()) {
         const errorMessage = 'Link token expired';
-
-        await activityService.createActivityLog(activityId, {
-          timestamp: now(),
-          level: LogLevel.Error,
-          message: errorMessage,
-        });
-
-        return await publisher.publishError(res, {
-          error: errorMessage,
-          wsClientId,
-          linkMethod,
-          redirectUrl,
-          branding,
-          prefersDarkMode,
-        });
-      }
-
-      if (!linkToken.consent_given) {
-        const errorMessage = 'Consent bypassed';
-
-        await activityService.createActivityLog(activityId, {
-          timestamp: now(),
-          level: LogLevel.Error,
-          message: errorMessage,
-        });
-
-        return await publisher.publishError(res, {
-          error: errorMessage,
-          wsClientId,
-          linkMethod,
-          redirectUrl,
-          branding,
-          prefersDarkMode,
-        });
-      }
-
-      if (!linkToken.integration_key) {
-        const errorMessage = 'No integration selected';
-
         await activityService.createActivityLog(activityId, {
           timestamp: now(),
           level: LogLevel.Error,
@@ -723,7 +347,6 @@ class LinkController {
       res.redirect(oauthUrl);
     } catch (err) {
       await errorService.reportError(err);
-
       await activityService.createActivityLog(activityId, {
         timestamp: now(),
         level: LogLevel.Error,
@@ -805,44 +428,6 @@ class LinkController {
         });
       }
 
-      if (!linkToken.consent_given) {
-        const errorMessage = 'Consent bypassed';
-
-        await activityService.createActivityLog(activityId, {
-          timestamp: now(),
-          level: LogLevel.Error,
-          message: errorMessage,
-        });
-
-        return await publisher.publishError(res, {
-          error: errorMessage,
-          wsClientId,
-          linkMethod,
-          redirectUrl,
-          branding,
-          prefersDarkMode,
-        });
-      }
-
-      if (!linkToken.integration_key) {
-        const errorMessage = 'No integration selected';
-
-        await activityService.createActivityLog(activityId, {
-          timestamp: now(),
-          level: LogLevel.Error,
-          message: errorMessage,
-        });
-
-        return await publisher.publishError(res, {
-          error: errorMessage,
-          wsClientId,
-          linkMethod,
-          redirectUrl,
-          branding,
-          prefersDarkMode,
-        });
-      }
-
       const serverUrl = getServerUrl();
       if (!serverUrl) {
         throw new Error('SERVER_URL is undefined');
@@ -870,7 +455,6 @@ class LinkController {
       res.redirect(oauthUrl);
     } catch (err) {
       await errorService.reportError(err);
-
       await activityService.createActivityLog(activityId, {
         timestamp: now(),
         level: LogLevel.Error,
@@ -931,44 +515,6 @@ class LinkController {
         });
       }
 
-      if (!linkToken.consent_given) {
-        const errorMessage = 'Consent bypassed';
-
-        await activityService.createActivityLog(activityId, {
-          timestamp: now(),
-          level: LogLevel.Error,
-          message: errorMessage,
-        });
-
-        return await publisher.publishError(res, {
-          error: errorMessage,
-          wsClientId,
-          linkMethod,
-          redirectUrl,
-          branding,
-          prefersDarkMode,
-        });
-      }
-
-      if (!linkToken.integration_key) {
-        const errorMessage = 'No integration selected';
-
-        await activityService.createActivityLog(activityId, {
-          timestamp: now(),
-          level: LogLevel.Error,
-          message: errorMessage,
-        });
-
-        return await publisher.publishError(res, {
-          error: errorMessage,
-          wsClientId,
-          linkMethod,
-          redirectUrl,
-          branding,
-          prefersDarkMode,
-        });
-      }
-
       const serverUrl = getServerUrl();
       if (!serverUrl) {
         throw new Error('SERVER_URL is undefined');
@@ -1001,7 +547,6 @@ class LinkController {
       res.render('api-key', data);
     } catch (err) {
       await errorService.reportError(err);
-
       await activityService.createActivityLog(activityId, {
         timestamp: now(),
         level: LogLevel.Error,
@@ -1083,44 +628,6 @@ class LinkController {
         });
       }
 
-      if (!linkToken.consent_given) {
-        const errorMessage = 'Consent bypassed';
-
-        await activityService.createActivityLog(activityId, {
-          timestamp: now(),
-          level: LogLevel.Error,
-          message: errorMessage,
-        });
-
-        return await publisher.publishError(res, {
-          error: errorMessage,
-          wsClientId,
-          linkMethod,
-          redirectUrl,
-          branding,
-          prefersDarkMode,
-        });
-      }
-
-      if (!linkToken.integration_key) {
-        const errorMessage = 'No integration selected';
-
-        await activityService.createActivityLog(activityId, {
-          timestamp: now(),
-          level: LogLevel.Error,
-          message: errorMessage,
-        });
-
-        return await publisher.publishError(res, {
-          error: errorMessage,
-          wsClientId,
-          linkMethod,
-          redirectUrl,
-          branding,
-          prefersDarkMode,
-        });
-      }
-
       const linkedAccountId =
         linkToken.linked_account_id || linkedAccountService.generateId(linkToken.integration_key);
 
@@ -1128,8 +635,6 @@ class LinkController {
         id: linkedAccountId,
         environment_id: linkToken.environment_id,
         integration_key: linkToken.integration_key,
-        consent_given: linkToken.consent_given,
-        consent_timestamp: linkToken.consent_timestamp,
         configuration: null,
         credentials: JSON.stringify({ type: AuthScheme.ApiKey, apiKey }),
         credentials_iv: null,
@@ -1182,7 +687,6 @@ class LinkController {
       });
     } catch (err) {
       await errorService.reportError(err);
-
       await activityService.createActivityLog(activityId, {
         timestamp: now(),
         level: LogLevel.Error,
@@ -1243,44 +747,6 @@ class LinkController {
         });
       }
 
-      if (!linkToken.consent_given) {
-        const errorMessage = 'Consent bypassed';
-
-        await activityService.createActivityLog(activityId, {
-          timestamp: now(),
-          level: LogLevel.Error,
-          message: errorMessage,
-        });
-
-        return await publisher.publishError(res, {
-          error: errorMessage,
-          wsClientId,
-          linkMethod,
-          redirectUrl,
-          branding,
-          prefersDarkMode,
-        });
-      }
-
-      if (!linkToken.integration_key) {
-        const errorMessage = 'No integration selected';
-
-        await activityService.createActivityLog(activityId, {
-          timestamp: now(),
-          level: LogLevel.Error,
-          message: errorMessage,
-        });
-
-        return await publisher.publishError(res, {
-          error: errorMessage,
-          wsClientId,
-          linkMethod,
-          redirectUrl,
-          branding,
-          prefersDarkMode,
-        });
-      }
-
       const serverUrl = getServerUrl();
       if (!serverUrl) {
         throw new Error('SERVER_URL is undefined');
@@ -1313,7 +779,6 @@ class LinkController {
       res.render('basic', data);
     } catch (err) {
       await errorService.reportError(err);
-
       await activityService.createActivityLog(activityId, {
         timestamp: now(),
         level: LogLevel.Error,
@@ -1415,44 +880,6 @@ class LinkController {
         });
       }
 
-      if (!linkToken.consent_given) {
-        const errorMessage = 'Consent bypassed';
-
-        await activityService.createActivityLog(activityId, {
-          timestamp: now(),
-          level: LogLevel.Error,
-          message: errorMessage,
-        });
-
-        return await publisher.publishError(res, {
-          error: errorMessage,
-          wsClientId,
-          linkMethod,
-          redirectUrl,
-          branding,
-          prefersDarkMode,
-        });
-      }
-
-      if (!linkToken.integration_key) {
-        const errorMessage = 'No integration selected';
-
-        await activityService.createActivityLog(activityId, {
-          timestamp: now(),
-          level: LogLevel.Error,
-          message: errorMessage,
-        });
-
-        return await publisher.publishError(res, {
-          error: errorMessage,
-          wsClientId,
-          linkMethod,
-          redirectUrl,
-          branding,
-          prefersDarkMode,
-        });
-      }
-
       const linkedAccountId =
         linkToken.linked_account_id || linkedAccountService.generateId(linkToken.integration_key);
 
@@ -1460,8 +887,6 @@ class LinkController {
         id: linkedAccountId,
         environment_id: linkToken.environment_id,
         integration_key: linkToken.integration_key,
-        consent_given: linkToken.consent_given,
-        consent_timestamp: linkToken.consent_timestamp,
         configuration: null,
         credentials: JSON.stringify({ type: AuthScheme.Basic, username, password }),
         credentials_iv: null,
@@ -1514,7 +939,6 @@ class LinkController {
       });
     } catch (err) {
       await errorService.reportError(err);
-
       await activityService.createActivityLog(activityId, {
         timestamp: now(),
         level: LogLevel.Error,
