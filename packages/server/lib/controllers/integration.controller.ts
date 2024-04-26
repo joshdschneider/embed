@@ -44,7 +44,7 @@ class IntegrationController {
           is_enabled: i.is_enabled,
           rank: i.rank,
           auth_scheme: p.auth.scheme,
-          use_oauth_credentials: i.use_oauth_credentials,
+          has_oauth_credentials: i.has_oauth_credentials,
           oauth_client_id: i.oauth_client_id,
           oauth_client_secret: i.oauth_client_secret,
         };
@@ -102,7 +102,7 @@ class IntegrationController {
         logo_url_dark_mode: provider.logo_url_dark_mode,
         is_enabled: integration.is_enabled,
         auth_scheme: provider.auth.scheme,
-        use_oauth_credentials: integration.use_oauth_credentials,
+        has_oauth_credentials: integration.has_oauth_credentials,
         oauth_client_id: integration.oauth_client_id,
         oauth_client_secret: integration.oauth_client_secret,
       };
@@ -160,7 +160,7 @@ class IntegrationController {
         logo_url_dark_mode: provider.logo_url_dark_mode,
         is_enabled: updatedIntegration.is_enabled,
         auth_scheme: provider.auth.scheme,
-        use_oauth_credentials: updatedIntegration.use_oauth_credentials,
+        has_oauth_credentials: updatedIntegration.has_oauth_credentials,
         oauth_client_id: updatedIntegration.oauth_client_id,
         oauth_client_secret: updatedIntegration.oauth_client_secret,
       };
@@ -218,7 +218,7 @@ class IntegrationController {
         logo_url_dark_mode: provider.logo_url_dark_mode,
         is_enabled: updatedIntegration.is_enabled,
         auth_scheme: provider.auth.scheme,
-        use_oauth_credentials: updatedIntegration.use_oauth_credentials,
+        has_oauth_credentials: updatedIntegration.has_oauth_credentials,
         oauth_client_id: updatedIntegration.oauth_client_id,
         oauth_client_secret: updatedIntegration.oauth_client_secret,
       };
@@ -264,10 +264,10 @@ class IntegrationController {
         });
       }
 
-      const { use_oauth_credentials, oauth_client_id, oauth_client_secret } = parsedBody.data;
+      const { has_oauth_credentials, oauth_client_id, oauth_client_secret } = parsedBody.data;
       const isOauth = providerSpec.auth.scheme === AuthScheme.OAuth2 || AuthScheme.OAuth1;
 
-      if (!isOauth && use_oauth_credentials) {
+      if (!isOauth && has_oauth_credentials) {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
           message: 'OAuth credentials not supported',
@@ -276,8 +276,8 @@ class IntegrationController {
 
       const data: Partial<Integration> = { updated_at: now() };
 
-      if (typeof use_oauth_credentials === 'boolean') {
-        data.use_oauth_credentials = use_oauth_credentials;
+      if (typeof has_oauth_credentials === 'boolean') {
+        data.has_oauth_credentials = has_oauth_credentials;
       }
 
       if (typeof oauth_client_id !== 'undefined') {
@@ -309,7 +309,7 @@ class IntegrationController {
         logo_url_dark_mode: providerSpec.logo_url_dark_mode,
         is_enabled: updatedIntegration.is_enabled,
         auth_scheme: providerSpec.auth.scheme,
-        use_oauth_credentials: updatedIntegration.use_oauth_credentials,
+        has_oauth_credentials: updatedIntegration.has_oauth_credentials,
         oauth_client_id: updatedIntegration.oauth_client_id,
         oauth_client_secret: updatedIntegration.oauth_client_secret,
       };

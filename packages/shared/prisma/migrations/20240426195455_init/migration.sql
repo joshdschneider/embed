@@ -104,7 +104,7 @@ CREATE TABLE "Integration" (
     "environment_id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "is_enabled" BOOLEAN NOT NULL,
-    "use_oauth_credentials" BOOLEAN NOT NULL,
+    "has_oauth_credentials" BOOLEAN NOT NULL,
     "oauth_client_id" TEXT,
     "oauth_client_secret" TEXT,
     "oauth_client_secret_iv" TEXT,
