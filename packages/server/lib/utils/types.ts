@@ -91,13 +91,13 @@ export interface IntegrationObject {
   logo_url_dark_mode?: string;
   is_enabled: boolean;
   auth_scheme: AuthScheme;
-  use_oauth_credentials: boolean;
+  has_oauth_credentials: boolean;
   oauth_client_id: string | null;
   oauth_client_secret: string | null;
 }
 
 export const UpdateIntegrationRequestSchema = z.object({
-  use_oauth_credentials: z.boolean().optional(),
+  has_oauth_credentials: z.boolean().optional(),
   oauth_client_id: z.string().optional().nullable(),
   oauth_client_secret: z.string().optional().nullable(),
 });

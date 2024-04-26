@@ -75,7 +75,7 @@ class IntegrationService {
               name: provider.name,
               environment_id: environmentId,
               is_enabled: environment.enable_new_integrations,
-              use_oauth_credentials: false,
+              has_oauth_credentials: false,
               oauth_client_id: null,
               oauth_client_secret: null,
               oauth_client_secret_iv: null,
@@ -291,7 +291,7 @@ class IntegrationService {
     oauth_client_id: string;
     oauth_client_secret: string;
   } {
-    if (integration.use_oauth_credentials) {
+    if (integration.has_oauth_credentials) {
       const decryptedIntegration = encryptionService.decryptIntegration(integration);
 
       if (!decryptedIntegration.oauth_client_id || !decryptedIntegration.oauth_client_secret) {

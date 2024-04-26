@@ -121,7 +121,7 @@ model Integration {
   environment_id          String
   name                    String
   is_enabled              Boolean
-  use_oauth_credentials   Boolean
+  has_oauth_credentials   Boolean
   oauth_client_id         String?
   oauth_client_secret     String?
   oauth_client_secret_iv  String?

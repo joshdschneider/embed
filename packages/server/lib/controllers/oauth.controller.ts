@@ -186,7 +186,7 @@ class OAuthController {
     const prefersDarkMode = linkToken.prefers_dark_mode || false;
 
     try {
-      if (integration.use_oauth_credentials) {
+      if (integration.has_oauth_credentials) {
         if (integration.oauth_client_id == null || integration.oauth_client_secret == null) {
           const errorMessage = `OAuth credentials missing for ${integration.unique_key}`;
 
