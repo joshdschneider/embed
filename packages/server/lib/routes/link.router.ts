@@ -11,11 +11,7 @@ linkRouter.use((req, res, next) => {
   next();
 });
 
-linkRouter.route('/:token').get(linkController.listView.bind(linkController));
-
-linkRouter.route('/:token/i/:integration').get(linkController.consentView.bind(linkController));
-
-linkRouter.route('/:token/i/:integration').post(linkController.saveConsent.bind(linkController));
+linkRouter.route('/:token').get(linkController.routeView.bind(linkController));
 
 linkRouter.route('/:token/oauth').get(linkController.oauthView.bind(linkController));
 
