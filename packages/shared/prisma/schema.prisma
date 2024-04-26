@@ -72,44 +72,39 @@ model ApiKey {
 }
 
 model LinkToken {
-  id                     String  @id
-  environment_id         String
-  integration_key        String?
-  linked_account_id      String?
-  expires_at             Int
-  language               String
-  redirect_url           String?
-  metadata               Json?
-  can_choose_integration Boolean
-  consent_given          Boolean @default(false)
-  consent_timestamp      Int?
-  configuration          Json?
-  websocket_client_id    String?
-  link_method            String?
-  prefers_dark_mode      Boolean @default(false)
-  code_verifier          String?
-  request_token_secret   String?
-  created_at             Int
-  updated_at             Int
-  deleted_at             Int?
+  id                   String  @id
+  environment_id       String
+  integration_key      String
+  linked_account_id    String?
+  expires_at           Int
+  language             String
+  redirect_url         String?
+  metadata             Json?
+  configuration        Json?
+  websocket_client_id  String?
+  link_method          String?
+  prefers_dark_mode    Boolean @default(false)
+  code_verifier        String?
+  request_token_secret String?
+  created_at           Int
+  updated_at           Int
+  deleted_at           Int?
 
   environment Environment @relation(fields: [environment_id], references: [id])
 }
 
 model LinkedAccount {
-  id                String  @id
-  environment_id    String
-  integration_key   String
-  credentials       String
-  credentials_iv    String?
-  credentials_tag   String?
-  configuration     Json
-  metadata          Json?
-  consent_given     Boolean @default(false)
-  consent_timestamp Int?
-  created_at        Int
-  updated_at        Int
-  deleted_at        Int?
+  id              String  @id
+  environment_id  String
+  integration_key String
+  credentials     String
+  credentials_iv  String?
+  credentials_tag String?
+  configuration   Json
+  metadata        Json?
+  created_at      Int
+  updated_at      Int
+  deleted_at      Int?
 
   syncs          Sync[]
   sync_runs      SyncRun[]
