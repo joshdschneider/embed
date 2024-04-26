@@ -70,44 +70,6 @@ class OAuthController {
         });
       }
 
-      if (!linkToken.consent_given) {
-        const errorMessage = 'Consent bypassed';
-
-        await activityService.createActivityLog(activityId, {
-          timestamp: now(),
-          level: LogLevel.Error,
-          message: errorMessage,
-        });
-
-        return await publisher.publishError(res, {
-          error: errorMessage,
-          wsClientId,
-          linkMethod,
-          redirectUrl,
-          branding,
-          prefersDarkMode,
-        });
-      }
-
-      if (!linkToken.integration_key) {
-        const errorMessage = 'No integration selected';
-
-        await activityService.createActivityLog(activityId, {
-          timestamp: now(),
-          level: LogLevel.Error,
-          message: errorMessage,
-        });
-
-        return await publisher.publishError(res, {
-          error: errorMessage,
-          wsClientId,
-          linkMethod,
-          redirectUrl,
-          branding,
-          prefersDarkMode,
-        });
-      }
-
       const integration = await integrationService.getIntegrationByKey(
         linkToken.integration_key,
         linkToken.environment_id
@@ -604,8 +566,6 @@ class OAuthController {
         id: linkedAccountId,
         environment_id: linkToken.environment_id,
         integration_key: integration.unique_key,
-        consent_given: linkToken.consent_given,
-        consent_timestamp: linkToken.consent_timestamp,
         configuration: { ...config, ...tokenMetadata, ...callbackMetadata },
         credentials: JSON.stringify(parsedCredentials),
         credentials_iv: null,
@@ -736,8 +696,6 @@ class OAuthController {
         id: linkedAccountId,
         environment_id: linkToken.environment_id,
         integration_key: integration.unique_key,
-        consent_given: linkToken.consent_given,
-        consent_timestamp: linkToken.consent_timestamp,
         configuration: { ...config, ...callbackMetadata },
         credentials: JSON.stringify(parsedCredentials),
         credentials_iv: null,

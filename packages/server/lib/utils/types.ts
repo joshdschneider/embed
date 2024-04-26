@@ -167,7 +167,7 @@ export interface LinkTokenDeletedObject {
 }
 
 export const CreateLinkTokenRequestSchema = z.object({
-  integration: z.string().optional(),
+  integration: z.string(),
   linked_account_id: z.string().optional(),
   expires_in_mins: z.number().optional(),
   language: z.string().optional(),
