@@ -35,12 +35,12 @@ export class QueryClient {
   }
 
   public async emptyQuery({
-    linkedAccountId,
+    connectionId,
     indexName,
     schemaProperties,
     queryOptions,
   }: {
-    linkedAccountId: string;
+    connectionId: string;
     indexName: string;
     schemaProperties: Record<string, CollectionProperty>;
     queryOptions?: QueryOptions;
@@ -55,11 +55,11 @@ export class QueryClient {
       req.query = {
         bool: {
           must: filter,
-          filter: { term: { linked_account_id: linkedAccountId } },
+          filter: { term: { connection_id: connectionId } },
         },
       };
     } else {
-      req.query = { term: { linked_account_id: linkedAccountId } };
+      req.query = { term: { connection_id: connectionId } };
     }
 
     const res = await this.elastic.search(req);
@@ -71,13 +71,13 @@ export class QueryClient {
   }
 
   public async keywordQuery({
-    linkedAccountId,
+    connectionId,
     indexName,
     schemaProperties,
     queryOptions,
     noFormat,
   }: {
-    linkedAccountId: string;
+    connectionId: string;
     indexName: string;
     schemaProperties: Record<string, CollectionProperty>;
     queryOptions: QueryOptions;
@@ -156,7 +156,7 @@ export class QueryClient {
         bool: {
           should: should,
           must: filter,
-          filter: { term: { linked_account_id: linkedAccountId } },
+          filter: { term: { connection_id: connectionId } },
         },
       },
       highlight: { fields: highlightFields },
@@ -181,7 +181,7 @@ export class QueryClient {
   }
 
   public async vectorQuery({
-    linkedAccountId,
+    connectionId,
     indexName,
     schemaProperties,
     queryOptions,
@@ -190,7 +190,7 @@ export class QueryClient {
     multimodalEnabled,
     noFormat,
   }: {
-    linkedAccountId: string;
+    connectionId: string;
     indexName: string;
     schemaProperties: Record<string, CollectionProperty>;
     queryOptions: QueryOptions;
@@ -274,7 +274,7 @@ export class QueryClient {
         filter: {
           bool: {
             must: filter,
-            filter: { term: { linked_account_id: linkedAccountId } },
+            filter: { term: { connection_id: connectionId } },
           },
         },
       };
@@ -314,7 +314,7 @@ export class QueryClient {
         filter: {
           bool: {
             must: filter,
-            filter: { term: { linked_account_id: linkedAccountId } },
+            filter: { term: { connection_id: connectionId } },
           },
         },
       };
@@ -362,7 +362,7 @@ export class QueryClient {
   }
 
   public async hybridQuery({
-    linkedAccountId,
+    connectionId,
     indexName,
     schemaProperties,
     queryOptions,
@@ -370,7 +370,7 @@ export class QueryClient {
     multimodalEmbeddingModel,
     multimodalEnabled,
   }: {
-    linkedAccountId: string;
+    connectionId: string;
     indexName: string;
     schemaProperties: Record<string, CollectionProperty>;
     queryOptions: QueryOptions;
@@ -379,7 +379,7 @@ export class QueryClient {
     multimodalEnabled: boolean;
   }): Promise<object[]> {
     const keywordQueryPromise = this.keywordQuery({
-      linkedAccountId,
+      connectionId,
       indexName,
       schemaProperties,
       queryOptions,
@@ -387,7 +387,7 @@ export class QueryClient {
     });
 
     const vectorQueryPromise = this.vectorQuery({
-      linkedAccountId,
+      connectionId,
       indexName,
       schemaProperties,
       queryOptions,
@@ -419,14 +419,14 @@ export class QueryClient {
   }
 
   public async imageSearch({
-    linkedAccountId,
+    connectionId,
     indexName,
     schemaProperties,
     returnProperties,
     imageSearchOptions,
     multimodalEmbeddingModel,
   }: {
-    linkedAccountId: string;
+    connectionId: string;
     indexName: string;
     schemaProperties: Record<string, CollectionProperty>;
     returnProperties?: string[];
@@ -488,7 +488,7 @@ export class QueryClient {
         filter: {
           bool: {
             must: filter,
-            filter: { term: { linked_account_id: linkedAccountId } },
+            filter: { term: { connection_id: connectionId } },
           },
         },
       };

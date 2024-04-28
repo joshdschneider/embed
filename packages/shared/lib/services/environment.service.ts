@@ -34,8 +34,7 @@ class EnvironmentService {
 
   public async getEnvironmentByApiKey(key: string): Promise<Environment | null> {
     try {
-      const keyHash = encryptionService.hashApiKey(key);
-
+      const keyHash = encryptionService.hashString(key);
       const apiKey = await database.apiKey.findUnique({
         where: { key_hash: keyHash },
         include: { environment: true },
@@ -87,10 +86,7 @@ class EnvironmentService {
       return await database.environment.update({
         where: { id: environmentId },
         data: {
-          enable_new_integrations: environment.enable_new_integrations,
-          multimodal_enabled_by_default: environment.multimodal_enabled_by_default,
-          default_text_embedding_model: environment.default_text_embedding_model,
-          default_multimodal_embedding_model: environment.default_multimodal_embedding_model,
+          type: environment.type || undefined,
           branding: environment.branding || undefined,
           updated_at: now(),
         },

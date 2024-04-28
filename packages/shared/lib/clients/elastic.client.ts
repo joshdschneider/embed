@@ -5,7 +5,7 @@ import {
   SearchHit,
 } from '@elastic/elasticsearch/lib/api/types';
 import { CollectionProperty } from '@embed/providers';
-import { LinkedAccount } from '@prisma/client';
+import { Connection } from '@prisma/client';
 import collectionService from '../services/collection.service';
 import errorService from '../services/error.service';
 import providerService from '../services/provider.service';
@@ -68,35 +68,35 @@ class ElasticClient {
 
   public static formatIndexName(
     environmentId: string,
-    integrationKey: string,
+    integrationId: string,
     collectionKey: string
   ) {
-    return `${environmentId}.${integrationKey}.${collectionKey}`;
+    return `${environmentId}.${integrationId}.${collectionKey}`;
   }
 
   public async query({
-    linkedAccount,
+    connection,
     collectionKey,
     queryOptions,
   }: {
-    linkedAccount: LinkedAccount;
+    connection: Connection;
     collectionKey: string;
     queryOptions: QueryOptions;
   }) {
     const indexName = ElasticClient.formatIndexName(
-      linkedAccount.environment_id,
-      linkedAccount.integration_key,
+      connection.environment_id,
+      connection.integration_id,
       collectionKey
     );
 
     const providerCollection = await providerService.getProviderCollection(
-      linkedAccount.integration_key,
+      connection.integration_id,
       collectionKey
     );
 
     if (!providerCollection) {
       throw new Error(
-        `Failed to get collection ${collectionKey} for provider ${linkedAccount.integration_key}`
+        `Failed to get collection ${collectionKey} for provider ${connection.integration_id}`
       );
     }
 
@@ -104,7 +104,7 @@ class ElasticClient {
 
     if (!queryOptions?.query) {
       return this.queries.emptyQuery({
-        linkedAccountId: linkedAccount.id,
+        connectionId: connection.id,
         indexName,
         schemaProperties,
         queryOptions,
@@ -116,7 +116,7 @@ class ElasticClient {
       (queryOptions.type === 'hybrid' && queryOptions.alpha === 0)
     ) {
       return this.queries.keywordQuery({
-        linkedAccountId: linkedAccount.id,
+        connectionId: connection.id,
         indexName,
         schemaProperties,
         queryOptions,
@@ -124,8 +124,7 @@ class ElasticClient {
     }
 
     const modelSettings = await collectionService.getCollectionModelSettings(
-      linkedAccount.environment_id,
-      linkedAccount.integration_key,
+      connection.integration_id,
       collectionKey
     );
 
@@ -140,7 +139,7 @@ class ElasticClient {
       (queryOptions.type === 'hybrid' && queryOptions.alpha === 1)
     ) {
       return this.queries.vectorQuery({
-        linkedAccountId: linkedAccount.id,
+        connectionId: connection.id,
         indexName,
         schemaProperties,
         queryOptions,
@@ -151,7 +150,7 @@ class ElasticClient {
     }
 
     return this.queries.hybridQuery({
-      linkedAccountId: linkedAccount.id,
+      connectionId: connection.id,
       indexName,
       schemaProperties,
       queryOptions,
@@ -162,36 +161,35 @@ class ElasticClient {
   }
 
   public async imageSearch({
-    linkedAccount,
+    connection,
     collectionKey,
     imageSearchOptions,
   }: {
-    linkedAccount: LinkedAccount;
+    connection: Connection;
     collectionKey: string;
     imageSearchOptions: ImageSearchOptions;
   }) {
     const indexName = ElasticClient.formatIndexName(
-      linkedAccount.environment_id,
-      linkedAccount.integration_key,
+      connection.environment_id,
+      connection.integration_id,
       collectionKey
     );
 
     const collection = await providerService.getProviderCollection(
-      linkedAccount.integration_key,
+      connection.integration_id,
       collectionKey
     );
 
     if (!collection) {
       throw new Error(
-        `Failed to get collection ${collectionKey} for provider ${linkedAccount.integration_key}`
+        `Failed to get collection ${collectionKey} for provider ${connection.integration_id}`
       );
     }
 
     const returnProperties = imageSearchOptions.returnProperties;
     const schemaProperties = collection.schema.properties;
     const modelSettings = await collectionService.getCollectionModelSettings(
-      linkedAccount.environment_id,
-      linkedAccount.integration_key,
+      connection.integration_id,
       collectionKey
     );
 
@@ -205,7 +203,7 @@ class ElasticClient {
     }
 
     return this.queries.imageSearch({
-      linkedAccountId: linkedAccount.id,
+      connectionId: connection.id,
       indexName,
       schemaProperties,
       returnProperties,
@@ -216,17 +214,16 @@ class ElasticClient {
 
   public async createIndex({
     environmentId,
-    integrationKey,
+    integrationId,
     collectionKey,
   }: {
     environmentId: string;
-    integrationKey: string;
+    integrationId: string;
     collectionKey: string;
   }): Promise<boolean> {
     try {
       const modelSettings = await collectionService.getCollectionModelSettings(
-        environmentId,
-        integrationKey,
+        integrationId,
         collectionKey
       );
 
@@ -235,7 +232,7 @@ class ElasticClient {
       }
 
       const providerCollection = await providerService.getProviderCollection(
-        integrationKey,
+        integrationId,
         collectionKey
       );
 
@@ -244,7 +241,7 @@ class ElasticClient {
       }
 
       const properties: [string, MappingProperty][] = [
-        ['linked_account_id', { type: 'keyword', index: false }],
+        ['connection_id', { type: 'keyword', index: false }],
         ['hash', { type: 'keyword', index: false }],
       ];
 
@@ -261,7 +258,7 @@ class ElasticClient {
         );
       }
 
-      const indexName = ElasticClient.formatIndexName(environmentId, integrationKey, collectionKey);
+      const indexName = ElasticClient.formatIndexName(environmentId, integrationId, collectionKey);
       const index: IndicesCreateRequest = {
         index: indexName,
         mappings: {
@@ -383,14 +380,14 @@ class ElasticClient {
   }
 
   public async batchUpsertObjects({
-    linkedAccountId,
-    integrationKey,
+    connectionId,
+    integrationId,
     environmentId,
     collectionKey,
     objects,
   }: {
-    linkedAccountId: string;
-    integrationKey: string;
+    connectionId: string;
+    integrationId: string;
     environmentId: string;
     collectionKey: string;
     objects: SourceObjectWithHash[];
@@ -401,7 +398,7 @@ class ElasticClient {
 
     try {
       const providerCollection = await providerService.getProviderCollection(
-        integrationKey,
+        integrationId,
         collectionKey
       );
 
@@ -410,8 +407,7 @@ class ElasticClient {
       }
 
       const modelSettings = await collectionService.getCollectionModelSettings(
-        environmentId,
-        integrationKey,
+        integrationId,
         collectionKey
       );
 
@@ -434,10 +430,10 @@ class ElasticClient {
         vectorizedObjects.push(vectorizedObject);
       }
 
-      const indexName = ElasticClient.formatIndexName(environmentId, integrationKey, collectionKey);
+      const indexName = ElasticClient.formatIndexName(environmentId, integrationId, collectionKey);
       const operations = vectorizedObjects.flatMap((obj) => [
         { index: { _index: indexName } },
-        { ...obj, linked_account_id: linkedAccountId },
+        { ...obj, connection_id: connectionId },
       ]);
 
       const bulkResponse = await this.elastic.bulk({
@@ -453,21 +449,21 @@ class ElasticClient {
   }
 
   public async upsertObject({
-    linkedAccountId,
-    integrationKey,
+    connectionId,
+    integrationId,
     environmentId,
     collectionKey,
     object,
   }: {
-    linkedAccountId: string;
-    integrationKey: string;
+    connectionId: string;
+    integrationId: string;
     environmentId: string;
     collectionKey: string;
     object: SourceObjectWithHash;
   }): Promise<boolean> {
     try {
       const providerCollection = await providerService.getProviderCollection(
-        integrationKey,
+        integrationId,
         collectionKey
       );
 
@@ -476,8 +472,7 @@ class ElasticClient {
       }
 
       const modelSettings = await collectionService.getCollectionModelSettings(
-        environmentId,
-        integrationKey,
+        integrationId,
         collectionKey
       );
 
@@ -495,10 +490,10 @@ class ElasticClient {
         obj: object,
       });
 
-      const indexName = ElasticClient.formatIndexName(environmentId, integrationKey, collectionKey);
+      const indexName = ElasticClient.formatIndexName(environmentId, integrationId, collectionKey);
       const response = await this.elastic.index({
         index: indexName,
-        document: { ...vectorObj, linked_account_id: linkedAccountId },
+        document: { ...vectorObj, connection_id: connectionId },
       });
 
       return response.result === 'created' || response.result === 'updated';
@@ -509,14 +504,14 @@ class ElasticClient {
   }
 
   public async updateObjects({
-    linkedAccountId,
-    integrationKey,
+    connectionId,
+    integrationId,
     environmentId,
     collectionKey,
     objects,
   }: {
-    linkedAccountId: string;
-    integrationKey: string;
+    connectionId: string;
+    integrationId: string;
     environmentId: string;
     collectionKey: string;
     objects: SourceObjectWithHash[];
@@ -527,7 +522,7 @@ class ElasticClient {
 
     try {
       const providerCollection = await providerService.getProviderCollection(
-        integrationKey,
+        integrationId,
         collectionKey
       );
 
@@ -536,8 +531,7 @@ class ElasticClient {
       }
 
       const modelSettings = await collectionService.getCollectionModelSettings(
-        environmentId,
-        integrationKey,
+        integrationId,
         collectionKey
       );
 
@@ -547,14 +541,14 @@ class ElasticClient {
 
       const { textEmbeddingModel, multimodalEmbeddingModel } = modelSettings;
       const schemaProperties = providerCollection.schema.properties;
-      const indexName = ElasticClient.formatIndexName(environmentId, integrationKey, collectionKey);
+      const indexName = ElasticClient.formatIndexName(environmentId, integrationId, collectionKey);
 
       const results = await this.elastic.search({
         index: indexName,
         query: {
           bool: {
             must: { terms: { 'id.keyword': objects.map((obj) => obj.id) } },
-            filter: { term: { linked_account_id: linkedAccountId } },
+            filter: { term: { connection_id: connectionId } },
           },
         },
         _source: ['id'],
@@ -580,7 +574,7 @@ class ElasticClient {
         });
 
         operations.push({ update: { _index: indexName, _id } });
-        operations.push({ doc: { ...vectorObj, linked_account_id: linkedAccountId } });
+        operations.push({ doc: { ...vectorObj, connection_id: connectionId } });
       }
 
       const bulkResponse = await this.elastic.bulk({
@@ -597,15 +591,15 @@ class ElasticClient {
 
   public async deleteObjects({
     environmentId,
-    integrationKey,
+    integrationId,
     collectionKey,
-    linkedAccountId,
+    connectionId,
     objectIds,
   }: {
     environmentId: string;
-    integrationKey: string;
+    integrationId: string;
     collectionKey: string;
-    linkedAccountId: string;
+    connectionId: string;
     objectIds: string[];
   }): Promise<boolean> {
     if (!objectIds || objectIds.length === 0) {
@@ -613,13 +607,13 @@ class ElasticClient {
     }
 
     try {
-      const indexName = ElasticClient.formatIndexName(environmentId, integrationKey, collectionKey);
+      const indexName = ElasticClient.formatIndexName(environmentId, integrationId, collectionKey);
       const response = await this.elastic.deleteByQuery({
         index: indexName,
         query: {
           bool: {
             must: { terms: { 'id.keyword': objectIds } },
-            filter: { term: { linked_account_id: linkedAccountId } },
+            filter: { term: { connection_id: connectionId } },
           },
         },
       });
@@ -631,22 +625,22 @@ class ElasticClient {
     }
   }
 
-  public async deleteLinkedAccountObjects({
+  public async deleteObjectsForConnection({
     environmentId,
-    integrationKey,
+    integrationId,
     collectionKey,
-    linkedAccountId,
+    connectionId,
   }: {
     environmentId: string;
-    integrationKey: string;
+    integrationId: string;
     collectionKey: string;
-    linkedAccountId: string;
+    connectionId: string;
   }): Promise<boolean> {
     try {
-      const indexName = ElasticClient.formatIndexName(environmentId, integrationKey, collectionKey);
+      const indexName = ElasticClient.formatIndexName(environmentId, integrationId, collectionKey);
       const response = await this.elastic.deleteByQuery({
         index: indexName,
-        query: { term: { linked_account_id: linkedAccountId } },
+        query: { term: { connection_id: connectionId } },
       });
 
       return response.failures?.length === 0;
@@ -658,15 +652,15 @@ class ElasticClient {
 
   public async deleteIndex({
     environmentId,
-    integrationKey,
+    integrationId,
     collectionKey,
   }: {
     environmentId: string;
-    integrationKey: string;
+    integrationId: string;
     collectionKey: string;
   }): Promise<boolean> {
     try {
-      const indexName = ElasticClient.formatIndexName(environmentId, integrationKey, collectionKey);
+      const indexName = ElasticClient.formatIndexName(environmentId, integrationId, collectionKey);
       const response = await this.elastic.indices.delete({ index: indexName });
       return response.acknowledged;
     } catch (err) {

@@ -8,7 +8,6 @@ import {
   ErrorCode,
   Resource,
   apiKeyService,
-  encryptionService,
   environmentService,
   errorService,
   generateId,
@@ -100,13 +99,11 @@ class UserController {
       }
 
       const key = generateSecretKey(EnvironmentType.Staging);
-      const hash = encryptionService.hashApiKey(key);
-
       const apiKey = await apiKeyService.createApiKey({
         id: generateId(Resource.ApiKey),
         environment_id: stagingEnvironment.id,
         key,
-        key_hash: hash,
+        key_hash: null,
         key_iv: null,
         key_tag: null,
         name: null,

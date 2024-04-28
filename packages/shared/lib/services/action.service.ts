@@ -4,19 +4,10 @@ import { now } from '../utils/helpers';
 import errorService from './error.service';
 
 class ActionService {
-  public async listActions(
-    integrationKey: string,
-    environmentId: string
-  ): Promise<Action[] | null> {
+  public async listActions(integrationId: string): Promise<Action[] | null> {
     try {
       const integration = await database.integration.findUnique({
-        where: {
-          unique_key_environment_id: {
-            unique_key: integrationKey,
-            environment_id: environmentId,
-          },
-          deleted_at: null,
-        },
+        where: { id: integrationId, deleted_at: null },
         select: { actions: true },
       });
 
@@ -31,18 +22,13 @@ class ActionService {
     }
   }
 
-  public async retrieveAction(
-    actionKey: string,
-    integrationKey: string,
-    environmentId: string
-  ): Promise<Action | null> {
+  public async retrieveAction(actionKey: string, integrationId: string): Promise<Action | null> {
     try {
       return await database.action.findUnique({
         where: {
-          unique_key_integration_key_environment_id: {
+          unique_key_integration_id: {
             unique_key: actionKey,
-            integration_key: integrationKey,
-            environment_id: environmentId,
+            integration_id: integrationId,
           },
           deleted_at: null,
         },
@@ -55,17 +41,15 @@ class ActionService {
 
   public async updateAction(
     actionKey: string,
-    integrationKey: string,
-    environmentId: string,
+    integrationId: string,
     data: Partial<Action>
   ): Promise<Action | null> {
     try {
       return await database.action.update({
         where: {
-          unique_key_integration_key_environment_id: {
+          unique_key_integration_id: {
             unique_key: actionKey,
-            integration_key: integrationKey,
-            environment_id: environmentId,
+            integration_id: integrationId,
           },
           deleted_at: null,
         },
@@ -79,16 +63,14 @@ class ActionService {
 
   public async listIntegrationActionRuns(
     actionKey: string,
-    integrationKey: string,
-    environmentId: string
+    integrationId: string
   ): Promise<ActionRun[] | null> {
     try {
       const action = await database.action.findUnique({
         where: {
-          unique_key_integration_key_environment_id: {
+          unique_key_integration_id: {
             unique_key: actionKey,
-            integration_key: integrationKey,
-            environment_id: environmentId,
+            integration_id: integrationId,
           },
           deleted_at: null,
         },
@@ -106,16 +88,13 @@ class ActionService {
     }
   }
 
-  public async listLinkedAccountActionRuns(
+  public async listConnectionActionRuns(
     actionKey: string,
-    linkedAccountId: string
+    connectionId: string
   ): Promise<ActionRun[] | null> {
     try {
       return await database.actionRun.findMany({
-        where: {
-          linked_account_id: linkedAccountId,
-          action_key: actionKey,
-        },
+        where: { connection_id: connectionId, action_key: actionKey },
       });
     } catch (err) {
       await errorService.reportError(err);

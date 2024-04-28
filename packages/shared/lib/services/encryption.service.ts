@@ -1,8 +1,8 @@
 import type {
   ApiKey,
+  Connection,
   Record as DataRecord,
   Integration,
-  LinkedAccount,
   Webhook,
 } from '@prisma/client';
 import crypto, { CipherGCMTypes } from 'crypto';
@@ -86,8 +86,8 @@ class EncryptionService {
     return decryptedIntegration;
   }
 
-  public hashApiKey(key: string): string {
-    return crypto.createHash('sha256').update(key).digest('hex');
+  public hashString(str: string): string {
+    return crypto.createHash('sha256').update(str).digest('hex');
   }
 
   public encryptApiKey(apiKey: ApiKey): ApiKey {
@@ -117,40 +117,40 @@ class EncryptionService {
     return decryptedApiKey;
   }
 
-  public encryptLinkedAccount(linkedAccount: LinkedAccount): LinkedAccount {
+  public encryptConnection(connection: Connection): Connection {
     if (!this.shouldEncrypt()) {
-      return linkedAccount;
+      return connection;
     }
 
-    const [credentials, iv, tag] = this.encrypt(linkedAccount.credentials);
+    const [credentials, iv, tag] = this.encrypt(connection.credentials);
 
-    const encryptedLinkedAccount: LinkedAccount = {
-      ...linkedAccount,
+    const encryptedConnection: Connection = {
+      ...connection,
       credentials: credentials,
       credentials_iv: iv,
       credentials_tag: tag,
     };
 
-    return encryptedLinkedAccount;
+    return encryptedConnection;
   }
 
-  public decryptLinkedAccount(linkedAccount: LinkedAccount): LinkedAccount {
-    if (!linkedAccount.credentials_iv || !linkedAccount.credentials_tag) {
-      return linkedAccount;
+  public decryptConnection(connection: Connection): Connection {
+    if (!connection.credentials_iv || !connection.credentials_tag) {
+      return connection;
     }
 
     const decrypted = this.decrypt(
-      linkedAccount.credentials,
-      linkedAccount.credentials_iv,
-      linkedAccount.credentials_tag
+      connection.credentials,
+      connection.credentials_iv,
+      connection.credentials_tag
     );
 
-    const decryptedLinkedAccount: LinkedAccount = {
-      ...linkedAccount,
+    const decryptedConnection: Connection = {
+      ...connection,
       credentials: decrypted,
     };
 
-    return decryptedLinkedAccount;
+    return decryptedConnection;
   }
 
   public encryptWebhook(webhook: Webhook): Webhook {

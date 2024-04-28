@@ -13,11 +13,11 @@ import actionService from './services/action.service';
 import activityService from './services/activity.service';
 import apiKeyService from './services/apiKey.service';
 import collectionService from './services/collection.service';
+import connectionService from './services/connection.service';
 import encryptionService from './services/encryption.service';
 import environmentService from './services/environment.service';
 import errorService from './services/error.service';
 import integrationService from './services/integration.service';
-import linkedAccountService from './services/linkedAccount.service';
 import providerService from './services/provider.service';
 import proxyService from './services/proxy.service';
 import syncService from './services/sync.service';
@@ -34,10 +34,10 @@ export {
   Account,
   ApiKey,
   Collection,
+  ConnectToken,
+  Connection,
   Environment,
   Integration,
-  LinkToken,
-  LinkedAccount,
   User,
   Webhook,
   WebhookEvent,
@@ -57,13 +57,13 @@ export {
   activityService,
   apiKeyService,
   collectionService,
+  connectionService,
   encryptionService,
   environmentService,
   errorService,
   getFreshOAuth2Credentials,
   getSimpleOAuth2ClientConfig,
   integrationService,
-  linkedAccountService,
   parseRawCredentials,
   providerService,
   proxyService,
