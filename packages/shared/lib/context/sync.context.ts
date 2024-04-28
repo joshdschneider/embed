@@ -53,7 +53,7 @@ export class SyncContext extends BaseContext {
 
     try {
       const collection = await providerService.getProviderCollection(
-        this.integrationKey,
+        this.integrationId,
         this.collectionKey
       );
 
@@ -105,8 +105,8 @@ export class SyncContext extends BaseContext {
           id: generateId(Resource.Record),
           external_id: obj.id,
           environment_id: this.environmentId,
-          linked_account_id: this.linkedAccountId,
-          integration_key: this.integrationKey,
+          connection_id: this.connectionId,
+          integration_id: this.integrationId,
           collection_key: this.collectionKey,
           object: JSON.stringify(obj),
           object_iv: null,
@@ -119,7 +119,7 @@ export class SyncContext extends BaseContext {
       });
 
       const batchSaveResult = await recordService.batchSave(
-        this.linkedAccountId,
+        this.connectionId,
         this.collectionKey,
         records
       );
@@ -145,8 +145,8 @@ export class SyncContext extends BaseContext {
       const didCreate = await elastic.batchUpsertObjects({
         environmentId: this.environmentId,
         collectionKey: this.collectionKey,
-        integrationKey: this.integrationKey,
-        linkedAccountId: this.linkedAccountId,
+        integrationId: this.integrationId,
+        connectionId: this.connectionId,
         objects: hashedObjectsToCreate,
       });
 
@@ -158,7 +158,7 @@ export class SyncContext extends BaseContext {
           payload: { error: 'Internal server error' },
         });
 
-        await recordService.deleteRecordsByIds(this.linkedAccountId, this.collectionKey, addedKeys);
+        await recordService.deleteRecordsByIds(this.connectionId, this.collectionKey, addedKeys);
         this.addedKeys = this.addedKeys.filter((key) => !addedKeys.includes(key));
       }
 
@@ -168,8 +168,8 @@ export class SyncContext extends BaseContext {
       const didUpdate = await elastic.updateObjects({
         environmentId: this.environmentId,
         collectionKey: this.collectionKey,
-        integrationKey: this.integrationKey,
-        linkedAccountId: this.linkedAccountId,
+        integrationId: this.integrationId,
+        connectionId: this.connectionId,
         objects: hashedObjectsToUpdate,
       });
 
@@ -181,11 +181,7 @@ export class SyncContext extends BaseContext {
           payload: { error: 'Internal server error' },
         });
 
-        await recordService.deleteRecordsByIds(
-          this.linkedAccountId,
-          this.collectionKey,
-          updatedKeys
-        );
+        await recordService.deleteRecordsByIds(this.connectionId, this.collectionKey, updatedKeys);
         this.updatedKeys = this.updatedKeys.filter((key) => !updatedKeys.includes(key));
       }
 
@@ -205,7 +201,7 @@ export class SyncContext extends BaseContext {
   public async pruneDeleted(allIds: string[]): Promise<boolean> {
     try {
       const result = await recordService.pruneDeleted(
-        this.linkedAccountId,
+        this.connectionId,
         this.collectionKey,
         allIds
       );
@@ -226,9 +222,9 @@ export class SyncContext extends BaseContext {
         const elastic = ElasticClient.getInstance();
         const didPruneDeleted = await elastic.deleteObjects({
           environmentId: this.environmentId,
-          integrationKey: this.integrationKey,
+          integrationId: this.integrationId,
           collectionKey: this.collectionKey,
-          linkedAccountId: this.linkedAccountId,
+          connectionId: this.connectionId,
           objectIds: deletedKeys,
         });
 

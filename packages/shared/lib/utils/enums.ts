@@ -2,16 +2,14 @@ export enum Resource {
   Account = 'acct',
   ApiKey = 'key',
   Environment = 'env',
-  Collection = 'coll',
-  Action = 'act',
-  ActionRun = 'act_run',
+  ConnectToken = 'tok',
+  Connection = 'conn',
   Sync = 'sync',
   SyncRun = 'sync_run',
+  ActionRun = 'act_run',
   SyncSchedule = 'sync_sch',
   Activity = 'act',
   ActivityLog = 'act_log',
-  LinkedAccount = 'link',
-  LinkToken = 'link_tok',
   Webhook = 'web',
   WebhookEvent = 'web_ev',
   Record = 'rec',
@@ -34,7 +32,7 @@ export enum LogLevel {
 }
 
 export enum LogAction {
-  Link = 'link',
+  Connect = 'connect',
   Sync = 'sync',
   SyncRun = 'sync_run',
   Action = 'action',

@@ -5,16 +5,16 @@ docs_url: https://developers.google.com/drive/api/reference/rest/v3
 logo_url: https://embed-integrations.s3.amazonaws.com/google-drive.svg
 
 auth:
-  scheme: oauth2
-  authorization_url: https://accounts.google.com/o/oauth2/v2/auth
-  token_url: https://oauth2.googleapis.com/token
-  authorization_params:
-    response_type: code
-    access_type: offline
-    prompt: consent
+  - scheme: oauth2
+    authorization_url: https://accounts.google.com/o/oauth2/v2/auth
+    token_url: https://oauth2.googleapis.com/token
+    authorization_params:
+      response_type: code
+      access_type: offline
+      prompt: consent
 
 schemas:
-  File: &File
+  file: &file
     name: File
     description: A file in Google Drive.
     properties:
@@ -87,10 +87,6 @@ schemas:
       - updated_at
 
 collections:
-  files:
-    schema: *File
-    default_enabled: true
-    default_sync_frequency: 1d
-    default_sync_auto_start: true
+  - unique_key: files
+    schema: *file
     required_scopes: [https://www.googleapis.com/auth/drive.readonly]
-    has_multimodal_properties: true

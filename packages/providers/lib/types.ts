@@ -72,7 +72,7 @@ export const OAuth1Schema = OAuthSchema.extend({
 
 export type OAuth1 = z.infer<typeof OAuth1Schema>;
 
-export const AuthSchema = z.union([OAuthSchema, ApiAuthSchema, NoAuthSchema]);
+export const AuthSchema = z.array(z.union([OAuthSchema, ApiAuthSchema, NoAuthSchema]));
 
 export type Auth = z.infer<typeof AuthSchema>;
 
@@ -145,14 +145,11 @@ export const CollectionSchemaSchema = z.object({
 
 export type CollectionSchema = z.infer<typeof CollectionSchemaSchema>;
 
-export const CollectionsSchema = z.record(
+export const CollectionsSchema = z.array(
   z.object({
+    unique_key: z.string(),
     schema: CollectionSchemaSchema,
-    default_enabled: z.boolean().optional(),
-    default_sync_frequency: z.string().optional(),
-    default_sync_auto_start: z.boolean().optional(),
     required_scopes: z.array(z.string()).optional(),
-    has_multimodal_properties: z.boolean(),
   })
 );
 
@@ -179,9 +176,9 @@ export const ActionSchemaSchema = z.object({
 
 export type ActionSchema = z.infer<typeof ActionSchemaSchema>;
 
-export const ActionsSchema = z.record(
+export const ActionsSchema = z.array(
   z.object({
-    default_enabled: z.boolean().optional(),
+    unique_key: z.string(),
     required_scopes: z.array(z.string()).optional(),
     schema: ActionSchemaSchema,
   })
@@ -220,7 +217,7 @@ export type HttpMethod =
 export type ResponseType = 'arraybuffer' | 'json' | 'text' | 'stream';
 
 export interface ProxyOptions {
-  linkedAccountId: string;
+  connectionId: string;
   endpoint: string;
   baseUrlOverride?: string;
   method?: HttpMethod;
@@ -231,7 +228,7 @@ export interface ProxyOptions {
   retries?: number;
 }
 
-export type InternalProxyOptions = Omit<ProxyOptions, 'linkedAccountId'>;
+export type InternalProxyOptions = Omit<ProxyOptions, 'connectionId'>;
 
 export type MethodProxyOptions = Omit<InternalProxyOptions, 'method'>;
 

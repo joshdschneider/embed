@@ -170,8 +170,6 @@ export const DEFAULT_TEXT_EMBEDDING_MODEL = TextEmbeddingModel.OpenaiTextEmbeddi
 export const DEFAULT_MULTIMODAL_EMBEDDING_MODEL = MultimodalEmbeddingModel.AmazonTitanMultimodalG1;
 export const DEFAULT_MULTIMODAL_ENABLED = true;
 
-export const DEFAULT_ENABLE_NEW_INTEGRATIONS = true;
-
 export const DEFAULT_QUERY_LIMIT = 10;
 export const DEFAULT_KNN_NUM_CANDIDATES = 100;
 export const DEFAULT_SCORE_THRESHOLD = 0;

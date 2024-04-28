@@ -10,26 +10,26 @@ import { now } from '../utils/helpers';
 
 export interface BaseContextOptions {
   environmentId: string;
-  integrationKey: string;
-  linkedAccountId: string;
+  integrationId: string;
+  connectionId: string;
   activityId: string | null;
 }
 
 export class BaseContext {
   protected environmentId: string;
-  protected integrationKey: string;
-  protected linkedAccountId: string;
+  protected integrationId: string;
+  protected connectionId: string;
   public activityId: string | null;
 
   constructor(options: BaseContextOptions) {
     this.environmentId = options.environmentId;
-    this.integrationKey = options.integrationKey;
-    this.linkedAccountId = options.linkedAccountId;
+    this.integrationId = options.integrationId;
+    this.connectionId = options.connectionId;
     this.activityId = options.activityId;
   }
 
   public async proxy<T = any>(options: InternalProxyOptions): Promise<AxiosResponse<T>> {
-    return await proxyService.proxy<T>({ ...options, linkedAccountId: this.linkedAccountId });
+    return await proxyService.proxy<T>({ ...options, connectionId: this.connectionId });
   }
 
   public async get<T = any>(options: MethodProxyOptions): Promise<AxiosResponse<T>> {
