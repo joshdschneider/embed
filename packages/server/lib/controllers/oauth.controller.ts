@@ -1,18 +1,20 @@
 import { AuthScheme, OAuth, OAuth1, OAuth2, ProviderSpecification } from '@embed/providers';
-import type { Integration, LinkToken } from '@embed/shared';
+import type { ConnectToken, Integration } from '@embed/shared';
 import {
   Branding,
   DEFAULT_ERROR_MESSAGE,
   LogLevel,
   OAuth1Client,
+  Resource,
   actionService,
   activityService,
   collectionService,
+  connectionService,
   environmentService,
   errorService,
+  generateId,
   getSimpleOAuth2ClientConfig,
   integrationService,
-  linkedAccountService,
   missesInterpolationParam,
   now,
   parseRawCredentials,
@@ -22,8 +24,8 @@ import crypto from 'crypto';
 import type { Request, Response } from 'express';
 import SimpleOAuth2 from 'simple-oauth2';
 import publisher from '../clients/publisher.client';
-import linkedAccountHook from '../hooks/linkedAccount.hook';
-import linkTokenService from '../services/linkToken.service';
+import connectionHook from '../hooks/connection.hook';
+import connectTokenService from '../services/connectToken.service';
 import { extractConfigurationKeys, getOauthCallbackUrl } from '../utils/helpers';
 
 class OAuthController {
@@ -31,29 +33,28 @@ class OAuthController {
     const token = req.query['token'];
     if (!token || typeof token !== 'string') {
       return await publisher.publishError(res, {
-        error: 'Link token missing',
+        error: 'Connect token missing',
       });
     }
 
-    const linkToken = await linkTokenService.getLinkTokenById(token);
-    if (!linkToken) {
+    const connectToken = await connectTokenService.getConnectTokenById(token);
+    if (!connectToken) {
       return await publisher.publishError(res, {
-        error: 'Invalid link token',
+        error: 'Invalid connect token',
       });
     }
 
-    const linkMethod = linkToken.link_method || undefined;
-    const wsClientId = linkToken.websocket_client_id || undefined;
-    const redirectUrl = linkToken.redirect_url || undefined;
-    const prefersDarkMode = linkToken.prefers_dark_mode || false;
+    const connectMethod = connectToken.connect_method || undefined;
+    const wsClientId = connectToken.websocket_client_id || undefined;
+    const redirectUrl = connectToken.redirect_url || undefined;
+    const prefersDarkMode = connectToken.prefers_dark_mode || false;
 
-    const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
-    const branding = await environmentService.getEnvironmentBranding(linkToken.environment_id);
+    const activityId = await activityService.findActivityIdByConnectToken(connectToken.id);
+    const branding = await environmentService.getEnvironmentBranding(connectToken.environment_id);
 
     try {
-      if (linkToken.expires_at < now()) {
-        const errorMessage = 'Link token expired';
-
+      if (connectToken.expires_at < now()) {
+        const errorMessage = 'Connect token expired';
         await activityService.createActivityLog(activityId, {
           timestamp: now(),
           level: LogLevel.Error,
@@ -63,25 +64,20 @@ class OAuthController {
         return await publisher.publishError(res, {
           error: errorMessage,
           wsClientId,
-          linkMethod,
+          connectMethod,
           redirectUrl,
           branding,
           prefersDarkMode,
         });
       }
 
-      const integration = await integrationService.getIntegrationByKey(
-        linkToken.integration_key,
-        linkToken.environment_id
-      );
-
+      const integration = await integrationService.getIntegrationById(connectToken.integration_id);
       if (!integration) {
-        throw new Error('Failed to retrieve integration');
+        throw new Error(`Failed to retrieve integration with ID ${connectToken.integration_id}`);
       }
 
       if (!integration.is_enabled) {
         const errorMessage = 'Integration is disabled';
-
         await activityService.createActivityLog(activityId, {
           timestamp: now(),
           level: LogLevel.Error,
@@ -91,28 +87,32 @@ class OAuthController {
         return await publisher.publishError(res, {
           error: errorMessage,
           wsClientId,
-          linkMethod,
+          connectMethod,
           redirectUrl,
           branding,
           prefersDarkMode,
         });
       }
 
-      const provider = await providerService.getProviderSpec(integration.unique_key);
+      const provider = await providerService.getProviderSpec(integration.provider_key);
       if (!provider) {
         throw new Error('Failed to retrieve provider specification');
       }
 
       const scopesArray = await this.getScopes(integration, provider);
-      const scopes = scopesArray.join((provider.auth as OAuth).scope_separator || ' ');
+      const authSpec = provider.auth.find((auth) => auth.scheme === integration.auth_scheme);
+      if (!authSpec) {
+        throw new Error('Provider auth configuration not found');
+      }
 
-      const updatedLinkToken = await linkTokenService.updateLinkToken(linkToken.id, {
+      const scopes = scopesArray.join((authSpec as OAuth).scope_separator || ' ');
+      const updatedConnectToken = await connectTokenService.updateConnectToken(connectToken.id, {
         code_verifier: crypto.randomBytes(24).toString('hex'),
         updated_at: now(),
       });
 
-      if (!updatedLinkToken) {
-        throw new Error('Failed to update link token');
+      if (!updatedConnectToken) {
+        throw new Error('Failed to update connect token');
       }
 
       await activityService.createActivityLog(activityId, {
@@ -121,30 +121,29 @@ class OAuthController {
         message: `Initiating OAuth authorization flow for ${provider.name}`,
       });
 
-      if (provider.auth.scheme === AuthScheme.OAuth2) {
+      if (integration.auth_scheme === AuthScheme.OAuth2) {
         return this.oauth2Request(res, {
-          authSpec: provider.auth as OAuth2,
+          authSpec: authSpec as OAuth2,
           scopes,
           integration,
-          linkToken: updatedLinkToken,
+          connectToken: updatedConnectToken,
           activityId,
           branding,
         });
-      } else if (provider.auth.scheme === AuthScheme.OAuth1) {
+      } else if (integration.auth_scheme === AuthScheme.OAuth1) {
         return this.oauth1Request(res, {
-          authSpec: provider.auth as OAuth1,
+          authSpec: authSpec as OAuth1,
           scopes,
           integration,
-          linkToken: updatedLinkToken,
+          connectToken: updatedConnectToken,
           activityId,
           branding,
         });
       } else {
-        throw new Error('Invalid auth scheme');
+        throw new Error(`Unsupported auth scheme: ${integration.auth_scheme}`);
       }
     } catch (err) {
       await errorService.reportError(err);
-
       await activityService.createActivityLog(activityId, {
         timestamp: now(),
         level: LogLevel.Error,
@@ -154,7 +153,7 @@ class OAuthController {
       return await publisher.publishError(res, {
         error: DEFAULT_ERROR_MESSAGE,
         wsClientId,
-        linkMethod,
+        connectMethod,
         redirectUrl,
         branding,
         prefersDarkMode,
@@ -165,14 +164,14 @@ class OAuthController {
   private async oauth2Request(
     res: Response,
     {
-      linkToken,
+      connectToken,
       authSpec,
       scopes,
       integration,
       activityId,
       branding,
     }: {
-      linkToken: LinkToken;
+      connectToken: ConnectToken;
       authSpec: OAuth2;
       scopes: string;
       integration: Integration;
@@ -180,16 +179,15 @@ class OAuthController {
       branding: Branding;
     }
   ) {
-    const linkMethod = linkToken.link_method || undefined;
-    const wsClientId = linkToken.websocket_client_id || undefined;
-    const redirectUrl = linkToken.redirect_url || undefined;
-    const prefersDarkMode = linkToken.prefers_dark_mode || false;
+    const connectMethod = connectToken.connect_method || undefined;
+    const wsClientId = connectToken.websocket_client_id || undefined;
+    const redirectUrl = connectToken.redirect_url || undefined;
+    const prefersDarkMode = connectToken.prefers_dark_mode || false;
 
     try {
-      if (integration.has_oauth_credentials) {
-        if (integration.oauth_client_id == null || integration.oauth_client_secret == null) {
-          const errorMessage = `OAuth credentials missing for ${integration.unique_key}`;
-
+      if (!integration.is_using_test_credentials) {
+        if (!integration.oauth_client_id || !integration.oauth_client_secret) {
+          const errorMessage = `OAuth credentials missing for integration ${integration.id}`;
           await activityService.createActivityLog(activityId, {
             timestamp: now(),
             level: LogLevel.Error,
@@ -199,7 +197,7 @@ class OAuthController {
           return await publisher.publishError(res, {
             error: errorMessage,
             wsClientId,
-            linkMethod,
+            connectMethod,
             redirectUrl,
             branding,
             prefersDarkMode,
@@ -211,18 +209,17 @@ class OAuthController {
       const tokenUrlKeys = extractConfigurationKeys(authSpec.token_url);
       if (authorizationUrlKeys.length > 0 || tokenUrlKeys.length > 0) {
         if (
-          !linkToken.configuration ||
+          !connectToken.configuration ||
           missesInterpolationParam(
             authSpec.authorization_url,
-            linkToken.configuration as Record<string, string>
+            connectToken.configuration as Record<string, string>
           ) ||
           missesInterpolationParam(
             authSpec.token_url,
-            linkToken.configuration as Record<string, string>
+            connectToken.configuration as Record<string, string>
           )
         ) {
           const errorMessage = 'Missing configuration fields';
-
           await activityService.createActivityLog(activityId, {
             timestamp: now(),
             level: LogLevel.Error,
@@ -230,14 +227,14 @@ class OAuthController {
             payload: {
               authorization_url: authSpec.authorization_url,
               token_url: authSpec.token_url,
-              configuration: linkToken.configuration,
+              configuration: connectToken.configuration,
             },
           });
 
           return await publisher.publishError(res, {
             error: errorMessage,
             wsClientId,
-            linkMethod,
+            connectMethod,
             redirectUrl,
             branding,
             prefersDarkMode,
@@ -251,11 +248,10 @@ class OAuthController {
         authSpec.token_params.grant_type == 'authorization_code'
       ) {
         let authParams: Record<string, string | undefined> = authSpec.authorization_params || {};
-
         if (!authSpec.disable_pkce) {
           const h = crypto
             .createHash('sha256')
-            .update(linkToken.code_verifier!)
+            .update(connectToken.code_verifier!)
             .digest('base64')
             .replace(/\+/g, '-')
             .replace(/\//g, '_')
@@ -269,19 +265,17 @@ class OAuthController {
         );
 
         const callbackUrl = getOauthCallbackUrl();
-
         const simpleOAuth2ClientConfig = getSimpleOAuth2ClientConfig(
           integration,
           authSpec,
-          linkToken.configuration as Record<string, string>
+          connectToken.configuration as Record<string, string>
         );
 
         const authorizationCode = new SimpleOAuth2.AuthorizationCode(simpleOAuth2ClientConfig);
-
         const authorizationUri = authorizationCode.authorizeURL({
           redirect_uri: callbackUrl,
           scope: scopes,
-          state: linkToken.id,
+          state: connectToken.id,
           ...authParams,
         });
 
@@ -308,7 +302,7 @@ class OAuthController {
       return await publisher.publishError(res, {
         error: DEFAULT_ERROR_MESSAGE,
         wsClientId,
-        linkMethod,
+        connectMethod,
         redirectUrl,
         branding,
         prefersDarkMode,
@@ -319,14 +313,14 @@ class OAuthController {
   private async oauth1Request(
     res: Response,
     {
-      linkToken,
+      connectToken,
       authSpec,
       scopes,
       integration,
       activityId,
       branding,
     }: {
-      linkToken: LinkToken;
+      connectToken: ConnectToken;
       authSpec: OAuth1;
       scopes: string;
       integration: Integration;
@@ -334,14 +328,14 @@ class OAuthController {
       branding: Branding;
     }
   ) {
-    const linkMethod = linkToken.link_method || undefined;
-    const wsClientId = linkToken.websocket_client_id || undefined;
-    const redirectUrl = linkToken.redirect_url || undefined;
-    const prefersDarkMode = linkToken.prefers_dark_mode || false;
+    const connectMethod = connectToken.connect_method || undefined;
+    const wsClientId = connectToken.websocket_client_id || undefined;
+    const redirectUrl = connectToken.redirect_url || undefined;
+    const prefersDarkMode = connectToken.prefers_dark_mode || false;
 
     try {
       const callbackUrl = getOauthCallbackUrl();
-      const callbackParams = new URLSearchParams({ state: linkToken.id });
+      const callbackParams = new URLSearchParams({ state: connectToken.id });
       const oauth1CallbackURL = `${callbackUrl}?${callbackParams.toString()}`;
 
       const oauth1Client = new OAuth1Client({
@@ -352,29 +346,26 @@ class OAuthController {
       });
 
       const requestToken = await oauth1Client.getOAuthRequestToken();
-
-      const updatedLinkToken = await linkTokenService.updateLinkToken(linkToken.id, {
+      const updatedConnectToken = await connectTokenService.updateConnectToken(connectToken.id, {
         request_token_secret: requestToken.request_token_secret,
         updated_at: now(),
       });
 
-      if (!updatedLinkToken) {
-        throw new Error('Failed to update link token');
+      if (!updatedConnectToken) {
+        throw new Error('Failed to update connect token');
       }
 
       const redirectUrl = oauth1Client.getAuthorizationURL(requestToken);
-
       await activityService.createActivityLog(activityId, {
         timestamp: now(),
         level: LogLevel.Info,
-        message: `Redirecting to ${integration.unique_key} OAuth authorization URL`,
+        message: `Redirecting to ${integration.provider_key} OAuth authorization URL`,
         payload: { authorization_url: redirectUrl },
       });
 
       return res.redirect(redirectUrl);
     } catch (err) {
       await errorService.reportError(err);
-
       await activityService.createActivityLog(activityId, {
         timestamp: now(),
         level: LogLevel.Error,
@@ -384,7 +375,7 @@ class OAuthController {
       return await publisher.publishError(res, {
         error: DEFAULT_ERROR_MESSAGE,
         wsClientId,
-        linkMethod,
+        connectMethod,
         redirectUrl,
         branding,
         prefersDarkMode,
@@ -394,7 +385,6 @@ class OAuthController {
 
   public async callback(req: Request, res: Response) {
     const { state } = req.query;
-
     if (!state || typeof state !== 'string') {
       const err = new Error('Invalid state parameter received from OAuth callback');
       await errorService.reportError(err);
@@ -404,10 +394,9 @@ class OAuthController {
       });
     }
 
-    const linkToken = await linkTokenService.getLinkTokenById(state);
-
-    if (!linkToken) {
-      const err = new Error('Failed to retrieve link token from OAuth callback');
+    const connectToken = await connectTokenService.getConnectTokenById(state);
+    if (!connectToken) {
+      const err = new Error('Failed to retrieve connect token from OAuth callback');
       await errorService.reportError(err);
 
       return await publisher.publishError(res, {
@@ -415,46 +404,41 @@ class OAuthController {
       });
     }
 
-    const linkMethod = linkToken.link_method || undefined;
-    const wsClientId = linkToken.websocket_client_id || undefined;
-    const redirectUrl = linkToken.redirect_url || undefined;
-    const prefersDarkMode = linkToken.prefers_dark_mode || false;
+    const connectMethod = connectToken.connect_method || undefined;
+    const wsClientId = connectToken.websocket_client_id || undefined;
+    const redirectUrl = connectToken.redirect_url || undefined;
+    const prefersDarkMode = connectToken.prefers_dark_mode || false;
 
-    const activityId = await activityService.findActivityIdByLinkToken(linkToken.id);
-    const branding = await environmentService.getEnvironmentBranding(linkToken.environment_id);
+    const activityId = await activityService.findActivityIdByConnectToken(connectToken.id);
+    const branding = await environmentService.getEnvironmentBranding(connectToken.environment_id);
 
     try {
-      if (!linkToken.integration_key) {
-        throw new Error('Integration provider missing from link token');
-      }
-
-      const integration = await integrationService.getIntegrationByKey(
-        linkToken.integration_key,
-        linkToken.environment_id
-      );
-
+      const integration = await integrationService.getIntegrationById(connectToken.integration_id);
       if (!integration) {
         throw new Error('Failed to retrieve integration');
       }
 
-      const provider = await providerService.getProviderSpec(linkToken.integration_key);
+      const provider = await providerService.getProviderSpec(integration.provider_key);
       if (!provider) {
         throw new Error('Failed to retrieve provider specification');
       }
 
       const scopesArray = await this.getScopes(integration, provider);
-      const scopes = scopesArray.join((provider.auth as OAuth).scope_separator || ' ');
+      const authSpec = provider.auth.find((auth) => auth.scheme === integration.auth_scheme);
+      if (!authSpec) {
+        throw new Error('Provider auth configuration not found');
+      }
 
+      const scopes = scopesArray.join((authSpec as OAuth).scope_separator || ' ');
       await activityService.createActivityLog(activityId, {
         timestamp: now(),
         level: LogLevel.Info,
         message: `OAuth callback received from ${provider.name}`,
       });
 
-      const authSpec = provider.auth;
       if (authSpec.scheme === AuthScheme.OAuth2) {
         return this.oauth2Callback(req, res, {
-          linkToken,
+          connectToken,
           authSpec: authSpec as OAuth2,
           integration,
           activityId,
@@ -462,7 +446,7 @@ class OAuthController {
         });
       } else if (authSpec.scheme === AuthScheme.OAuth1) {
         return this.oauth1Callback(req, res, {
-          linkToken,
+          connectToken,
           authSpec: authSpec as OAuth1,
           scopes,
           integration,
@@ -474,7 +458,6 @@ class OAuthController {
       }
     } catch (err) {
       await errorService.reportError(err);
-
       await activityService.createActivityLog(activityId, {
         timestamp: now(),
         level: LogLevel.Error,
@@ -484,7 +467,7 @@ class OAuthController {
       return await publisher.publishError(res, {
         error: DEFAULT_ERROR_MESSAGE,
         wsClientId,
-        linkMethod,
+        connectMethod,
         redirectUrl,
         branding,
         prefersDarkMode,
@@ -496,13 +479,13 @@ class OAuthController {
     req: Request,
     res: Response,
     {
-      linkToken,
+      connectToken,
       authSpec,
       integration,
       activityId,
       branding,
     }: {
-      linkToken: LinkToken;
+      connectToken: ConnectToken;
       authSpec: OAuth2;
       integration: Integration;
       activityId: string | null;
@@ -510,10 +493,10 @@ class OAuthController {
     }
   ): Promise<void> {
     const { code } = req.query;
-    const linkMethod = linkToken.link_method || undefined;
-    const wsClientId = linkToken.websocket_client_id || undefined;
-    const redirectUrl = linkToken.redirect_url || undefined;
-    const prefersDarkMode = linkToken.prefers_dark_mode || false;
+    const connectMethod = connectToken.connect_method || undefined;
+    const wsClientId = connectToken.websocket_client_id || undefined;
+    const redirectUrl = connectToken.redirect_url || undefined;
+    const prefersDarkMode = connectToken.prefers_dark_mode || false;
 
     try {
       if (!code || typeof code !== 'string') {
@@ -526,7 +509,7 @@ class OAuthController {
       const simpleOAuth2ClientConfig = getSimpleOAuth2ClientConfig(
         integration,
         authSpec,
-        linkToken.configuration as Record<string, string>
+        connectToken.configuration as Record<string, string>
       );
 
       const authorizationCode = new SimpleOAuth2.AuthorizationCode(simpleOAuth2ClientConfig);
@@ -538,13 +521,12 @@ class OAuthController {
       }
 
       if (!authSpec.disable_pkce) {
-        tokenParams['code_verifier'] = linkToken.code_verifier!;
+        tokenParams['code_verifier'] = connectToken.code_verifier!;
       }
 
       const headers: Record<string, string> = {};
       const { oauth_client_id, oauth_client_secret } =
         integrationService.getIntegrationOauthCredentials(integration);
-
       if (authSpec.token_request_auth_method === 'basic') {
         headers['Authorization'] =
           'Basic ' + Buffer.from(oauth_client_id + ':' + oauth_client_secret).toString('base64');
@@ -558,67 +540,61 @@ class OAuthController {
       const rawCredentials = accessToken.token;
       const parsedCredentials = parseRawCredentials(rawCredentials, AuthScheme.OAuth2);
       const tokenMetadata = this.getMetadataFromOAuthToken(rawCredentials, authSpec);
-      const config = typeof linkToken.configuration === 'object' ? linkToken.configuration : {};
-      const linkedAccountId =
-        linkToken.linked_account_id || linkedAccountService.generateId(integration.unique_key);
+      const config =
+        typeof connectToken.configuration === 'object' ? connectToken.configuration : {};
 
-      const response = await linkedAccountService.upsertLinkedAccount({
-        id: linkedAccountId,
-        environment_id: linkToken.environment_id,
-        integration_key: integration.unique_key,
-        configuration: { ...config, ...tokenMetadata, ...callbackMetadata },
+      const response = await connectionService.upsertConnection({
+        id: connectToken.connection_id || generateId(Resource.Connection),
+        environment_id: connectToken.environment_id,
+        integration_id: integration.id,
+        external_id: '', // TODO,
+        name: '', // TODO,
+        type: '', // TODO,
+        auth_scheme: integration.auth_scheme,
         credentials: JSON.stringify(parsedCredentials),
         credentials_iv: null,
         credentials_tag: null,
-        metadata: null,
+        configuration: { ...config, ...tokenMetadata, ...callbackMetadata },
+        metadata: connectToken.metadata || null,
         created_at: now(),
         updated_at: now(),
         deleted_at: null,
       });
 
       if (!response) {
-        throw new Error(`Failed to upsert linked account for link token ${linkToken.id}`);
+        throw new Error(`Failed to upsert connection`);
       }
 
       await activityService.updateActivity(activityId, {
-        linked_account_id: response.linkedAccount.id,
+        connection_id: response.connection.id,
       });
 
       await activityService.createActivityLog(activityId, {
         timestamp: now(),
         level: LogLevel.Info,
-        message: `Linked account ${response.action} with OAuth2 credentials`,
+        message: `Connection ${response.action} with OAuth2 credentials`,
       });
 
-      await linkTokenService.deleteLinkToken(linkToken.id);
+      await connectTokenService.deleteConnectToken(connectToken.id);
 
       if (response.action === 'created') {
-        linkedAccountHook.linkedAccountCreated({
-          environmentId: linkToken.environment_id,
-          linkedAccount: response.linkedAccount,
-          activityId,
-        });
+        connectionHook.connectionCreated({ connection: response.connection, activityId });
       } else if (response.action === 'updated') {
-        linkedAccountHook.linkedAccountUpdated({
-          environmentId: linkToken.environment_id,
-          linkedAccount: response.linkedAccount,
-          activityId,
-        });
+        connectionHook.connectionUpdated({ connection: response.connection, activityId });
       } else {
-        throw new Error('Invalid action returned from linked account upsert');
+        throw new Error('Invalid action returned from connection upsert');
       }
 
       return await publisher.publishSuccess(res, {
-        linkedAccountId: response.linkedAccount.id,
+        connectionId: response.connection.id,
         wsClientId,
-        linkMethod,
+        connectMethod,
         redirectUrl,
         branding,
         prefersDarkMode,
       });
     } catch (err) {
       await errorService.reportError(err);
-
       await activityService.createActivityLog(activityId, {
         timestamp: now(),
         level: LogLevel.Error,
@@ -628,7 +604,7 @@ class OAuthController {
       return await publisher.publishError(res, {
         error: DEFAULT_ERROR_MESSAGE,
         wsClientId,
-        linkMethod,
+        connectMethod,
         redirectUrl,
         branding,
         prefersDarkMode,
@@ -640,14 +616,14 @@ class OAuthController {
     req: Request,
     res: Response,
     {
-      linkToken,
+      connectToken,
       authSpec,
       scopes,
       integration,
       activityId,
       branding,
     }: {
-      linkToken: LinkToken;
+      connectToken: ConnectToken;
       authSpec: OAuth1;
       scopes: string;
       integration: Integration;
@@ -656,14 +632,13 @@ class OAuthController {
     }
   ): Promise<void> {
     const { oauth_token, oauth_verifier } = req.query;
-    const linkMethod = linkToken.link_method || undefined;
-    const wsClientId = linkToken.websocket_client_id || undefined;
-    const redirectUrl = linkToken.redirect_url || undefined;
-    const prefersDarkMode = linkToken.prefers_dark_mode || false;
+    const connectMethod = connectToken.connect_method || undefined;
+    const wsClientId = connectToken.websocket_client_id || undefined;
+    const redirectUrl = connectToken.redirect_url || undefined;
+    const prefersDarkMode = connectToken.prefers_dark_mode || false;
 
     try {
       const callbackMetadata = this.getMetadataFromOAuthCallback(req.query, authSpec);
-
       if (
         !oauth_token ||
         !oauth_verifier ||
@@ -673,7 +648,7 @@ class OAuthController {
         throw new Error('Invalid OAuth1 token/verifier');
       }
 
-      const oauthTokenSecret = linkToken.request_token_secret!;
+      const oauthTokenSecret = connectToken.request_token_secret!;
       const oauth1Client = new OAuth1Client({
         integration,
         specification: authSpec,
@@ -688,67 +663,61 @@ class OAuthController {
       });
 
       const parsedCredentials = parseRawCredentials(accessTokenResult, AuthScheme.OAuth1);
-      const config = typeof linkToken.configuration === 'object' ? linkToken.configuration : {};
-      const linkedAccountId =
-        linkToken.linked_account_id || linkedAccountService.generateId(integration.unique_key);
+      const config =
+        typeof connectToken.configuration === 'object' ? connectToken.configuration : {};
 
-      const response = await linkedAccountService.upsertLinkedAccount({
-        id: linkedAccountId,
-        environment_id: linkToken.environment_id,
-        integration_key: integration.unique_key,
-        configuration: { ...config, ...callbackMetadata },
+      const response = await connectionService.upsertConnection({
+        id: connectToken.connection_id || generateId(Resource.Connection),
+        environment_id: connectToken.environment_id,
+        integration_id: integration.id,
+        external_id: '', // TODO,
+        name: '', // TODO,
+        type: '', // TODO,
+        auth_scheme: integration.auth_scheme,
         credentials: JSON.stringify(parsedCredentials),
         credentials_iv: null,
         credentials_tag: null,
-        metadata: null,
+        configuration: { ...config, ...callbackMetadata },
+        metadata: connectToken.metadata || null,
         created_at: now(),
         updated_at: now(),
         deleted_at: null,
       });
 
       if (!response) {
-        throw new Error(`Failed to upsert linked account for link token ${linkToken.id}`);
+        throw new Error(`Failed to upsert connection`);
       }
 
       await activityService.updateActivity(activityId, {
-        linked_account_id: response.linkedAccount.id,
+        connection_id: response.connection.id,
       });
 
       await activityService.createActivityLog(activityId, {
         timestamp: now(),
         level: LogLevel.Info,
-        message: `Linked account ${response.action} with OAuth1 credentials`,
+        message: `Connection ${response.action} with OAuth1 credentials`,
       });
 
-      await linkTokenService.deleteLinkToken(linkToken.id);
+      await connectTokenService.deleteConnectToken(connectToken.id);
 
       if (response.action === 'created') {
-        linkedAccountHook.linkedAccountCreated({
-          environmentId: linkToken.environment_id,
-          linkedAccount: response.linkedAccount,
-          activityId,
-        });
+        connectionHook.connectionCreated({ connection: response.connection, activityId });
       } else if (response.action === 'updated') {
-        linkedAccountHook.linkedAccountUpdated({
-          environmentId: linkToken.environment_id,
-          linkedAccount: response.linkedAccount,
-          activityId,
-        });
+        connectionHook.connectionUpdated({ connection: response.connection, activityId });
       } else {
-        throw new Error('Invalid action returned from linked account upsert');
+        throw new Error('Invalid action returned from connection upsert');
       }
 
       return await publisher.publishSuccess(res, {
-        linkedAccountId: response.linkedAccount.id,
+        connectionId: response.connection.id,
         wsClientId,
-        linkMethod,
+        connectMethod,
         redirectUrl,
         branding,
         prefersDarkMode,
       });
     } catch (err) {
       await errorService.reportError(err);
-
       await activityService.createActivityLog(activityId, {
         timestamp: now(),
         level: LogLevel.Error,
@@ -758,7 +727,7 @@ class OAuthController {
       return await publisher.publishError(res, {
         error: DEFAULT_ERROR_MESSAGE,
         wsClientId,
-        linkMethod,
+        connectMethod,
         redirectUrl,
         branding,
         prefersDarkMode,
@@ -819,16 +788,12 @@ class OAuthController {
     providerSpec: ProviderSpecification
   ): Promise<string[]> {
     const scopes = new Set<string>();
-    if (integration.additional_scopes) {
-      integration.additional_scopes.split(',').forEach((scope) => scopes.add(scope));
+    if (integration.oauth_scopes) {
+      integration.oauth_scopes.split(',').forEach((scope) => scopes.add(scope));
     }
 
     if (providerSpec.collections) {
-      const collections = await collectionService.listCollections(
-        integration.unique_key,
-        integration.environment_id
-      );
-
+      const collections = await collectionService.listCollections(integration.id);
       const enabledKeys = collections?.filter((c) => c.is_enabled).map((c) => c.unique_key) || [];
       const allEnabledCollections = Object.entries(providerSpec.collections)
         .filter(([k, v]) => enabledKeys.includes(k))
@@ -840,11 +805,7 @@ class OAuthController {
     }
 
     if (providerSpec.actions) {
-      const actions = await actionService.listActions(
-        integration.unique_key,
-        integration.environment_id
-      );
-
+      const actions = await actionService.listActions(integration.id);
       const enabledKeys = actions?.filter((a) => a.is_enabled).map((a) => a.unique_key) || [];
       const allEnabledActions = Object.entries(providerSpec.actions)
         .filter(([k, v]) => enabledKeys.includes(k))
@@ -855,11 +816,13 @@ class OAuthController {
       });
     }
 
+    const authConfig = providerSpec.auth.find((auth) => auth.scheme === integration.auth_scheme);
     if (
-      providerSpec.auth.scheme === AuthScheme.OAuth2 ||
-      providerSpec.auth.scheme === AuthScheme.OAuth1
+      authConfig &&
+      (authConfig.scheme === AuthScheme.OAuth2 || authConfig.scheme === AuthScheme.OAuth1) &&
+      authConfig.default_scopes
     ) {
-      providerSpec.auth.default_scopes?.forEach((scope) => scopes.add(scope));
+      authConfig.default_scopes.forEach((scope) => scopes.add(scope));
     }
 
     return Array.from(scopes);

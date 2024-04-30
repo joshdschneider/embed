@@ -237,7 +237,7 @@
             <% } %>
           </div>
         </div>
-        <form action="/link/<%= link_token %>/api-key" method="post">
+        <form action="/connect/<%= connect_token %>/basic" method="post">
           <div class="input-group">
             <label for="username">Enter your <%= integration.name %> username</label>
             <input type="text" id="username" name="username" />

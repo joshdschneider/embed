@@ -32,6 +32,7 @@ export * from './utils/types';
 
 export {
   Account,
+  Action,
   ApiKey,
   Collection,
   ConnectToken,

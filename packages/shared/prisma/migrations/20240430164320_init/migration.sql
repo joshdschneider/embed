@@ -12,7 +12,7 @@ CREATE TABLE "Account" (
 );
 
 -- CreateTable
-CREATE TABLE "Profile" (
+CREATE TABLE "User" (
     "id" TEXT NOT NULL,
     "account_id" TEXT NOT NULL,
     "email" TEXT NOT NULL,
@@ -22,7 +22,7 @@ CREATE TABLE "Profile" (
     "updated_at" INTEGER NOT NULL,
     "deleted_at" INTEGER,
 
-    CONSTRAINT "Profile_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "User_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -43,7 +43,7 @@ CREATE TABLE "ApiKey" (
     "id" TEXT NOT NULL,
     "environment_id" TEXT NOT NULL,
     "key" TEXT NOT NULL,
-    "key_hash" TEXT NOT NULL,
+    "key_hash" TEXT,
     "key_iv" TEXT,
     "key_tag" TEXT,
     "name" TEXT,
@@ -55,7 +55,7 @@ CREATE TABLE "ApiKey" (
 );
 
 -- CreateTable
-CREATE TABLE "Token" (
+CREATE TABLE "ConnectToken" (
     "id" TEXT NOT NULL,
     "environment_id" TEXT NOT NULL,
     "integration_id" TEXT NOT NULL,
@@ -66,7 +66,7 @@ CREATE TABLE "Token" (
     "metadata" JSONB,
     "configuration" JSONB,
     "websocket_client_id" TEXT,
-    "link_method" TEXT,
+    "connect_method" TEXT,
     "prefers_dark_mode" BOOLEAN NOT NULL DEFAULT false,
     "code_verifier" TEXT,
     "request_token_secret" TEXT,
@@ -74,15 +74,16 @@ CREATE TABLE "Token" (
     "updated_at" INTEGER NOT NULL,
     "deleted_at" INTEGER,
 
-    CONSTRAINT "Token_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "ConnectToken_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "Integration" (
     "id" TEXT NOT NULL,
+    "provider_key" TEXT NOT NULL,
     "environment_id" TEXT NOT NULL,
-    "type" TEXT NOT NULL,
-    "display_name" TEXT,
+    "auth_scheme" TEXT NOT NULL,
+    "name" TEXT,
     "is_enabled" BOOLEAN NOT NULL,
     "is_using_test_credentials" BOOLEAN NOT NULL,
     "oauth_client_id" TEXT,
@@ -103,8 +104,9 @@ CREATE TABLE "Connection" (
     "environment_id" TEXT NOT NULL,
     "integration_id" TEXT NOT NULL,
     "type" TEXT NOT NULL,
-    "display_name" TEXT,
-    "auth_method" TEXT NOT NULL,
+    "name" TEXT,
+    "auth_scheme" TEXT NOT NULL,
+    "external_id" TEXT,
     "credentials" TEXT NOT NULL,
     "credentials_iv" TEXT,
     "credentials_tag" TEXT,
@@ -121,6 +123,7 @@ CREATE TABLE "Connection" (
 CREATE TABLE "Collection" (
     "unique_key" TEXT NOT NULL,
     "integration_id" TEXT NOT NULL,
+    "provider_key" TEXT NOT NULL,
     "environment_id" TEXT NOT NULL,
     "is_enabled" BOOLEAN NOT NULL,
     "default_sync_frequency" TEXT NOT NULL,
@@ -138,6 +141,7 @@ CREATE TABLE "Collection" (
 CREATE TABLE "Action" (
     "unique_key" TEXT NOT NULL,
     "integration_id" TEXT NOT NULL,
+    "provider_key" TEXT NOT NULL,
     "environment_id" TEXT NOT NULL,
     "is_enabled" BOOLEAN NOT NULL,
     "created_at" INTEGER NOT NULL,
@@ -149,6 +153,7 @@ CREATE TABLE "Action" (
 CREATE TABLE "Sync" (
     "collection_key" TEXT NOT NULL,
     "integration_id" TEXT NOT NULL,
+    "provider_key" TEXT NOT NULL,
     "environment_id" TEXT NOT NULL,
     "connection_id" TEXT NOT NULL,
     "status" TEXT NOT NULL,
@@ -257,7 +262,7 @@ CREATE TABLE "Activity" (
     "environment_id" TEXT NOT NULL,
     "integration_id" TEXT,
     "connection_id" TEXT,
-    "token_id" TEXT,
+    "connect_token_id" TEXT,
     "collection_key" TEXT,
     "action_key" TEXT,
     "level" TEXT NOT NULL,
@@ -301,7 +306,7 @@ CREATE UNIQUE INDEX "Record_external_id_connection_id_collection_key_key" ON "Re
 CREATE UNIQUE INDEX "Record_hash_connection_id_collection_key_key" ON "Record"("hash", "connection_id", "collection_key");
 
 -- AddForeignKey
-ALTER TABLE "Profile" ADD CONSTRAINT "Profile_account_id_fkey" FOREIGN KEY ("account_id") REFERENCES "Account"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "User" ADD CONSTRAINT "User_account_id_fkey" FOREIGN KEY ("account_id") REFERENCES "Account"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Environment" ADD CONSTRAINT "Environment_account_id_fkey" FOREIGN KEY ("account_id") REFERENCES "Account"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -310,7 +315,7 @@ ALTER TABLE "Environment" ADD CONSTRAINT "Environment_account_id_fkey" FOREIGN K
 ALTER TABLE "ApiKey" ADD CONSTRAINT "ApiKey_environment_id_fkey" FOREIGN KEY ("environment_id") REFERENCES "Environment"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Token" ADD CONSTRAINT "Token_environment_id_fkey" FOREIGN KEY ("environment_id") REFERENCES "Environment"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "ConnectToken" ADD CONSTRAINT "ConnectToken_environment_id_fkey" FOREIGN KEY ("environment_id") REFERENCES "Environment"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Integration" ADD CONSTRAINT "Integration_environment_id_fkey" FOREIGN KEY ("environment_id") REFERENCES "Environment"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

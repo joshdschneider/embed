@@ -1,7 +1,7 @@
 <!doctype html>
 <html class="theme-<%= branding.appearance === "dark" || (branding.appearance === "system" && prefers_dark_mode) ? "dark" : "light" %>">
   <head>
-    <title>Api Key</title>
+    <title>Config</title>
     <style>
       html,
       body,
@@ -237,7 +237,7 @@
             <% } %>
           </div>
         </div>
-        <form action="/link/<%= link_token %>/oauth" method="post">
+        <form action="/connect/<%= connect_token %>/oauth" method="post">
           <% configuration_fields.forEach((field) => { %>
             <div class="input-group">
               <label for="<%= field.name %>">Enter your <%= integration.name %> <%= field.label.toLowerCase() %></label>
