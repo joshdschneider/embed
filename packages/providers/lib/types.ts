@@ -6,6 +6,7 @@ export enum AuthScheme {
   OAuth1 = 'oauth1',
   Basic = 'basic',
   ApiKey = 'api_key',
+  ServiceAccount = 'service_account',
   None = 'none',
 }
 

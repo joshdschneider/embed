@@ -473,8 +473,8 @@ export class QueryClient {
       content: [base64],
     });
 
-    const filter = imageSearchOptions.filters
-      ? QueryClient.transformFilter(imageSearchOptions.filters, schemaProperties)
+    const filter = imageSearchOptions.filter
+      ? QueryClient.transformFilter(imageSearchOptions.filter, schemaProperties)
       : undefined;
 
     const multimodalResults = multimodalProperties.map(async (prop) => {

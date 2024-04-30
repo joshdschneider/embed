@@ -23,6 +23,7 @@ class SyncService {
         connection_id: connectionId,
         environment_id: collection.environment_id,
         integration_id: collection.integration_id,
+        provider_key: collection.provider_key,
         collection_key: collection.unique_key,
         status: SyncStatus.Stopped,
         frequency: collection.default_sync_frequency,
@@ -482,6 +483,7 @@ class SyncService {
           environmentId: sync.environment_id,
           connectionId: sync.connection_id,
           integrationId: sync.integration_id,
+          providerKey: sync.provider_key,
           collectionKey: sync.collection_key,
         }
       );

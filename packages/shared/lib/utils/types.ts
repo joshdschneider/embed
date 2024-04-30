@@ -3,6 +3,7 @@ import { SourceObject } from '@embed/providers';
 export interface SyncArgs {
   environmentId: string;
   integrationId: string;
+  providerKey: string;
   connectionId: string;
   collectionKey: string;
 }
@@ -10,6 +11,7 @@ export interface SyncArgs {
 export interface ActionArgs {
   environmentId: string;
   integrationId: string;
+  providerKey: string;
   connectionId: string;
   actionKey: string;
   activityId: string | null;
@@ -44,12 +46,11 @@ export type QueryOptions = {
   returnProperties?: string[];
   limit?: number;
   alpha?: number;
-  disableMultimodal?: boolean;
 };
 
 export type ImageSearchOptions = {
   image: string;
-  filters?: any;
+  filter?: any;
   returnProperties?: string[];
   limit?: number;
 };

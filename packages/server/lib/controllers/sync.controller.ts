@@ -3,8 +3,8 @@ import {
   ErrorCode,
   SyncRunStatus,
   SyncStatus,
+  connectionService,
   errorService,
-  linkedAccountService,
   syncService,
 } from '@embed/shared';
 import type { Request, Response } from 'express';
@@ -14,25 +14,24 @@ import { SyncObject, SyncRunObject, UpdateSyncRequestSchema } from '../utils/typ
 
 class SyncController {
   public async listSyncs(req: Request, res: Response) {
-    const linkedAccountId = req.params['linked_account_id'];
-
-    if (!linkedAccountId) {
+    const connectionId = req.params['connection_id'];
+    if (!connectionId) {
       return errorService.errorResponse(res, {
         code: ErrorCode.BadRequest,
-        message: 'Linked account ID missing',
+        message: 'Connection ID missing',
       });
     }
 
     try {
-      const linkedAccount = await linkedAccountService.getLinkedAccountById(linkedAccountId);
-      if (!linkedAccount) {
+      const connection = await connectionService.getConnectionById(connectionId);
+      if (!connection) {
         return errorService.errorResponse(res, {
           code: ErrorCode.NotFound,
-          message: 'Linked account not found',
+          message: 'Connection not found',
         });
       }
 
-      const syncs = await syncService.listSyncs(linkedAccountId);
+      const syncs = await syncService.listSyncs(connectionId);
       if (!syncs) {
         return errorService.errorResponse(res, {
           code: ErrorCode.InternalServerError,
@@ -43,9 +42,10 @@ class SyncController {
       const syncObjects: SyncObject[] = syncs.map((sync) => {
         return {
           object: 'sync',
-          collection: sync.collection_key,
-          integration: sync.integration_key,
-          linked_account: sync.linked_account_id,
+          collection_key: sync.collection_key,
+          integration_id: sync.integration_id,
+          provider_key: sync.provider_key,
+          connection_id: sync.connection_id,
           status: sync.status as SyncStatus,
           frequency: sync.frequency,
           last_synced_at: sync.last_synced_at,
@@ -66,13 +66,13 @@ class SyncController {
   }
 
   public async retrieveSync(req: Request, res: Response) {
-    const linkedAccountId = req.params['linked_account_id'];
+    const connectionId = req.params['connection_id'];
     const collectionKey = req.params['collection_key'];
 
-    if (!linkedAccountId) {
+    if (!connectionId) {
       return errorService.errorResponse(res, {
         code: ErrorCode.BadRequest,
-        message: 'Linked account ID missing',
+        message: 'Connection ID missing',
       });
     } else if (!collectionKey) {
       return errorService.errorResponse(res, {
@@ -82,8 +82,7 @@ class SyncController {
     }
 
     try {
-      const sync = await syncService.retrieveSync(linkedAccountId, collectionKey);
-
+      const sync = await syncService.retrieveSync(connectionId, collectionKey);
       if (!sync) {
         return errorService.errorResponse(res, {
           code: ErrorCode.NotFound,
@@ -93,9 +92,10 @@ class SyncController {
 
       const syncObject: SyncObject = {
         object: 'sync',
-        collection: sync.collection_key,
-        integration: sync.integration_key,
-        linked_account: sync.linked_account_id,
+        collection_key: sync.collection_key,
+        integration_id: sync.integration_id,
+        provider_key: sync.provider_key,
+        connection_id: sync.connection_id,
         status: sync.status as SyncStatus,
         frequency: sync.frequency,
         last_synced_at: sync.last_synced_at,
@@ -115,13 +115,13 @@ class SyncController {
   }
 
   public async updateSync(req: Request, res: Response) {
-    const linkedAccountId = req.params['linked_account_id'];
+    const connectionId = req.params['connection_id'];
     const collectionKey = req.params['collection_key'];
 
-    if (!linkedAccountId) {
+    if (!connectionId) {
       return errorService.errorResponse(res, {
         code: ErrorCode.BadRequest,
-        message: 'Linked account ID missing',
+        message: 'Connection ID missing',
       });
     } else if (!collectionKey) {
       return errorService.errorResponse(res, {
@@ -132,7 +132,6 @@ class SyncController {
 
     try {
       const parsedBody = UpdateSyncRequestSchema.safeParse(req.body);
-
       if (!parsedBody.success) {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
@@ -142,7 +141,7 @@ class SyncController {
 
       const { frequency } = parsedBody.data;
       const updatedSync = await syncService.updateSyncFrequency(
-        linkedAccountId,
+        connectionId,
         collectionKey,
         frequency as StringValue
       );
@@ -156,9 +155,10 @@ class SyncController {
 
       const syncObject: SyncObject = {
         object: 'sync',
-        collection: updatedSync.collection_key,
-        integration: updatedSync.integration_key,
-        linked_account: updatedSync.linked_account_id,
+        collection_key: updatedSync.collection_key,
+        integration_id: updatedSync.integration_id,
+        provider_key: updatedSync.provider_key,
+        connection_id: updatedSync.connection_id,
         status: updatedSync.status as SyncStatus,
         frequency: updatedSync.frequency,
         last_synced_at: updatedSync.last_synced_at,
@@ -178,13 +178,13 @@ class SyncController {
   }
 
   public async startSync(req: Request, res: Response) {
-    const linkedAccountId = req.params['linked_account_id'];
+    const connectionId = req.params['connection_id'];
     const collectionKey = req.params['collection_key'];
 
-    if (!linkedAccountId) {
+    if (!connectionId) {
       return errorService.errorResponse(res, {
         code: ErrorCode.BadRequest,
-        message: 'Linked account ID missing',
+        message: 'Connection ID missing',
       });
     } else if (!collectionKey) {
       return errorService.errorResponse(res, {
@@ -193,11 +193,11 @@ class SyncController {
       });
     }
 
-    const sync = await syncService.retrieveSync(linkedAccountId, collectionKey);
+    const sync = await syncService.retrieveSync(connectionId, collectionKey);
     if (!sync) {
       return errorService.errorResponse(res, {
         code: ErrorCode.NotFound,
-        message: `Sync not found for collection ${collectionKey} on linked account ${linkedAccountId}`,
+        message: `Sync not found for collection ${collectionKey} on connection ${connectionId}`,
       });
     }
 
@@ -212,9 +212,10 @@ class SyncController {
 
       const syncObject: SyncObject = {
         object: 'sync',
-        collection: startedSync.collection_key,
-        integration: startedSync.integration_key,
-        linked_account: startedSync.linked_account_id,
+        collection_key: startedSync.collection_key,
+        integration_id: startedSync.integration_id,
+        provider_key: startedSync.provider_key,
+        connection_id: startedSync.connection_id,
         status: startedSync.status as SyncStatus,
         frequency: startedSync.frequency,
         last_synced_at: startedSync.last_synced_at,
@@ -234,13 +235,13 @@ class SyncController {
   }
 
   public async stopSync(req: Request, res: Response) {
-    const linkedAccountId = req.params['linked_account_id'];
+    const connectionId = req.params['connection_id'];
     const collectionKey = req.params['collection_key'];
 
-    if (!linkedAccountId) {
+    if (!connectionId) {
       return errorService.errorResponse(res, {
         code: ErrorCode.BadRequest,
-        message: 'Linked account ID missing',
+        message: 'Connection ID missing',
       });
     } else if (!collectionKey) {
       return errorService.errorResponse(res, {
@@ -249,11 +250,11 @@ class SyncController {
       });
     }
 
-    const sync = await syncService.retrieveSync(linkedAccountId, collectionKey);
+    const sync = await syncService.retrieveSync(connectionId, collectionKey);
     if (!sync) {
       return errorService.errorResponse(res, {
         code: ErrorCode.NotFound,
-        message: `Sync not found for collection ${collectionKey} on linked account ${linkedAccountId}`,
+        message: `Sync not found for collection ${collectionKey} on connection ${connectionId}`,
       });
     }
 
@@ -265,9 +266,10 @@ class SyncController {
 
       const syncObject: SyncObject = {
         object: 'sync',
-        collection: stoppedSync.collection_key,
-        integration: stoppedSync.integration_key,
-        linked_account: stoppedSync.linked_account_id,
+        collection_key: stoppedSync.collection_key,
+        integration_id: stoppedSync.integration_id,
+        provider_key: stoppedSync.provider_key,
+        connection_id: stoppedSync.connection_id,
         status: stoppedSync.status as SyncStatus,
         frequency: stoppedSync.frequency,
         last_synced_at: stoppedSync.last_synced_at,
@@ -287,13 +289,13 @@ class SyncController {
   }
 
   public async triggerSync(req: Request, res: Response) {
-    const linkedAccountId = req.params['linked_account_id'];
+    const connectionId = req.params['connection_id'];
     const collectionKey = req.params['collection_key'];
 
-    if (!linkedAccountId) {
+    if (!connectionId) {
       return errorService.errorResponse(res, {
         code: ErrorCode.BadRequest,
-        message: 'Linked account ID missing',
+        message: 'Connection ID missing',
       });
     } else if (!collectionKey) {
       return errorService.errorResponse(res, {
@@ -302,11 +304,11 @@ class SyncController {
       });
     }
 
-    const sync = await syncService.retrieveSync(linkedAccountId, collectionKey);
+    const sync = await syncService.retrieveSync(connectionId, collectionKey);
     if (!sync) {
       return errorService.errorResponse(res, {
         code: ErrorCode.NotFound,
-        message: `Sync not found with collection ${collectionKey} for linked account ${linkedAccountId}`,
+        message: `Sync not found with collection ${collectionKey} for connection ${connectionId}`,
       });
     }
 
@@ -321,9 +323,10 @@ class SyncController {
 
       const syncObject: SyncObject = {
         object: 'sync',
-        collection: sync.collection_key,
-        integration: sync.integration_key,
-        linked_account: sync.linked_account_id,
+        collection_key: sync.collection_key,
+        integration_id: sync.integration_id,
+        provider_key: sync.provider_key,
+        connection_id: sync.connection_id,
         status: sync.status as SyncStatus,
         frequency: sync.frequency,
         last_synced_at: sync.last_synced_at,
@@ -343,13 +346,13 @@ class SyncController {
   }
 
   public async listSyncRuns(req: Request, res: Response) {
-    const linkedAccountId = req.params['linked_account_id'];
+    const connectionId = req.params['connection_id'];
     const collectionKey = req.params['collection_key'];
 
-    if (!linkedAccountId) {
+    if (!connectionId) {
       return errorService.errorResponse(res, {
         code: ErrorCode.BadRequest,
-        message: 'Linked account ID missing',
+        message: 'Connection ID missing',
       });
     } else if (!collectionKey) {
       return errorService.errorResponse(res, {
@@ -359,7 +362,7 @@ class SyncController {
     }
 
     try {
-      const syncRuns = await syncService.listSyncRuns(linkedAccountId, collectionKey);
+      const syncRuns = await syncService.listSyncRuns(connectionId, collectionKey);
       if (!syncRuns) {
         return errorService.errorResponse(res, {
           code: ErrorCode.InternalServerError,
@@ -370,9 +373,9 @@ class SyncController {
       const syncRunObjects: SyncRunObject[] = syncRuns.map((run) => {
         return {
           object: 'sync_run',
-          collection: run.collection_key,
-          integration: run.integration_key,
-          linked_account: run.linked_account_id,
+          collection_key: run.collection_key,
+          integration_id: run.integration_id,
+          connection_id: run.connection_id,
           status: run.status as SyncRunStatus,
           records_added: run.records_added,
           records_updated: run.records_updated,
@@ -394,8 +397,8 @@ class SyncController {
   }
 
   public async retrieveSyncRun(req: Request, res: Response) {
-    const syncRunId = req.params['run_id'];
-    if (!syncRunId) {
+    const runId = req.params['run_id'];
+    if (!runId) {
       return errorService.errorResponse(res, {
         code: ErrorCode.BadRequest,
         message: 'Sync run ID missing',
@@ -403,8 +406,8 @@ class SyncController {
     }
 
     try {
-      const syncRun = await syncService.retrieveSyncRun(syncRunId);
-      if (!syncRun) {
+      const run = await syncService.retrieveSyncRun(runId);
+      if (!run) {
         return errorService.errorResponse(res, {
           code: ErrorCode.InternalServerError,
           message: DEFAULT_ERROR_MESSAGE,
@@ -413,15 +416,15 @@ class SyncController {
 
       const syncRunObject: SyncRunObject = {
         object: 'sync_run',
-        collection: syncRun.collection_key,
-        integration: syncRun.integration_key,
-        linked_account: syncRun.linked_account_id,
-        status: syncRun.status as SyncRunStatus,
-        records_added: syncRun.records_added,
-        records_updated: syncRun.records_updated,
-        records_deleted: syncRun.records_deleted,
-        created_at: syncRun.created_at,
-        updated_at: syncRun.updated_at,
+        collection_key: run.collection_key,
+        integration_id: run.integration_id,
+        connection_id: run.connection_id,
+        status: run.status as SyncRunStatus,
+        records_added: run.records_added,
+        records_updated: run.records_updated,
+        records_deleted: run.records_deleted,
+        created_at: run.created_at,
+        updated_at: run.updated_at,
       };
 
       res.status(200).json(syncRunObject);

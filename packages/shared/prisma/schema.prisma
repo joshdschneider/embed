@@ -78,7 +78,7 @@ model ConnectToken {
   metadata             Json?
   configuration        Json?
   websocket_client_id  String?
-  link_method          String?
+  connect_method       String?
   prefers_dark_mode    Boolean @default(false)
   code_verifier        String?
   request_token_secret String?
@@ -94,7 +94,7 @@ model Integration {
   provider_key              String
   environment_id            String
   auth_scheme               String
-  display_name              String?
+  name                      String?
   is_enabled                Boolean
   is_using_test_credentials Boolean
   oauth_client_id           String?
@@ -119,8 +119,8 @@ model Connection {
   environment_id  String
   integration_id  String
   type            String
-  display_name    String?
-  auth_method     String
+  name            String?
+  auth_scheme     String
   external_id     String?
   credentials     String
   credentials_iv  String?
@@ -144,6 +144,7 @@ model Connection {
 model Collection {
   unique_key                   String
   integration_id               String
+  provider_key                 String
   environment_id               String
   is_enabled                   Boolean
   default_sync_frequency       String
@@ -167,6 +168,7 @@ model Collection {
 model Action {
   unique_key     String
   integration_id String
+  provider_key   String
   environment_id String
   is_enabled     Boolean
   created_at     Int
@@ -183,6 +185,7 @@ model Action {
 model Sync {
   collection_key String
   integration_id String
+  provider_key   String
   environment_id String
   connection_id  String
   status         String

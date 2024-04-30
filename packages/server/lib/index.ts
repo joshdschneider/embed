@@ -10,11 +10,10 @@ import path from 'path';
 import type { WebSocket } from 'ws';
 import { WebSocketServer } from 'ws';
 import publisher from './clients/publisher.client';
+import connectRouter from './routes/connect.router';
+import connectTokenRouter from './routes/connectToken.router';
+import connectionRouter from './routes/connection.router';
 import integrationRouter from './routes/integration.router';
-import jobRouter from './routes/job.router';
-import linkRouter from './routes/link.router';
-import linkTokenRouter from './routes/linkToken.router';
-import linkedAccountRouter from './routes/linkedAccount.router';
 import oauthRouter from './routes/oauth.router';
 import providerRouter from './routes/provider.router';
 import proxyRouter from './routes/proxy.router';
@@ -38,16 +37,15 @@ function setupExpressApp() {
   });
 
   app.use('/v1/integrations', integrationRouter);
-  app.use('/v1/link-tokens', linkTokenRouter);
-  app.use('/v1/linked-accounts', linkedAccountRouter);
+  app.use('/v1/connect-tokens', connectTokenRouter);
+  app.use('/v1/connections', connectionRouter);
   app.use('/v1/proxy', proxyRouter);
   app.use('/v1/webhooks', webhookRouter);
 
   app.use('/web', webRouter);
   app.use('/oauth', oauthRouter);
-  app.use('/link', linkRouter);
+  app.use('/connect', connectRouter);
   app.use('/providers', providerRouter);
-  app.use('/jobs', jobRouter);
 
   return app;
 }

@@ -176,14 +176,14 @@ export class Publisher {
     {
       error,
       wsClientId,
-      linkMethod,
+      connectMethod,
       redirectUrl,
       branding,
       prefersDarkMode,
     }: {
       error: string;
       wsClientId?: string;
-      linkMethod?: string;
+      connectMethod?: string;
       redirectUrl?: string;
       branding?: Branding;
       prefersDarkMode?: boolean;
@@ -197,9 +197,9 @@ export class Publisher {
       }
     }
 
-    if (linkMethod === 'popup') {
+    if (connectMethod === 'popup') {
       this.closePopup(res);
-    } else if (linkMethod === 'redirect' && redirectUrl) {
+    } else if (connectMethod === 'redirect' && redirectUrl) {
       const errorRedirectUrl = appendParamsToUrl(redirectUrl, { error });
       res.redirect(errorRedirectUrl);
     } else {
@@ -216,16 +216,16 @@ export class Publisher {
   public async publishSuccess(
     res: Response,
     {
-      linkedAccountId,
+      connectionId,
       wsClientId,
-      linkMethod,
+      connectMethod,
       redirectUrl,
       branding,
       prefersDarkMode,
     }: {
-      linkedAccountId: string;
+      connectionId: string;
       wsClientId?: string;
-      linkMethod?: string;
+      connectMethod?: string;
       redirectUrl?: string;
       branding?: Branding;
       prefersDarkMode?: boolean;
@@ -234,7 +234,7 @@ export class Publisher {
     if (wsClientId) {
       const data = JSON.stringify({
         message_type: MessageType.Success,
-        linked_account_id: linkedAccountId,
+        connection_id: connectionId,
       });
 
       const published = await this.publish(wsClientId, data);
@@ -243,11 +243,11 @@ export class Publisher {
       }
     }
 
-    if (linkMethod === 'popup') {
+    if (connectMethod === 'popup') {
       this.closePopup(res);
-    } else if (linkMethod === 'redirect' && redirectUrl) {
+    } else if (connectMethod === 'redirect' && redirectUrl) {
       const successRedirectUrl = appendParamsToUrl(redirectUrl, {
-        linked_account_id: linkedAccountId,
+        connection_id: connectionId,
       });
 
       res.redirect(successRedirectUrl);

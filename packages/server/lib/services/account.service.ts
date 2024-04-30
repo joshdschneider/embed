@@ -4,9 +4,7 @@ import { database, errorService } from '@embed/shared';
 class AccountService {
   public async createAccount(account: Account): Promise<Account | null> {
     try {
-      return await database.account.create({
-        data: account,
-      });
+      return await database.account.create({ data: account });
     } catch (err) {
       await errorService.reportError(err);
       return null;

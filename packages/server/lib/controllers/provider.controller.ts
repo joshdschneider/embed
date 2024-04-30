@@ -11,10 +11,7 @@ class ProviderController {
       });
     }
 
-    res.status(200).send({
-      object: 'list',
-      data: providers,
-    });
+    res.status(200).send({ object: 'list', data: providers });
   }
 
   public async retrieveProvider(req: Request, res: Response): Promise<void> {
@@ -34,10 +31,7 @@ class ProviderController {
       });
     }
 
-    res.status(200).send({
-      object: 'provider',
-      ...providerSpec,
-    });
+    res.status(200).send({ object: 'provider', ...providerSpec });
   }
 }
 

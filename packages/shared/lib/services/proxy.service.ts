@@ -3,18 +3,23 @@ import { Connection } from '@prisma/client';
 import axios, { AxiosError, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { backOff } from 'exponential-backoff';
 import { DEFAULT_PROXY_ATTEMPTS, DEFAULT_PROXY_RESPONSE_TYPE } from '../utils/constants';
+import { database } from '../utils/database';
 import { interpolateIfNeeded } from '../utils/helpers';
 import connectionService from './connection.service';
 import providerService from './provider.service';
 
 class ProxyService {
   public async proxy<T = any>(options: ProxyOptions): Promise<AxiosResponse<T>> {
-    const connection = await connectionService.getConnectionById(options.connectionId);
+    const connection = await database.connection.findUnique({
+      where: { id: options.connectionId, deleted_at: null },
+      include: { integration: true },
+    });
+
     if (!connection) {
       throw new AxiosError(`Connection not found with ID ${options.connectionId}`, '400');
     }
 
-    const providerSpec = await providerService.getProviderSpec(connection.integration_id);
+    const providerSpec = await providerService.getProviderSpec(connection.integration.provider_key);
     if (!providerSpec) {
       throw new Error('Provider specification not found');
     }
@@ -156,12 +161,12 @@ class ProxyService {
   ): Record<string, string> {
     let headers: Record<string, string> = {};
     const credentials = JSON.parse(connection.credentials);
-    const { auth_method } = connection;
+    const { auth_scheme } = connection;
 
-    if (auth_method === AuthScheme.OAuth1 || auth_method === AuthScheme.OAuth2) {
+    if (auth_scheme === AuthScheme.OAuth1 || auth_scheme === AuthScheme.OAuth2) {
       const { access_token } = credentials;
       headers['Authorization'] = `Bearer ${access_token}`;
-    } else if (auth_method === AuthScheme.Basic) {
+    } else if (auth_scheme === AuthScheme.Basic) {
       const { username, password } = credentials;
       headers['Authorization'] =
         `Basic ${Buffer.from(`${username}:${password ?? ''}`).toString('base64')}`;
