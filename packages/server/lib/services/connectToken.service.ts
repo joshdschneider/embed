@@ -7,8 +7,10 @@ class ConnectTokenService {
       return await database.connectToken.create({
         data: {
           ...connectToken,
-          metadata: connectToken.metadata || undefined,
           configuration: connectToken.configuration || undefined,
+          inclusions: connectToken.inclusions || undefined,
+          exclusions: connectToken.exclusions || undefined,
+          metadata: connectToken.metadata || undefined,
         },
       });
     } catch (err) {
@@ -48,8 +50,10 @@ class ConnectTokenService {
         where: { id: connectTokenId },
         data: {
           ...data,
-          metadata: data.metadata || undefined,
           configuration: data.configuration || undefined,
+          inclusions: data.inclusions || undefined,
+          exclusions: data.exclusions || undefined,
+          metadata: data.metadata || undefined,
         },
       });
     } catch (err) {

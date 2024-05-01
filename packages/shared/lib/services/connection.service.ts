@@ -17,12 +17,17 @@ class ConnectionService {
     action: 'created' | 'updated';
   } | null> {
     try {
-      const encryptedConnection = encryptionService.encryptConnection(connection);
+      const credentialsHash = encryptionService.hashString(connection.credentials);
+      const encryptedConnection = encryptionService.encryptConnection({
+        ...connection,
+        credentials_hash: credentialsHash,
+      });
+
       const duplicate = await database.connection.findFirst({
         where: {
           OR: [
             { id: encryptedConnection.id, deleted_at: null },
-            { external_id: encryptedConnection.external_id, deleted_at: null },
+            { credentials_hash: encryptedConnection.credentials_hash, deleted_at: null },
           ],
         },
       });
@@ -31,10 +36,15 @@ class ConnectionService {
         const existingConnection = await database.connection.update({
           where: { id: duplicate.id },
           data: {
+            type: encryptedConnection.type,
+            display_name: encryptedConnection.display_name,
             credentials: encryptedConnection.credentials,
             credentials_iv: encryptedConnection.credentials_iv,
             credentials_tag: encryptedConnection.credentials_tag,
             configuration: encryptedConnection.configuration || undefined,
+            inclusions: encryptedConnection.inclusions || undefined,
+            exclusions: encryptedConnection.exclusions || undefined,
+            metadata: encryptedConnection.metadata || undefined,
             updated_at: now(),
           },
         });
@@ -48,7 +58,9 @@ class ConnectionService {
       const newConnection = await database.connection.create({
         data: {
           ...encryptedConnection,
-          configuration: encryptedConnection.configuration || {},
+          configuration: encryptedConnection.configuration || undefined,
+          inclusions: encryptedConnection.inclusions || undefined,
+          exclusions: encryptedConnection.exclusions || undefined,
           metadata: encryptedConnection.metadata || undefined,
         },
       });
@@ -87,7 +99,6 @@ class ConnectionService {
       );
 
       const order = options?.order || 'desc';
-
       const whereClause = {
         environment_id: environmentId,
         deleted_at: null,
@@ -183,6 +194,8 @@ class ConnectionService {
         data: {
           ...data,
           configuration: data.configuration || undefined,
+          inclusions: data.inclusions || undefined,
+          exclusions: data.exclusions || undefined,
           metadata: data.metadata || undefined,
           updated_at: now(),
         },

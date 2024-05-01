@@ -12,6 +12,9 @@ auth:
       response_type: code
       access_type: offline
       prompt: consent
+  - scheme: service_account
+
+can_have_organization_account: false
 
 schemas:
   file: &file
@@ -55,7 +58,7 @@ schemas:
         keyword_searchable: false
         multimodal: true
         hidden: true
-      chunks:
+      content:
         type: nested
         return_by_default: false
         properties:

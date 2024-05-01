@@ -59,7 +59,7 @@ model ApiKey {
   key_hash       String? @unique
   key_iv         String?
   key_tag        String?
-  name           String?
+  display_name   String?
   created_at     Int
   updated_at     Int
   deleted_at     Int?
@@ -75,8 +75,12 @@ model ConnectToken {
   expires_at           Int
   language             String
   redirect_url         String?
-  metadata             Json?
+  type                 String?
+  display_name         String?
   configuration        Json?
+  inclusions           Json?
+  exclusions           Json?
+  metadata             Json?
   websocket_client_id  String?
   connect_method       String?
   prefers_dark_mode    Boolean @default(false)
@@ -94,7 +98,7 @@ model Integration {
   provider_key              String
   environment_id            String
   auth_scheme               String
-  name                      String?
+  display_name              String?
   is_enabled                Boolean
   is_using_test_credentials Boolean
   oauth_client_id           String?
@@ -115,21 +119,23 @@ model Integration {
 }
 
 model Connection {
-  id              String  @id
-  environment_id  String
-  integration_id  String
-  type            String
-  name            String?
-  auth_scheme     String
-  external_id     String?
-  credentials     String
-  credentials_iv  String?
-  credentials_tag String?
-  configuration   Json?
-  metadata        Json?
-  created_at      Int
-  updated_at      Int
-  deleted_at      Int?
+  id               String  @id
+  environment_id   String
+  integration_id   String
+  type             String
+  display_name     String?
+  auth_scheme      String
+  credentials      String
+  credentials_hash String?
+  credentials_iv   String?
+  credentials_tag  String?
+  configuration    Json?
+  inclusions       Json?
+  exclusions       Json?
+  metadata         Json?
+  created_at       Int
+  updated_at       Int
+  deleted_at       Int?
 
   syncs          Sync[]
   sync_runs      SyncRun[]

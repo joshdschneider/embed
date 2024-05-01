@@ -27,6 +27,7 @@ import publisher from '../clients/publisher.client';
 import connectionHook from '../hooks/connection.hook';
 import connectTokenService from '../services/connectToken.service';
 import { extractConfigurationKeys, getOauthCallbackUrl } from '../utils/helpers';
+import connectController from './connect.controller';
 
 class OAuthController {
   public async authorize(req: Request, res: Response) {
@@ -543,18 +544,25 @@ class OAuthController {
       const config =
         typeof connectToken.configuration === 'object' ? connectToken.configuration : {};
 
+      const connectionType = await connectController.getConnectionTypeFromToken(
+        connectToken.type,
+        integration.provider_key
+      );
+
       const response = await connectionService.upsertConnection({
-        id: connectToken.connection_id || generateId(Resource.Connection),
         environment_id: connectToken.environment_id,
-        integration_id: integration.id,
-        external_id: '', // TODO,
-        name: '', // TODO,
-        type: '', // TODO,
+        id: connectToken.connection_id || generateId(Resource.Connection),
+        display_name: connectToken.display_name || null,
+        type: connectionType,
         auth_scheme: integration.auth_scheme,
+        integration_id: integration.id,
         credentials: JSON.stringify(parsedCredentials),
+        credentials_hash: null,
         credentials_iv: null,
         credentials_tag: null,
         configuration: { ...config, ...tokenMetadata, ...callbackMetadata },
+        inclusions: connectToken.inclusions || null,
+        exclusions: connectToken.exclusions || null,
         metadata: connectToken.metadata || null,
         created_at: now(),
         updated_at: now(),
@@ -666,18 +674,25 @@ class OAuthController {
       const config =
         typeof connectToken.configuration === 'object' ? connectToken.configuration : {};
 
+      const connectionType = await connectController.getConnectionTypeFromToken(
+        connectToken.type,
+        integration.provider_key
+      );
+
       const response = await connectionService.upsertConnection({
-        id: connectToken.connection_id || generateId(Resource.Connection),
         environment_id: connectToken.environment_id,
-        integration_id: integration.id,
-        external_id: '', // TODO,
-        name: '', // TODO,
-        type: '', // TODO,
+        id: connectToken.connection_id || generateId(Resource.Connection),
+        display_name: connectToken.display_name || null,
+        type: connectionType,
         auth_scheme: integration.auth_scheme,
+        integration_id: integration.id,
         credentials: JSON.stringify(parsedCredentials),
+        credentials_hash: null,
         credentials_iv: null,
         credentials_tag: null,
         configuration: { ...config, ...callbackMetadata },
+        inclusions: connectToken.inclusions || null,
+        exclusions: connectToken.exclusions || null,
         metadata: connectToken.metadata || null,
         created_at: now(),
         updated_at: now(),
