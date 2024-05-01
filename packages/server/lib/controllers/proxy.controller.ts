@@ -8,11 +8,11 @@ import { PassThrough } from 'stream';
 class ProxyController {
   public async routeRequest(req: Request, res: Response): Promise<void> {
     try {
-      const linkedAccountId = req.get('Embed-Linked-Account-Id');
-      if (!linkedAccountId) {
+      const connectionId = req.get('Embed-Connection-Id');
+      if (!connectionId) {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
-          message: 'Linked account ID is missing',
+          message: 'Connection ID is missing',
         });
       }
 
@@ -26,7 +26,7 @@ class ProxyController {
       const data = req.body;
 
       const options: ProxyOptions = {
-        linkedAccountId,
+        connectionId,
         endpoint,
         baseUrlOverride,
         method,

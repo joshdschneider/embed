@@ -7,7 +7,12 @@ import errorService from './error.service';
 class ApiKeyService {
   public async createApiKey(apiKey: ApiKey): Promise<ApiKey | null> {
     try {
-      const encryptedApiKey = encryptionService.encryptApiKey(apiKey);
+      const keyHash = encryptionService.hashString(apiKey.key);
+      const encryptedApiKey = encryptionService.encryptApiKey({
+        ...apiKey,
+        key_hash: keyHash,
+      });
+
       const createdApiKey = await database.apiKey.create({
         data: encryptedApiKey,
       });
@@ -35,16 +40,12 @@ class ApiKeyService {
   public async updateApiKey(
     apiKeyId: string,
     environmentId: string,
-    name: string
+    displayName: string
   ): Promise<ApiKey | null> {
     try {
       const apiKey = await database.apiKey.update({
-        where: {
-          id: apiKeyId,
-          environment_id: environmentId,
-          deleted_at: null,
-        },
-        data: { name, updated_at: now() },
+        where: { id: apiKeyId, environment_id: environmentId, deleted_at: null },
+        data: { display_name: displayName, updated_at: now() },
       });
 
       return encryptionService.decryptApiKey(apiKey);
@@ -57,10 +58,7 @@ class ApiKeyService {
   public async deleteApiKey(apiKeyId: string, environmentId: string): Promise<ApiKey | null> {
     try {
       const apiKey = await database.apiKey.findUnique({
-        where: {
-          id: apiKeyId,
-          environment_id: environmentId,
-        },
+        where: { id: apiKeyId, environment_id: environmentId },
       });
 
       if (!apiKey) {
@@ -68,11 +66,7 @@ class ApiKeyService {
       }
 
       return await database.apiKey.update({
-        where: {
-          id: apiKeyId,
-          environment_id: environmentId,
-          deleted_at: null,
-        },
+        where: { id: apiKeyId, environment_id: environmentId, deleted_at: null },
         data: { deleted_at: now() },
       });
     } catch (err) {

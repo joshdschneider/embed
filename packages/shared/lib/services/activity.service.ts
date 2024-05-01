@@ -19,10 +19,10 @@ class ActivityService {
     }
   }
 
-  public async findActivityIdByLinkToken(linkToken: string): Promise<string | null> {
+  public async findActivityIdByConnectToken(connectToken: string): Promise<string | null> {
     try {
       const activity = await database.activity.findFirst({
-        where: { link_token_id: linkToken },
+        where: { connect_token_id: connectToken },
         select: { id: true },
       });
 

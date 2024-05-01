@@ -2,15 +2,17 @@ import { SourceObject } from '@embed/providers';
 
 export interface SyncArgs {
   environmentId: string;
-  integrationKey: string;
-  linkedAccountId: string;
+  integrationId: string;
+  providerKey: string;
+  connectionId: string;
   collectionKey: string;
 }
 
 export interface ActionArgs {
   environmentId: string;
-  integrationKey: string;
-  linkedAccountId: string;
+  integrationId: string;
+  providerKey: string;
+  connectionId: string;
   actionKey: string;
   activityId: string | null;
 }
@@ -44,12 +46,11 @@ export type QueryOptions = {
   returnProperties?: string[];
   limit?: number;
   alpha?: number;
-  disableMultimodal?: boolean;
 };
 
 export type ImageSearchOptions = {
   image: string;
-  filters?: any;
+  filter?: any;
   returnProperties?: string[];
   limit?: number;
 };
@@ -103,12 +104,12 @@ export type NestedHitObject = {
 
 export type Metadata = Record<string, any> | null;
 
-export type LinkedAccountWebhookEvent = 'linked_account.created' | 'linked_account.updated';
+export type ConnectionWebhookEvent = 'connection.created' | 'connection.updated';
 
-export interface LinkedAccountWebhookBody {
-  event: LinkedAccountWebhookEvent;
+export interface ConnectionWebhookBody {
+  event: ConnectionWebhookEvent;
   integration: string;
-  linked_account: string;
+  connection: string;
   configuration: Record<string, any>;
   metadata: Metadata;
   created_at: number;
@@ -120,7 +121,7 @@ export type SyncWebhookEvent = 'sync.succeeded' | 'sync.failed';
 export interface SyncWebhookBody {
   event: SyncWebhookEvent;
   integration: string;
-  linked_account: string;
+  connection: string;
   collection: string;
   results?: {
     records_added: number;
@@ -131,4 +132,4 @@ export interface SyncWebhookBody {
   timestamp: number;
 }
 
-export type WebhookBody = LinkedAccountWebhookBody | SyncWebhookBody;
+export type WebhookBody = ConnectionWebhookBody | SyncWebhookBody;

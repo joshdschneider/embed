@@ -6,6 +6,7 @@ export enum AuthScheme {
   OAuth1 = 'oauth1',
   Basic = 'basic',
   ApiKey = 'api_key',
+  ServiceAccount = 'service_account',
   None = 'none',
 }
 
@@ -16,7 +17,11 @@ export const NoAuthSchema = z.object({
 export type NoAuth = z.infer<typeof NoAuthSchema>;
 
 export const ApiAuthSchema = z.object({
-  scheme: z.union([z.literal(AuthScheme.Basic), z.literal(AuthScheme.ApiKey)]),
+  scheme: z.union([
+    z.literal(AuthScheme.Basic),
+    z.literal(AuthScheme.ApiKey),
+    z.literal(AuthScheme.ServiceAccount),
+  ]),
 });
 
 export type ApiAuth = z.infer<typeof ApiAuthSchema>;
@@ -72,7 +77,7 @@ export const OAuth1Schema = OAuthSchema.extend({
 
 export type OAuth1 = z.infer<typeof OAuth1Schema>;
 
-export const AuthSchema = z.union([OAuthSchema, ApiAuthSchema, NoAuthSchema]);
+export const AuthSchema = z.array(z.union([OAuthSchema, ApiAuthSchema, NoAuthSchema]));
 
 export type Auth = z.infer<typeof AuthSchema>;
 
@@ -145,14 +150,12 @@ export const CollectionSchemaSchema = z.object({
 
 export type CollectionSchema = z.infer<typeof CollectionSchemaSchema>;
 
-export const CollectionsSchema = z.record(
+export const CollectionsSchema = z.array(
   z.object({
+    unique_key: z.string(),
     schema: CollectionSchemaSchema,
-    default_enabled: z.boolean().optional(),
-    default_sync_frequency: z.string().optional(),
-    default_sync_auto_start: z.boolean().optional(),
     required_scopes: z.array(z.string()).optional(),
-    has_multimodal_properties: z.boolean(),
+    required_for_organization_accounts: z.boolean().default(false),
   })
 );
 
@@ -179,9 +182,9 @@ export const ActionSchemaSchema = z.object({
 
 export type ActionSchema = z.infer<typeof ActionSchemaSchema>;
 
-export const ActionsSchema = z.record(
+export const ActionsSchema = z.array(
   z.object({
-    default_enabled: z.boolean().optional(),
+    unique_key: z.string(),
     required_scopes: z.array(z.string()).optional(),
     schema: ActionSchemaSchema,
   })
@@ -194,6 +197,7 @@ export const ProviderSpecificationSchema = z.object({
   name: z.string(),
   base_url: z.string(),
   auth: AuthSchema,
+  can_have_organization_account: z.boolean().default(false),
   headers: z.record(z.string()).optional(),
   retry: RetrySchema.optional(),
   logo_url: z.string(),
@@ -220,7 +224,7 @@ export type HttpMethod =
 export type ResponseType = 'arraybuffer' | 'json' | 'text' | 'stream';
 
 export interface ProxyOptions {
-  linkedAccountId: string;
+  connectionId: string;
   endpoint: string;
   baseUrlOverride?: string;
   method?: HttpMethod;
@@ -231,7 +235,7 @@ export interface ProxyOptions {
   retries?: number;
 }
 
-export type InternalProxyOptions = Omit<ProxyOptions, 'linkedAccountId'>;
+export type InternalProxyOptions = Omit<ProxyOptions, 'connectionId'>;
 
 export type MethodProxyOptions = Omit<InternalProxyOptions, 'method'>;
 

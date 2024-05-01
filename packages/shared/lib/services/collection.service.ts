@@ -1,4 +1,4 @@
-import { Collection, LinkedAccount } from '@prisma/client';
+import { Collection, Connection } from '@prisma/client';
 import ElasticClient from '../clients/elastic.client';
 import { database } from '../utils/database';
 import { MultimodalEmbeddingModel, TextEmbeddingModel } from '../utils/enums';
@@ -9,19 +9,10 @@ import recordService from './record.service';
 import syncService from './sync.service';
 
 class CollectionService {
-  public async listCollections(
-    integrationKey: string,
-    environmentId: string
-  ): Promise<Collection[] | null> {
+  public async listCollections(integrationId: string): Promise<Collection[] | null> {
     try {
       const integration = await database.integration.findUnique({
-        where: {
-          unique_key_environment_id: {
-            unique_key: integrationKey,
-            environment_id: environmentId,
-          },
-          deleted_at: null,
-        },
+        where: { id: integrationId, deleted_at: null },
         select: { collections: true },
       });
 
@@ -38,16 +29,14 @@ class CollectionService {
 
   public async retrieveCollection(
     collectionKey: string,
-    integrationKey: string,
-    environmentId: string
+    integrationId: string
   ): Promise<Collection | null> {
     try {
       return await database.collection.findUnique({
         where: {
-          unique_key_integration_key_environment_id: {
+          unique_key_integration_id: {
             unique_key: collectionKey,
-            integration_key: integrationKey,
-            environment_id: environmentId,
+            integration_id: integrationId,
           },
           deleted_at: null,
         },
@@ -60,17 +49,15 @@ class CollectionService {
 
   public async updateCollection(
     collectionKey: string,
-    integrationKey: string,
-    environmentId: string,
+    integrationId: string,
     data: Partial<Collection>
   ): Promise<Collection | null> {
     try {
       return await database.collection.update({
         where: {
-          unique_key_integration_key_environment_id: {
+          unique_key_integration_id: {
             unique_key: collectionKey,
-            integration_key: integrationKey,
-            environment_id: environmentId,
+            integration_id: integrationId,
           },
           deleted_at: null,
         },
@@ -83,18 +70,18 @@ class CollectionService {
   }
 
   public async queryCollection({
-    linkedAccount,
+    connection,
     collectionKey,
     queryOptions,
   }: {
-    linkedAccount: LinkedAccount;
+    connection: Connection;
     collectionKey: string;
     queryOptions: QueryOptions;
   }) {
     try {
       const elastic = ElasticClient.getInstance();
       return await elastic.query({
-        linkedAccount,
+        connection,
         collectionKey,
         queryOptions,
       });
@@ -105,18 +92,18 @@ class CollectionService {
   }
 
   public async imageSearchCollection({
-    linkedAccount,
+    connection,
     collectionKey,
     imageSearchOptions,
   }: {
-    linkedAccount: LinkedAccount;
+    connection: Connection;
     collectionKey: string;
     imageSearchOptions: ImageSearchOptions;
   }) {
     try {
       const elastic = ElasticClient.getInstance();
       return await elastic.imageSearch({
-        linkedAccount,
+        connection,
         collectionKey,
         imageSearchOptions,
       });
@@ -128,18 +115,18 @@ class CollectionService {
 
   public async createCollectionIndex({
     environmentId,
-    integrationKey,
+    integrationId,
     collectionKey,
   }: {
     environmentId: string;
-    integrationKey: string;
+    integrationId: string;
     collectionKey: string;
   }): Promise<boolean> {
     try {
       const elastic = ElasticClient.getInstance();
       return await elastic.createIndex({
         environmentId,
-        integrationKey,
+        integrationId,
         collectionKey,
       });
     } catch (err) {
@@ -149,8 +136,7 @@ class CollectionService {
   }
 
   public async getCollectionModelSettings(
-    environmentId: string,
-    integrationKey: string,
+    integrationId: string,
     collectionKey: string
   ): Promise<{
     textEmbeddingModel: TextEmbeddingModel;
@@ -160,15 +146,8 @@ class CollectionService {
     try {
       const collection = await database.collection.findUnique({
         where: {
-          unique_key_integration_key_environment_id: {
-            unique_key: collectionKey,
-            integration_key: integrationKey,
-            environment_id: environmentId,
-          },
+          unique_key_integration_id: { unique_key: collectionKey, integration_id: integrationId },
           deleted_at: null,
-        },
-        include: {
-          integration: { select: { environment: true } },
         },
       });
 
@@ -176,28 +155,10 @@ class CollectionService {
         throw new Error('Failed to get default collection settings');
       }
 
-      const {
-        text_embedding_model_override,
-        multimodal_embedding_model_override,
-        multimodal_enabled_override,
-        integration,
-      } = collection;
-
-      const {
-        default_text_embedding_model,
-        default_multimodal_embedding_model,
-        multimodal_enabled_by_default,
-      } = integration.environment;
-
-      const textEmbeddingModel = text_embedding_model_override || default_text_embedding_model;
-      const multimodalEmbeddingModel =
-        multimodal_embedding_model_override || default_multimodal_embedding_model;
-      const multimodalEnabled = multimodal_enabled_override ?? multimodal_enabled_by_default;
-
       return {
-        textEmbeddingModel: textEmbeddingModel as TextEmbeddingModel,
-        multimodalEmbeddingModel: multimodalEmbeddingModel as MultimodalEmbeddingModel,
-        multimodalEnabled,
+        textEmbeddingModel: collection.text_embedding_model as TextEmbeddingModel,
+        multimodalEmbeddingModel: collection.multimodal_embedding_model as MultimodalEmbeddingModel,
+        multimodalEnabled: collection.multimodal_enabled,
       };
     } catch (err) {
       await errorService.reportError(err);
@@ -209,8 +170,7 @@ class CollectionService {
     try {
       const syncs = await database.sync.findMany({
         where: {
-          environment_id: collection.environment_id,
-          integration_key: collection.integration_key,
+          integration_id: collection.integration_id,
           collection_key: collection.unique_key,
           deleted_at: null,
         },
@@ -219,7 +179,7 @@ class CollectionService {
       const shouldResync = syncs.filter((sync) => sync.last_synced_at !== null);
       const indexDeleted = await this.deleteCollectionIndex({
         environmentId: collection.environment_id,
-        integrationKey: collection.integration_key,
+        integrationId: collection.integration_id,
         collectionKey: collection.unique_key,
       });
 
@@ -229,7 +189,7 @@ class CollectionService {
 
       const indexCreated = await this.createCollectionIndex({
         environmentId: collection.environment_id,
-        integrationKey: collection.integration_key,
+        integrationId: collection.integration_id,
         collectionKey: collection.unique_key,
       });
 
@@ -250,17 +210,16 @@ class CollectionService {
 
   public async deleteCollectionIndex({
     environmentId,
-    integrationKey,
+    integrationId,
     collectionKey,
   }: {
     environmentId: string;
-    integrationKey: string;
+    integrationId: string;
     collectionKey: string;
   }): Promise<boolean> {
     try {
       const recordsDeleted = await recordService.deleteRecordsForCollection({
-        environmentId,
-        integrationKey,
+        integrationId,
         collectionKey,
       });
 
@@ -271,7 +230,7 @@ class CollectionService {
       const elastic = ElasticClient.getInstance();
       const indexDeleted = await elastic.deleteIndex({
         environmentId,
-        integrationKey,
+        integrationId,
         collectionKey,
       });
 
@@ -280,8 +239,7 @@ class CollectionService {
       }
 
       const syncs = await syncService.listSyncsForCollection({
-        environmentId,
-        integrationKey,
+        integrationId,
         collectionKey,
       });
 
@@ -293,9 +251,9 @@ class CollectionService {
         syncs.map((sync) => {
           return database.sync.update({
             where: {
-              collection_key_linked_account_id: {
+              collection_key_connection_id: {
                 collection_key: collectionKey,
-                linked_account_id: sync.linked_account_id,
+                connection_id: sync.connection_id,
               },
             },
             data: { last_synced_at: null },

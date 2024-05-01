@@ -1,8 +1,7 @@
 import express from 'express';
 import apiKeyController from '../controllers/apiKey.controller';
 import environmentController from '../controllers/environment.controller';
-import integrationController from '../controllers/integration.controller';
-import linkPreviewController from '../controllers/linkPreview.controller';
+import previewController from '../controllers/preview.controller';
 import userController from '../controllers/user.controller';
 import authMiddleware from '../middleware/auth.middleware';
 
@@ -52,14 +51,6 @@ webRouter
   .route('/api-keys/:api_key_id')
   .delete(apiKeyController.deleteApiKey.bind(apiKeyController));
 
-webRouter
-  .route('/integrations/rerank')
-  .put(integrationController.rerankIntegrations.bind(integrationController));
-
-webRouter.route('/link-preview').get(linkPreviewController.listView.bind(linkPreviewController));
-
-webRouter
-  .route('/link-preview/i/:integration')
-  .get(linkPreviewController.consentView.bind(linkPreviewController));
+webRouter.route('/connect-preview').get(previewController.preview.bind(previewController));
 
 export default webRouter;

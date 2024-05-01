@@ -121,8 +121,8 @@ class TemporalClient {
     }
   }
 
-  public static generateSyncScheduleId(linkedAccountId: string, collectionKey: string): string {
-    return `${linkedAccountId}-${collectionKey}`;
+  public static generateSyncScheduleId(connectionId: string, collectionKey: string): string {
+    return `${connectionId}-${collectionKey}`;
   }
 
   public async triggerSyncSchedule(scheduleId: string): Promise<boolean> {

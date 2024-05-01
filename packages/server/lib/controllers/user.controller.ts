@@ -1,18 +1,12 @@
 import {
   DEFAULT_BRANDING,
-  DEFAULT_ENABLE_NEW_INTEGRATIONS,
   DEFAULT_ERROR_MESSAGE,
-  DEFAULT_MULTIMODAL_EMBEDDING_MODEL,
-  DEFAULT_MULTIMODAL_ENABLED,
-  DEFAULT_TEXT_EMBEDDING_MODEL,
   ErrorCode,
   Resource,
   apiKeyService,
-  encryptionService,
   environmentService,
   errorService,
   generateId,
-  integrationService,
   now,
 } from '@embed/shared';
 import type { Request, Response } from 'express';
@@ -82,11 +76,7 @@ class UserController {
         id: generateId(Resource.Environment),
         account_id: account.id,
         type: EnvironmentType.Staging,
-        enable_new_integrations: DEFAULT_ENABLE_NEW_INTEGRATIONS,
         branding: DEFAULT_BRANDING,
-        default_text_embedding_model: DEFAULT_TEXT_EMBEDDING_MODEL,
-        default_multimodal_embedding_model: DEFAULT_MULTIMODAL_EMBEDDING_MODEL,
-        multimodal_enabled_by_default: DEFAULT_MULTIMODAL_ENABLED,
         created_at: now(),
         updated_at: now(),
         deleted_at: null,
@@ -100,16 +90,14 @@ class UserController {
       }
 
       const key = generateSecretKey(EnvironmentType.Staging);
-      const hash = encryptionService.hashApiKey(key);
-
       const apiKey = await apiKeyService.createApiKey({
         id: generateId(Resource.ApiKey),
         environment_id: stagingEnvironment.id,
         key,
-        key_hash: hash,
+        key_hash: null,
         key_iv: null,
         key_tag: null,
-        name: null,
+        display_name: null,
         created_at: now(),
         updated_at: now(),
         deleted_at: null,
@@ -122,7 +110,7 @@ class UserController {
         });
       }
 
-      await integrationService.seedIntegrations(stagingEnvironment.id);
+      // Seed test integration?
 
       return res.status(200).json({
         object: 'user',
@@ -202,7 +190,7 @@ class UserController {
       return res.status(200).json({
         object: 'account',
         id: account.id,
-        cloud_organization_id: account.organization_id,
+        organization_id: account.organization_id,
         environments: account.environments.map((environment) => ({
           object: 'environment',
           ...environment,

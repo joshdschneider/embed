@@ -1,14 +1,16 @@
 export interface SyncArgs {
   environmentId: string;
-  integrationKey: string;
-  linkedAccountId: string;
+  integrationId: string;
+  providerKey: string;
+  connectionId: string;
   collectionKey: string;
 }
 
 export interface ActionArgs {
   environmentId: string;
-  integrationKey: string;
-  linkedAccountId: string;
+  integrationId: string;
+  providerKey: string;
+  connectionId: string;
   actionKey: string;
   activityId: string | null;
 }

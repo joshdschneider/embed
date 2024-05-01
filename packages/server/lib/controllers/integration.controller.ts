@@ -1,4 +1,4 @@
-import { AuthScheme, ProviderSpecification } from '@embed/providers';
+import { AuthScheme } from '@embed/providers';
 import type { Integration } from '@embed/shared';
 import {
   DEFAULT_ERROR_MESSAGE,
@@ -11,46 +11,49 @@ import {
 } from '@embed/shared';
 import type { Request, Response } from 'express';
 import { zodError } from '../utils/helpers';
-import { IntegrationObject, UpdateIntegrationRequestSchema } from '../utils/types';
+import {
+  IntegrationObject,
+  IntegrationObjectWithCredentials,
+  UpdateIntegrationRequestSchema,
+} from '../utils/types';
 
 class IntegrationController {
   public async listIntegrations(req: Request, res: Response) {
     try {
       const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
-
-      const [integrations, providers] = await Promise.all([
-        integrationService.listIntegrations(environmentId),
-        providerService.listProviders(),
-      ]);
-
-      if (!integrations || !providers) {
+      const integrations = await integrationService.listIntegrations(environmentId);
+      if (!integrations) {
         return errorService.errorResponse(res, {
           code: ErrorCode.InternalServerError,
           message: DEFAULT_ERROR_MESSAGE,
         });
       }
 
-      const providerKeys = providers.map((p) => p.unique_key);
-      const filteredIntegrations = integrations.filter((i) => providerKeys.includes(i.unique_key));
+      const providers = await providerService.listProviders();
+      if (!providers) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.InternalServerError,
+          message: DEFAULT_ERROR_MESSAGE,
+        });
+      }
 
-      const IntegrationObjects: IntegrationObject[] = filteredIntegrations.map((i) => {
-        const p = providers.find((p) => p.unique_key === i.unique_key) as ProviderSpecification;
+      const integrationObjects: IntegrationObject[] = integrations.map((integration) => {
+        const provider = providers.find((p) => p.unique_key === integration.provider_key);
         return {
           object: 'integration',
-          unique_key: i.unique_key,
-          name: p.name,
-          logo_url: p.logo_url,
-          logo_url_dark_mode: p.logo_url_dark_mode,
-          is_enabled: i.is_enabled,
-          rank: i.rank,
-          auth_scheme: p.auth.scheme,
-          use_oauth_credentials: i.use_oauth_credentials,
-          oauth_client_id: i.oauth_client_id,
-          oauth_client_secret: i.oauth_client_secret,
+          id: integration.id,
+          provider_key: integration.provider_key,
+          logo_url: provider?.logo_url || null,
+          logo_url_dark_mode: provider?.logo_url_dark_mode || null,
+          display_name: integration.display_name,
+          is_enabled: integration.is_enabled,
+          auth_scheme: integration.auth_scheme as AuthScheme,
+          created_at: integration.created_at,
+          updated_at: integration.updated_at,
         };
       });
 
-      res.status(200).json({ object: 'list', data: IntegrationObjects });
+      res.status(200).json({ object: 'list', data: integrationObjects });
     } catch (err) {
       await errorService.reportError(err);
 
@@ -61,23 +64,23 @@ class IntegrationController {
     }
   }
 
+  public async listIntegrationConnections(req: Request, res: Response) {
+    //..
+  }
+
   public async retrieveIntegration(req: Request, res: Response) {
     try {
-      const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
-      const integrationKey = req.params['integration_key'];
+      const integrationId = req.params['integration_id'];
+      const includeCredentials = req.query['include_credentials'] === 'true';
 
-      if (!integrationKey) {
+      if (!integrationId) {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
-          message: 'Integration unique key missing',
+          message: 'Integration ID missing',
         });
       }
 
-      const integration = await integrationService.getIntegrationByKey(
-        integrationKey,
-        environmentId
-      );
-
+      const integration = await integrationService.getIntegrationById(integrationId);
       if (!integration) {
         return errorService.errorResponse(res, {
           code: ErrorCode.NotFound,
@@ -85,29 +88,49 @@ class IntegrationController {
         });
       }
 
-      const provider = await providerService.getProviderSpec(integrationKey);
-
+      const provider = await providerService.getProviderSpec(integration.provider_key);
       if (!provider) {
         return errorService.errorResponse(res, {
           code: ErrorCode.InternalServerError,
-          message: `Provider specification not found for integration ${integrationKey}`,
+          message: `Provider specification not found for integration ${integration.provider_key}`,
         });
       }
 
-      const integrationObject: IntegrationObject = {
-        object: 'integration',
-        unique_key: integration.unique_key,
-        name: provider.name,
-        logo_url: provider.logo_url,
-        logo_url_dark_mode: provider.logo_url_dark_mode,
-        is_enabled: integration.is_enabled,
-        auth_scheme: provider.auth.scheme,
-        use_oauth_credentials: integration.use_oauth_credentials,
-        oauth_client_id: integration.oauth_client_id,
-        oauth_client_secret: integration.oauth_client_secret,
-      };
+      if (includeCredentials) {
+        const integrationObject: IntegrationObject = {
+          object: 'integration',
+          id: integration.id,
+          provider_key: integration.provider_key,
+          logo_url: provider.logo_url,
+          logo_url_dark_mode: provider.logo_url_dark_mode || null,
+          display_name: integration.display_name,
+          is_enabled: integration.is_enabled,
+          auth_scheme: integration.auth_scheme as AuthScheme,
+          created_at: integration.created_at,
+          updated_at: integration.updated_at,
+        };
 
-      res.status(200).send(integrationObject);
+        res.status(200).send(integrationObject);
+      } else {
+        const integrationObject: IntegrationObjectWithCredentials = {
+          object: 'integration',
+          id: integration.id,
+          provider_key: integration.provider_key,
+          logo_url: provider.logo_url,
+          logo_url_dark_mode: provider.logo_url_dark_mode || null,
+          display_name: integration.display_name,
+          is_enabled: integration.is_enabled,
+          auth_scheme: integration.auth_scheme as AuthScheme,
+          is_using_test_credentials: integration.is_using_test_credentials,
+          oauth_client_id: integration.oauth_client_id,
+          oauth_client_secret: integration.oauth_client_secret,
+          oauth_scopes: integration.oauth_scopes ? integration.oauth_scopes.split(',') : [],
+          created_at: integration.created_at,
+          updated_at: integration.updated_at,
+        };
+
+        res.status(200).send(integrationObject);
+      }
     } catch (err) {
       await errorService.reportError(err);
 
@@ -120,30 +143,33 @@ class IntegrationController {
 
   public async enableIntegration(req: Request, res: Response) {
     try {
-      const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
-      const integrationKey = req.params['integration_key'];
-
-      if (!integrationKey) {
+      const integrationId = req.params['integration_id'];
+      if (!integrationId) {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
           message: 'Integration unique key missing',
         });
       }
 
-      const provider = await providerService.getProviderSpec(integrationKey);
-
-      if (!provider) {
+      const integration = await integrationService.getIntegrationById(integrationId);
+      if (!integration) {
         return errorService.errorResponse(res, {
-          code: ErrorCode.InternalServerError,
-          message: `Provider specification not found for integration ${integrationKey}`,
+          code: ErrorCode.NotFound,
+          message: 'Integration not found',
         });
       }
 
-      const updatedIntegration = await integrationService.updateIntegration(
-        integrationKey,
-        environmentId,
-        { is_enabled: true }
-      );
+      const provider = await providerService.getProviderSpec(integration.provider_key);
+      if (!provider) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.InternalServerError,
+          message: `Provider specification not found for integration ${integration.provider_key}`,
+        });
+      }
+
+      const updatedIntegration = await integrationService.updateIntegration(integrationId, {
+        is_enabled: true,
+      });
 
       if (!updatedIntegration) {
         return errorService.errorResponse(res, {
@@ -154,15 +180,15 @@ class IntegrationController {
 
       const integrationObject: IntegrationObject = {
         object: 'integration',
-        unique_key: updatedIntegration.unique_key,
-        name: provider.name,
+        id: updatedIntegration.id,
+        provider_key: updatedIntegration.provider_key,
+        display_name: updatedIntegration.display_name,
         logo_url: provider.logo_url,
-        logo_url_dark_mode: provider.logo_url_dark_mode,
+        logo_url_dark_mode: provider.logo_url_dark_mode || null,
         is_enabled: updatedIntegration.is_enabled,
-        auth_scheme: provider.auth.scheme,
-        use_oauth_credentials: updatedIntegration.use_oauth_credentials,
-        oauth_client_id: updatedIntegration.oauth_client_id,
-        oauth_client_secret: updatedIntegration.oauth_client_secret,
+        auth_scheme: updatedIntegration.auth_scheme as AuthScheme,
+        created_at: updatedIntegration.created_at,
+        updated_at: updatedIntegration.updated_at,
       };
 
       res.status(200).send(integrationObject);
@@ -178,30 +204,33 @@ class IntegrationController {
 
   public async disableIntegration(req: Request, res: Response) {
     try {
-      const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
-      const integrationKey = req.params['integration_key'];
-
-      if (!integrationKey) {
+      const integrationId = req.params['integration_id'];
+      if (!integrationId) {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
           message: 'Integration unique key missing',
         });
       }
 
-      const provider = await providerService.getProviderSpec(integrationKey);
-
-      if (!provider) {
+      const integration = await integrationService.getIntegrationById(integrationId);
+      if (!integration) {
         return errorService.errorResponse(res, {
-          code: ErrorCode.InternalServerError,
-          message: `Provider specification not found for integration ${integrationKey}`,
+          code: ErrorCode.NotFound,
+          message: 'Integration not found',
         });
       }
 
-      const updatedIntegration = await integrationService.updateIntegration(
-        integrationKey,
-        environmentId,
-        { is_enabled: false }
-      );
+      const provider = await providerService.getProviderSpec(integration.provider_key);
+      if (!provider) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.InternalServerError,
+          message: `Provider specification not found for integration ${integration.provider_key}`,
+        });
+      }
+
+      const updatedIntegration = await integrationService.updateIntegration(integrationId, {
+        is_enabled: false,
+      });
 
       if (!updatedIntegration) {
         return errorService.errorResponse(res, {
@@ -212,15 +241,15 @@ class IntegrationController {
 
       const integrationObject: IntegrationObject = {
         object: 'integration',
-        unique_key: updatedIntegration.unique_key,
-        name: provider.name,
-        logo_url: provider.logo_url,
-        logo_url_dark_mode: provider.logo_url_dark_mode,
+        id: updatedIntegration.id,
+        provider_key: updatedIntegration.provider_key,
+        display_name: updatedIntegration.display_name,
         is_enabled: updatedIntegration.is_enabled,
-        auth_scheme: provider.auth.scheme,
-        use_oauth_credentials: updatedIntegration.use_oauth_credentials,
-        oauth_client_id: updatedIntegration.oauth_client_id,
-        oauth_client_secret: updatedIntegration.oauth_client_secret,
+        logo_url: provider.logo_url,
+        logo_url_dark_mode: provider.logo_url_dark_mode || null,
+        auth_scheme: updatedIntegration.auth_scheme as AuthScheme,
+        created_at: updatedIntegration.created_at,
+        updated_at: updatedIntegration.updated_at,
       };
 
       res.status(200).send(integrationObject);
@@ -236,27 +265,31 @@ class IntegrationController {
 
   public async updateIntegration(req: Request, res: Response) {
     try {
-      const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
-      const integrationKey = req.params['integration_key'];
-
-      if (!integrationKey) {
+      const integrationId = req.params['integration_id'];
+      if (!integrationId) {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
           message: 'Integration unique key missing',
         });
       }
 
-      const providerSpec = await providerService.getProviderSpec(integrationKey);
-
-      if (!providerSpec) {
+      const integration = await integrationService.getIntegrationById(integrationId);
+      if (!integration) {
         return errorService.errorResponse(res, {
-          code: ErrorCode.BadRequest,
-          message: `Provider specification not found for integration ${integrationKey}`,
+          code: ErrorCode.NotFound,
+          message: 'Integration not found',
+        });
+      }
+
+      const provider = await providerService.getProviderSpec(integration.provider_key);
+      if (!provider) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.InternalServerError,
+          message: `Provider specification not found for integration ${integration.provider_key}`,
         });
       }
 
       const parsedBody = UpdateIntegrationRequestSchema.safeParse(req.body);
-
       if (!parsedBody.success) {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
@@ -264,10 +297,15 @@ class IntegrationController {
         });
       }
 
-      const { use_oauth_credentials, oauth_client_id, oauth_client_secret } = parsedBody.data;
-      const isOauth = providerSpec.auth.scheme === AuthScheme.OAuth2 || AuthScheme.OAuth1;
+      const {
+        name,
+        is_using_test_credentials,
+        oauth_client_id,
+        oauth_client_secret,
+        oauth_scopes,
+      } = parsedBody.data;
 
-      if (!isOauth && use_oauth_credentials) {
+      if (integration.auth_scheme !== AuthScheme.OAuth2) {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
           message: 'OAuth credentials not supported',
@@ -276,8 +314,8 @@ class IntegrationController {
 
       const data: Partial<Integration> = { updated_at: now() };
 
-      if (typeof use_oauth_credentials === 'boolean') {
-        data.use_oauth_credentials = use_oauth_credentials;
+      if (typeof is_using_test_credentials === 'boolean') {
+        data.is_using_test_credentials = is_using_test_credentials;
       }
 
       if (typeof oauth_client_id !== 'undefined') {
@@ -288,11 +326,13 @@ class IntegrationController {
         data.oauth_client_secret = oauth_client_secret;
       }
 
-      const updatedIntegration = await integrationService.updateIntegration(
-        integrationKey,
-        environmentId,
-        { ...data }
-      );
+      if (typeof oauth_scopes !== 'undefined') {
+        data.oauth_scopes = oauth_scopes === null ? null : oauth_scopes.join(',');
+      }
+
+      const updatedIntegration = await integrationService.updateIntegration(integrationId, {
+        ...data,
+      });
 
       if (!updatedIntegration) {
         return errorService.errorResponse(res, {
@@ -301,52 +341,26 @@ class IntegrationController {
         });
       }
 
-      const integrationObject: IntegrationObject = {
+      const integrationObject: IntegrationObjectWithCredentials = {
         object: 'integration',
-        unique_key: updatedIntegration.unique_key,
-        name: providerSpec.name,
-        logo_url: providerSpec.logo_url,
-        logo_url_dark_mode: providerSpec.logo_url_dark_mode,
+        id: updatedIntegration.id,
+        provider_key: updatedIntegration.provider_key,
+        display_name: updatedIntegration.display_name,
         is_enabled: updatedIntegration.is_enabled,
-        auth_scheme: providerSpec.auth.scheme,
-        use_oauth_credentials: updatedIntegration.use_oauth_credentials,
+        logo_url: provider.logo_url,
+        logo_url_dark_mode: provider.logo_url_dark_mode || null,
+        auth_scheme: updatedIntegration.auth_scheme as AuthScheme,
+        is_using_test_credentials: updatedIntegration.is_using_test_credentials,
         oauth_client_id: updatedIntegration.oauth_client_id,
         oauth_client_secret: updatedIntegration.oauth_client_secret,
+        oauth_scopes: updatedIntegration.oauth_scopes
+          ? updatedIntegration.oauth_scopes.split(',')
+          : [],
+        created_at: updatedIntegration.created_at,
+        updated_at: updatedIntegration.updated_at,
       };
 
       res.status(200).send(integrationObject);
-    } catch (err) {
-      await errorService.reportError(err);
-
-      return errorService.errorResponse(res, {
-        code: ErrorCode.InternalServerError,
-        message: DEFAULT_ERROR_MESSAGE,
-      });
-    }
-  }
-
-  public async rerankIntegrations(req: Request, res: Response) {
-    try {
-      const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
-      const integrations = req.body['integrations'];
-
-      if (!integrations || !Array.isArray(integrations)) {
-        return errorService.errorResponse(res, {
-          code: ErrorCode.BadRequest,
-          message: 'Invalid request payload',
-        });
-      }
-
-      const count = await integrationService.rerankIntegrations(environmentId, integrations);
-
-      if (!count) {
-        return errorService.errorResponse(res, {
-          code: ErrorCode.InternalServerError,
-          message: DEFAULT_ERROR_MESSAGE,
-        });
-      }
-
-      res.status(200).json({ object: 'integration', updated: count });
     } catch (err) {
       await errorService.reportError(err);
 

@@ -4,7 +4,6 @@ import {
   ErrorCode,
   Resource,
   apiKeyService,
-  encryptionService,
   environmentService,
   errorService,
   generateId,
@@ -18,7 +17,7 @@ class ApiKeyController {
   public async generateApiKey(req: Request, res: Response) {
     try {
       const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
-      const name = req.body['name'];
+      const displayName = req.body['display_name'];
       const environment = await environmentService.getEnvironmentById(environmentId);
 
       if (!environment) {
@@ -30,16 +29,14 @@ class ApiKeyController {
 
       const type = environment.type as EnvironmentType;
       const key = generateSecretKey(type);
-      const hash = encryptionService.hashApiKey(key);
-
       const apiKey = await apiKeyService.createApiKey({
         id: generateId(Resource.ApiKey),
         environment_id: environmentId,
         key,
-        key_hash: hash,
+        key_hash: null,
         key_iv: null,
         key_tag: null,
-        name: name || null,
+        display_name: displayName || null,
         created_at: now(),
         updated_at: now(),
         deleted_at: null,
@@ -57,7 +54,7 @@ class ApiKeyController {
         id: apiKey.id,
         environment_id: apiKey.environment_id,
         key: apiKey.key,
-        name: apiKey.name,
+        display_name: apiKey.display_name,
         created_at: apiKey.created_at,
         updated_at: apiKey.updated_at,
       });
@@ -87,7 +84,7 @@ class ApiKeyController {
         id: apiKey.id,
         environment_id: apiKey.environment_id,
         key: apiKey.key,
-        name: apiKey.name,
+        display_name: apiKey.display_name,
         created_at: apiKey.created_at,
         updated_at: apiKey.updated_at,
       }));
@@ -140,7 +137,7 @@ class ApiKeyController {
         id: apiKey.id,
         environment_id: apiKey.environment_id,
         key: apiKey.key,
-        name: apiKey.name,
+        display_name: apiKey.display_name,
         created_at: apiKey.created_at,
         updated_at: apiKey.updated_at,
       });
