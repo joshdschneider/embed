@@ -1,21 +1,16 @@
-import { Action, Collection, Integration } from '@prisma/client';
+import { Action, Integration } from '@prisma/client';
 import fs from 'fs';
 import yaml from 'js-yaml';
 import path from 'path';
-import ElasticClient from '../clients/elastic.client';
-import { DEFAULT_SYNC_AUTO_START, DEFAULT_SYNC_FREQUENCY } from '../utils/constants';
 import { database } from '../utils/database';
 import { now } from '../utils/helpers';
 import encryptionService from './encryption.service';
-import environmentService from './environment.service';
 import errorService from './error.service';
-import providerService from './provider.service';
 
 class IntegrationService {
   public async createIntegration(integration: Integration): Promise<Integration | null> {
     try {
       const encryptedIntegration = encryptionService.encryptIntegration(integration);
-
       const createdIntegration = await database.integration.create({
         data: encryptedIntegration,
       });
@@ -27,161 +22,10 @@ class IntegrationService {
     }
   }
 
-  public async seedIntegrations(environmentId: string): Promise<{
-    integrations_added: number;
-    collections_added: number;
-    actions_added: number;
-  } | null> {
-    try {
-      const providers = await providerService.listProviders();
-      if (!providers) {
-        throw new Error('Failed to list providers');
-      }
-
-      const environment = await environmentService.getEnvironmentById(environmentId);
-      if (!environment) {
-        throw new Error('Environment not found');
-      }
-
-      const integrationCount = await database.integration.count();
-      let rank = integrationCount;
-
-      let integrationsAdded = 0;
-      let collectionsAdded = 0;
-      let actionsAdded = 0;
-
-      for (const provider of providers) {
-        let integration: Integration & {
-          collections: Collection[];
-          actions: Action[];
-        };
-
-        const existingIntegration = await database.integration.findUnique({
-          where: {
-            unique_key_environment_id: {
-              unique_key: provider.unique_key,
-              environment_id: environmentId,
-            },
-          },
-          include: { collections: true, actions: true },
-        });
-
-        if (existingIntegration) {
-          integration = existingIntegration;
-        } else {
-          integration = await database.integration.create({
-            data: {
-              unique_key: provider.unique_key,
-              name: provider.name,
-              environment_id: environmentId,
-              is_enabled: environment.enable_new_integrations,
-              use_oauth_credentials: false,
-              oauth_client_id: null,
-              oauth_client_secret: null,
-              oauth_client_secret_iv: null,
-              oauth_client_secret_tag: null,
-              additional_scopes: null,
-              rank,
-              created_at: now(),
-              updated_at: now(),
-              deleted_at: null,
-            },
-            include: { collections: true, actions: true },
-          });
-
-          rank++;
-          integrationsAdded++;
-        }
-
-        const collectionKeys = integration.collections.map((collection) => collection.unique_key);
-        const collectionEntries = Object.entries(provider.collections || {});
-        const filteredCollectionEntries = collectionEntries.filter(
-          ([k, v]) => !collectionKeys.includes(k)
-        );
-
-        const collections: Collection[] = filteredCollectionEntries.map(([k, v]) => {
-          return {
-            unique_key: k,
-            integration_key: provider.unique_key,
-            environment_id: environmentId,
-            is_enabled: v.default_enabled || false,
-            default_sync_frequency: v.default_sync_frequency || DEFAULT_SYNC_FREQUENCY,
-            auto_start_sync: v.default_sync_auto_start ?? DEFAULT_SYNC_AUTO_START,
-            exclude_properties_from_sync: [],
-            text_embedding_model_override: null,
-            multimodal_embedding_model_override: null,
-            multimodal_enabled_override: null,
-            created_at: now(),
-            updated_at: now(),
-            deleted_at: null,
-          };
-        });
-
-        if (collections.length > 0) {
-          const elastic = ElasticClient.getInstance();
-          for (const collection of collections) {
-            await database.collection.create({ data: collection });
-            const indexCreated = await elastic.createIndex({
-              environmentId: collection.environment_id,
-              integrationKey: collection.integration_key,
-              collectionKey: collection.unique_key,
-            });
-
-            if (indexCreated) {
-              collectionsAdded++;
-            }
-          }
-        }
-
-        const actionKeys = integration.actions.map((action) => action.unique_key);
-        const actionEntries = Object.entries(provider.actions || {});
-        const filteredActionEntries = actionEntries.filter(([k, v]) => !actionKeys.includes(k));
-
-        const actions: Action[] = filteredActionEntries.map(([k, v]) => {
-          return {
-            unique_key: k,
-            integration_key: provider.unique_key,
-            environment_id: environmentId,
-            is_enabled: v.default_enabled || false,
-            created_at: now(),
-            updated_at: now(),
-            deleted_at: null,
-          };
-        });
-
-        if (actions.length > 0) {
-          const createdActions = await database.action.createMany({
-            data: [...actions],
-          });
-
-          actionsAdded += createdActions.count;
-        }
-      }
-
-      return {
-        integrations_added: integrationsAdded,
-        collections_added: collectionsAdded,
-        actions_added: actionsAdded,
-      };
-    } catch (err) {
-      await errorService.reportError(err);
-      return null;
-    }
-  }
-
-  public async getIntegrationByKey(
-    integrationKey: string,
-    environmentId: string
-  ): Promise<Integration | null> {
+  public async getIntegrationById(integrationId: string): Promise<Integration | null> {
     try {
       const integration = await database.integration.findUnique({
-        where: {
-          unique_key_environment_id: {
-            unique_key: integrationKey,
-            environment_id: environmentId,
-          },
-          deleted_at: null,
-        },
+        where: { id: integrationId, deleted_at: null },
       });
 
       if (!integration) {
@@ -195,19 +39,10 @@ class IntegrationService {
     }
   }
 
-  public async getIntegrationActions(
-    integrationKey: string,
-    environmentId: string
-  ): Promise<Action[] | null> {
+  public async getIntegrationActions(integrationId: string): Promise<Action[] | null> {
     try {
       const integration = await database.integration.findUnique({
-        where: {
-          unique_key_environment_id: {
-            unique_key: integrationKey,
-            environment_id: environmentId,
-          },
-          deleted_at: null,
-        },
+        where: { id: integrationId, deleted_at: null },
         select: { actions: true },
       });
 
@@ -226,7 +61,6 @@ class IntegrationService {
     try {
       const integrations = await database.integration.findMany({
         where: { environment_id: environmentId, deleted_at: null },
-        orderBy: { rank: 'asc' },
       });
 
       return integrations.map((i) => encryptionService.decryptIntegration(i));
@@ -236,47 +70,13 @@ class IntegrationService {
     }
   }
 
-  public async rerankIntegrations(
-    environmentId: string,
-    integrations: { unique_key: string; rank: number }[]
-  ): Promise<number | null> {
-    try {
-      const result = await database.$transaction(
-        integrations.map((i) => {
-          return database.integration.update({
-            where: {
-              unique_key_environment_id: {
-                unique_key: i.unique_key,
-                environment_id: environmentId,
-              },
-              deleted_at: null,
-            },
-            data: { rank: i.rank },
-          });
-        })
-      );
-
-      return result.length;
-    } catch (err) {
-      await errorService.reportError(err);
-      return null;
-    }
-  }
-
   public async updateIntegration(
-    integrationKey: string,
-    environmentId: string,
+    integrationId: string,
     data: Partial<Integration>
   ): Promise<Integration | null> {
     try {
       const integration = await database.integration.update({
-        where: {
-          unique_key_environment_id: {
-            unique_key: integrationKey,
-            environment_id: environmentId,
-          },
-          deleted_at: null,
-        },
+        where: { id: integrationId, deleted_at: null },
         data: { ...data, updated_at: now() },
       });
 
@@ -291,9 +91,8 @@ class IntegrationService {
     oauth_client_id: string;
     oauth_client_secret: string;
   } {
-    if (integration.use_oauth_credentials) {
+    if (!integration.is_using_test_credentials) {
       const decryptedIntegration = encryptionService.decryptIntegration(integration);
-
       if (!decryptedIntegration.oauth_client_id || !decryptedIntegration.oauth_client_secret) {
         throw new Error('Client credentials are missing');
       }
@@ -313,9 +112,9 @@ class IntegrationService {
       };
     };
 
-    const defaultProviderCredentials = credentials[integration.unique_key];
+    const defaultProviderCredentials = credentials[integration.provider_key];
     if (!defaultProviderCredentials) {
-      throw new Error(`Failed to load default credentials for ${integration.unique_key}`);
+      throw new Error(`Failed to load default credentials for ${integration.provider_key}`);
     }
 
     return defaultProviderCredentials;

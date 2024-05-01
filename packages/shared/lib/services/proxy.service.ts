@@ -1,26 +1,31 @@
 import { AuthScheme, ProviderSpecification, ProxyOptions } from '@embed/providers';
-import { LinkedAccount } from '@prisma/client';
+import { Connection } from '@prisma/client';
 import axios, { AxiosError, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { backOff } from 'exponential-backoff';
 import { DEFAULT_PROXY_ATTEMPTS, DEFAULT_PROXY_RESPONSE_TYPE } from '../utils/constants';
+import { database } from '../utils/database';
 import { interpolateIfNeeded } from '../utils/helpers';
-import linkedAccountService from './linkedAccount.service';
+import connectionService from './connection.service';
 import providerService from './provider.service';
 
 class ProxyService {
   public async proxy<T = any>(options: ProxyOptions): Promise<AxiosResponse<T>> {
-    const linkedAccount = await linkedAccountService.getLinkedAccountById(options.linkedAccountId);
-    if (!linkedAccount) {
-      throw new AxiosError(`Linked account not found with ID ${options.linkedAccountId}`, '400');
+    const connection = await database.connection.findUnique({
+      where: { id: options.connectionId, deleted_at: null },
+      include: { integration: true },
+    });
+
+    if (!connection) {
+      throw new AxiosError(`Connection not found with ID ${options.connectionId}`, '400');
     }
 
-    const providerSpec = await providerService.getProviderSpec(linkedAccount.integration_key);
+    const providerSpec = await providerService.getProviderSpec(connection.integration.provider_key);
     if (!providerSpec) {
       throw new Error('Provider specification not found');
     }
 
-    const url = this.buildUrl(linkedAccount, providerSpec, options);
-    const headers = this.buildHeaders(linkedAccount, providerSpec, options);
+    const url = this.buildUrl(connection, providerSpec, options);
+    const headers = this.buildHeaders(connection, providerSpec, options);
     const data = this.formatData(options);
 
     const config: AxiosRequestConfig = {
@@ -42,11 +47,7 @@ class ProxyService {
           return await axios(config);
         } catch (err) {
           if (err instanceof AxiosError && this.isTokenError(err) && !tokenRefreshAttempted) {
-            const newToken = await linkedAccountService.attemptTokenRefresh(
-              linkedAccount,
-              providerSpec
-            );
-
+            const newToken = await connectionService.attemptTokenRefresh(connection, providerSpec);
             tokenRefreshAttempted = true;
 
             if (newToken) {
@@ -119,11 +120,11 @@ class ProxyService {
   }
 
   private buildUrl(
-    linkedAccount: LinkedAccount,
+    connection: Connection,
     providerSpec: ProviderSpecification,
     options: ProxyOptions
   ): string {
-    const { configuration } = linkedAccount;
+    const { configuration } = connection;
 
     const baseUrl = options.baseUrlOverride
       ? options.baseUrlOverride.endsWith('/')
@@ -154,20 +155,18 @@ class ProxyService {
   }
 
   private buildHeaders(
-    linkedAccount: LinkedAccount,
+    connection: Connection,
     providerSpec: ProviderSpecification,
     options: ProxyOptions
   ): Record<string, string> {
     let headers: Record<string, string> = {};
-    const credentials = JSON.parse(linkedAccount.credentials);
+    const credentials = JSON.parse(connection.credentials);
+    const { auth_scheme } = connection;
 
-    if (
-      providerSpec.auth.scheme === AuthScheme.OAuth1 ||
-      providerSpec.auth.scheme === AuthScheme.OAuth2
-    ) {
+    if (auth_scheme === AuthScheme.OAuth1 || auth_scheme === AuthScheme.OAuth2) {
       const { access_token } = credentials;
       headers['Authorization'] = `Bearer ${access_token}`;
-    } else if (providerSpec.auth.scheme === AuthScheme.Basic) {
+    } else if (auth_scheme === AuthScheme.Basic) {
       const { username, password } = credentials;
       headers['Authorization'] =
         `Basic ${Buffer.from(`${username}:${password ?? ''}`).toString('base64')}`;

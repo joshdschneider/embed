@@ -1,11 +1,11 @@
 import {
   Collection,
   DEFAULT_ERROR_MESSAGE,
-  ENVIRONMENT_ID_LOCALS_KEY,
   ErrorCode,
   collectionService,
+  connectionService,
   errorService,
-  linkedAccountService,
+  integrationService,
   now,
   providerService,
 } from '@embed/shared';
@@ -21,18 +21,15 @@ import {
 class CollectionController {
   public async listCollections(req: Request, res: Response) {
     try {
-      const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
-      const integrationKey = req.params['integration_key'];
-
-      if (!integrationKey) {
+      const integrationId = req.params['integration_id'];
+      if (!integrationId) {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
-          message: 'Integration unique key missing',
+          message: 'Integration ID missing',
         });
       }
 
-      const collections = await collectionService.listCollections(integrationKey, environmentId);
-
+      const collections = await collectionService.listCollections(integrationId);
       if (!collections) {
         return errorService.errorResponse(res, {
           code: ErrorCode.InternalServerError,
@@ -44,14 +41,15 @@ class CollectionController {
         return {
           object: 'collection',
           unique_key: collection.unique_key,
-          integration: collection.integration_key,
+          integration_id: collection.integration_id,
+          provider_key: collection.provider_key,
           is_enabled: collection.is_enabled,
           default_sync_frequency: collection.default_sync_frequency,
           auto_start_sync: collection.auto_start_sync,
           exclude_properties_from_sync: collection.exclude_properties_from_sync,
-          text_embedding_model_override: collection.text_embedding_model_override,
-          multimodal_embedding_model_override: collection.multimodal_embedding_model_override,
-          multimodal_enabled_override: collection.multimodal_enabled_override,
+          text_embedding_model: collection.text_embedding_model,
+          multimodal_embedding_model: collection.multimodal_embedding_model,
+          multimodal_enabled: collection.multimodal_enabled,
           created_at: collection.created_at,
           updated_at: collection.updated_at,
         };
@@ -70,14 +68,13 @@ class CollectionController {
 
   public async retrieveCollection(req: Request, res: Response) {
     try {
-      const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
-      const integrationKey = req.params['integration_key'];
+      const integrationId = req.params['integration_id'];
       const collectionKey = req.params['collection_key'];
 
-      if (!integrationKey) {
+      if (!integrationId) {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
-          message: 'Integration unique key missing',
+          message: 'Integration ID missing',
         });
       } else if (!collectionKey) {
         return errorService.errorResponse(res, {
@@ -86,12 +83,7 @@ class CollectionController {
         });
       }
 
-      const collection = await collectionService.retrieveCollection(
-        collectionKey,
-        integrationKey,
-        environmentId
-      );
-
+      const collection = await collectionService.retrieveCollection(collectionKey, integrationId);
       if (!collection) {
         return errorService.errorResponse(res, {
           code: ErrorCode.NotFound,
@@ -102,14 +94,15 @@ class CollectionController {
       const collectionObject: CollectionObject = {
         object: 'collection',
         unique_key: collection.unique_key,
-        integration: collection.integration_key,
+        integration_id: collection.integration_id,
+        provider_key: collection.provider_key,
         is_enabled: collection.is_enabled,
         default_sync_frequency: collection.default_sync_frequency,
         auto_start_sync: collection.auto_start_sync,
         exclude_properties_from_sync: collection.exclude_properties_from_sync,
-        text_embedding_model_override: collection.text_embedding_model_override,
-        multimodal_embedding_model_override: collection.multimodal_embedding_model_override,
-        multimodal_enabled_override: collection.multimodal_enabled_override,
+        text_embedding_model: collection.text_embedding_model,
+        multimodal_embedding_model: collection.multimodal_embedding_model,
+        multimodal_enabled: collection.multimodal_enabled,
         created_at: collection.created_at,
         updated_at: collection.updated_at,
       };
@@ -127,14 +120,13 @@ class CollectionController {
 
   public async enableCollection(req: Request, res: Response) {
     try {
-      const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
-      const integrationKey = req.params['integration_key'];
+      const integrationId = req.params['integration_id'];
       const collectionKey = req.params['collection_key'];
 
-      if (!integrationKey) {
+      if (!integrationId) {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
-          message: 'Integration unique key missing',
+          message: 'Integration ID missing',
         });
       } else if (!collectionKey) {
         return errorService.errorResponse(res, {
@@ -145,8 +137,7 @@ class CollectionController {
 
       const updatedCollection = await collectionService.updateCollection(
         collectionKey,
-        integrationKey,
-        environmentId,
+        integrationId,
         { is_enabled: true }
       );
 
@@ -160,14 +151,15 @@ class CollectionController {
       const collectionObject: CollectionObject = {
         object: 'collection',
         unique_key: updatedCollection.unique_key,
-        integration: updatedCollection.integration_key,
+        integration_id: updatedCollection.integration_id,
+        provider_key: updatedCollection.provider_key,
         is_enabled: updatedCollection.is_enabled,
         default_sync_frequency: updatedCollection.default_sync_frequency,
         auto_start_sync: updatedCollection.auto_start_sync,
         exclude_properties_from_sync: updatedCollection.exclude_properties_from_sync,
-        text_embedding_model_override: updatedCollection.text_embedding_model_override,
-        multimodal_embedding_model_override: updatedCollection.multimodal_embedding_model_override,
-        multimodal_enabled_override: updatedCollection.multimodal_enabled_override,
+        text_embedding_model: updatedCollection.text_embedding_model,
+        multimodal_embedding_model: updatedCollection.multimodal_embedding_model,
+        multimodal_enabled: updatedCollection.multimodal_enabled,
         created_at: updatedCollection.created_at,
         updated_at: updatedCollection.updated_at,
       };
@@ -185,14 +177,13 @@ class CollectionController {
 
   public async disableCollection(req: Request, res: Response) {
     try {
-      const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
-      const integrationKey = req.params['integration_key'];
+      const integrationId = req.params['integration_id'];
       const collectionKey = req.params['collection_key'];
 
-      if (!integrationKey) {
+      if (!integrationId) {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
-          message: 'Integration unique key missing',
+          message: 'Integration ID missing',
         });
       } else if (!collectionKey) {
         return errorService.errorResponse(res, {
@@ -203,8 +194,7 @@ class CollectionController {
 
       const updatedCollection = await collectionService.updateCollection(
         collectionKey,
-        integrationKey,
-        environmentId,
+        integrationId,
         { is_enabled: false }
       );
 
@@ -218,14 +208,15 @@ class CollectionController {
       const collectionObject: CollectionObject = {
         object: 'collection',
         unique_key: updatedCollection.unique_key,
-        integration: updatedCollection.integration_key,
+        integration_id: updatedCollection.integration_id,
+        provider_key: updatedCollection.provider_key,
         is_enabled: updatedCollection.is_enabled,
         default_sync_frequency: updatedCollection.default_sync_frequency,
         auto_start_sync: updatedCollection.auto_start_sync,
         exclude_properties_from_sync: updatedCollection.exclude_properties_from_sync,
-        text_embedding_model_override: updatedCollection.text_embedding_model_override,
-        multimodal_embedding_model_override: updatedCollection.multimodal_embedding_model_override,
-        multimodal_enabled_override: updatedCollection.multimodal_enabled_override,
+        text_embedding_model: updatedCollection.text_embedding_model,
+        multimodal_embedding_model: updatedCollection.multimodal_embedding_model,
+        multimodal_enabled: updatedCollection.multimodal_enabled,
         created_at: updatedCollection.created_at,
         updated_at: updatedCollection.updated_at,
       };
@@ -243,14 +234,13 @@ class CollectionController {
 
   public async updateCollection(req: Request, res: Response) {
     try {
-      const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
-      const integrationKey = req.params['integration_key'];
+      const integrationId = req.params['integration_id'];
       const collectionKey = req.params['collection_key'];
 
-      if (!integrationKey) {
+      if (!integrationId) {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
-          message: 'Integration unique key missing',
+          message: 'Integration ID missing',
         });
       } else if (!collectionKey) {
         return errorService.errorResponse(res, {
@@ -260,7 +250,6 @@ class CollectionController {
       }
 
       const parsedBody = UpdateCollectionRequestSchema.safeParse(req.body);
-
       if (!parsedBody.success) {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
@@ -268,11 +257,16 @@ class CollectionController {
         });
       }
 
-      const { default_sync_frequency, auto_start_sync, exclude_properties_from_sync } =
-        parsedBody.data;
+      const {
+        default_sync_frequency,
+        auto_start_sync,
+        exclude_properties_from_sync,
+        text_embedding_model,
+        multimodal_embedding_model,
+        multimodal_enabled,
+      } = parsedBody.data;
 
       const data: Partial<Collection> = { updated_at: now() };
-
       if (typeof default_sync_frequency !== 'undefined') {
         data.default_sync_frequency = default_sync_frequency;
       }
@@ -285,10 +279,21 @@ class CollectionController {
         data.exclude_properties_from_sync = exclude_properties_from_sync;
       }
 
+      if (typeof text_embedding_model !== 'undefined') {
+        data.text_embedding_model = text_embedding_model;
+      }
+
+      if (typeof multimodal_embedding_model !== 'undefined') {
+        data.multimodal_embedding_model = multimodal_embedding_model;
+      }
+
+      if (typeof multimodal_enabled === 'boolean') {
+        data.multimodal_enabled = multimodal_enabled;
+      }
+
       const updatedCollection = await collectionService.updateCollection(
         collectionKey,
-        integrationKey,
-        environmentId,
+        integrationId,
         data
       );
 
@@ -302,14 +307,15 @@ class CollectionController {
       const collectionObject: CollectionObject = {
         object: 'collection',
         unique_key: updatedCollection.unique_key,
-        integration: updatedCollection.integration_key,
+        integration_id: updatedCollection.integration_id,
+        provider_key: updatedCollection.provider_key,
         is_enabled: updatedCollection.is_enabled,
         default_sync_frequency: updatedCollection.default_sync_frequency,
         auto_start_sync: updatedCollection.auto_start_sync,
         exclude_properties_from_sync: updatedCollection.exclude_properties_from_sync,
-        text_embedding_model_override: updatedCollection.text_embedding_model_override,
-        multimodal_embedding_model_override: updatedCollection.multimodal_embedding_model_override,
-        multimodal_enabled_override: updatedCollection.multimodal_enabled_override,
+        text_embedding_model: updatedCollection.text_embedding_model,
+        multimodal_embedding_model: updatedCollection.multimodal_embedding_model,
+        multimodal_enabled: updatedCollection.multimodal_enabled,
         created_at: updatedCollection.created_at,
         updated_at: updatedCollection.updated_at,
       };
@@ -327,21 +333,27 @@ class CollectionController {
 
   public async listCollectionSchemas(req: Request, res: Response) {
     try {
-      const integrationKey = req.params['integration_key'];
-
-      if (!integrationKey) {
+      const integrationId = req.params['integration_id'];
+      if (!integrationId) {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
-          message: 'Integration unique key missing',
+          message: 'Integration ID missing',
         });
       }
 
-      const providerSpec = await providerService.getProviderSpec(integrationKey);
+      const integration = await integrationService.getIntegrationById(integrationId);
+      if (!integration) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.NotFound,
+          message: 'Integration not found',
+        });
+      }
 
+      const providerSpec = await providerService.getProviderSpec(integration.provider_key);
       if (!providerSpec) {
         return errorService.errorResponse(res, {
           code: ErrorCode.NotFound,
-          message: `Specification not found for ${integrationKey}`,
+          message: `Specification not found for ${integration.provider_key}`,
         });
       }
 
@@ -361,13 +373,13 @@ class CollectionController {
 
   public async retrieveCollectionSchema(req: Request, res: Response) {
     try {
-      const integrationKey = req.params['integration_key'];
+      const integrationId = req.params['integration_id'];
       const collectionKey = req.params['collection_key'];
 
-      if (!integrationKey) {
+      if (!integrationId) {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
-          message: 'Integration unique key missing',
+          message: 'Integration ID missing',
         });
       } else if (!collectionKey) {
         return errorService.errorResponse(res, {
@@ -376,12 +388,19 @@ class CollectionController {
         });
       }
 
-      const providerSpec = await providerService.getProviderSpec(integrationKey);
+      const integration = await integrationService.getIntegrationById(integrationId);
+      if (!integration) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.NotFound,
+          message: 'Integration not found',
+        });
+      }
 
+      const providerSpec = await providerService.getProviderSpec(integration.provider_key);
       if (!providerSpec) {
         return errorService.errorResponse(res, {
           code: ErrorCode.NotFound,
-          message: `Specification not found for ${integrationKey}`,
+          message: `Specification not found for ${integration.provider_key}`,
         });
       }
 
@@ -409,13 +428,13 @@ class CollectionController {
 
   public async queryCollection(req: Request, res: Response) {
     try {
-      const linkedAccountId = req.params['linked_account_id'];
+      const connectionId = req.params['connection_id'];
       const collectionKey = req.params['collection_key'];
 
-      if (!linkedAccountId) {
+      if (!connectionId) {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
-          message: 'Linked account ID missing',
+          message: 'Connection ID missing',
         });
       } else if (!collectionKey) {
         return errorService.errorResponse(res, {
@@ -424,11 +443,11 @@ class CollectionController {
         });
       }
 
-      const linkedAccount = await linkedAccountService.getLinkedAccountById(linkedAccountId);
-      if (!linkedAccount) {
+      const connection = await connectionService.getConnectionById(connectionId);
+      if (!connection) {
         return errorService.errorResponse(res, {
           code: ErrorCode.NotFound,
-          message: 'Linked account not found',
+          message: 'Connection not found',
         });
       }
 
@@ -441,7 +460,7 @@ class CollectionController {
       }
 
       const results = await collectionService.queryCollection({
-        linkedAccount,
+        connection,
         collectionKey,
         queryOptions: parsedBody.data,
       });
@@ -453,10 +472,7 @@ class CollectionController {
         });
       }
 
-      res.status(200).json({
-        object: 'list',
-        data: results,
-      });
+      res.status(200).json({ object: 'list', data: results });
     } catch (err) {
       await errorService.reportError(err);
 
@@ -469,13 +485,13 @@ class CollectionController {
 
   public async imageSearchCollection(req: Request, res: Response) {
     try {
-      const linkedAccountId = req.params['linked_account_id'];
+      const connectionId = req.params['connection_id'];
       const collectionKey = req.params['collection_key'];
 
-      if (!linkedAccountId) {
+      if (!connectionId) {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
-          message: 'Linked account ID missing',
+          message: 'Connection ID missing',
         });
       } else if (!collectionKey) {
         return errorService.errorResponse(res, {
@@ -484,11 +500,11 @@ class CollectionController {
         });
       }
 
-      const linkedAccount = await linkedAccountService.getLinkedAccountById(linkedAccountId);
-      if (!linkedAccount) {
+      const connection = await connectionService.getConnectionById(connectionId);
+      if (!connection) {
         return errorService.errorResponse(res, {
           code: ErrorCode.NotFound,
-          message: 'Linked account not found',
+          message: 'Connection not found',
         });
       }
 
@@ -501,7 +517,7 @@ class CollectionController {
       }
 
       const results = await collectionService.imageSearchCollection({
-        linkedAccount,
+        connection,
         collectionKey,
         imageSearchOptions: parsedBody.data,
       });
@@ -513,10 +529,7 @@ class CollectionController {
         });
       }
 
-      res.status(200).json({
-        object: 'list',
-        data: results,
-      });
+      res.status(200).json({ object: 'list', data: results });
     } catch (err) {
       await errorService.reportError(err);
 

@@ -6,14 +6,14 @@ import errorService from './error.service';
 
 class RecordService {
   public async batchSave(
-    linkedAccountId: string,
+    connectionId: string,
     collectionKey: string,
     records: DataRecord[]
   ): Promise<{ addedKeys: string[]; updatedKeys: string[] } | null> {
     try {
       const existingRecords = await database.record.findMany({
         where: {
-          linked_account_id: linkedAccountId,
+          connection_id: connectionId,
           collection_key: collectionKey,
           external_id: { in: records.map((rec) => rec.external_id) },
           deleted_at: null,
@@ -46,8 +46,8 @@ class RecordService {
           const encryptedRecord = encryptionService.encryptRecord(rec);
           const updatedRecord = await database.record.update({
             where: {
-              external_id_linked_account_id_collection_key: {
-                linked_account_id: linkedAccountId,
+              external_id_connection_id_collection_key: {
+                connection_id: connectionId,
                 collection_key: collectionKey,
                 external_id: rec.external_id,
               },
@@ -75,14 +75,14 @@ class RecordService {
   }
 
   public async pruneDeleted(
-    linkedAccountId: string,
+    connectionId: string,
     collectionKey: string,
     crawledExternalIds: string[]
   ): Promise<{ deletedKeys: string[] } | null> {
     try {
       const recordsToDelete = await database.record.findMany({
         where: {
-          linked_account_id: linkedAccountId,
+          connection_id: connectionId,
           collection_key: collectionKey,
           external_id: { notIn: crawledExternalIds },
           deleted_at: null,
@@ -112,14 +112,14 @@ class RecordService {
   }
 
   public async deleteRecordsByIds(
-    linkedAccountId: string,
+    connectionId: string,
     collectionKey: string,
     externalIds: string[]
   ): Promise<{ deletedKeys: string[] } | null> {
     try {
       const recordsToDelete = await database.record.findMany({
         where: {
-          linked_account_id: linkedAccountId,
+          connection_id: connectionId,
           collection_key: collectionKey,
           external_id: { in: externalIds },
           deleted_at: null,
@@ -150,19 +150,16 @@ class RecordService {
   }
 
   public async deleteRecordsForCollection({
-    environmentId,
-    integrationKey,
+    integrationId,
     collectionKey,
   }: {
-    environmentId: string;
-    integrationKey: string;
+    integrationId: string;
     collectionKey: string;
   }): Promise<boolean> {
     try {
       const recordsToDelete = await database.record.findMany({
         where: {
-          environment_id: environmentId,
-          integration_key: integrationKey,
+          integration_id: integrationId,
           collection_key: collectionKey,
           deleted_at: null,
         },
@@ -191,23 +188,10 @@ class RecordService {
     }
   }
 
-  public async deleteRecordsForLinkedAccount({
-    environmentId,
-    integrationKey,
-    linkedAccountId,
-  }: {
-    environmentId: string;
-    integrationKey: string;
-    linkedAccountId: string;
-  }): Promise<boolean> {
+  public async deleteRecordsForConnection(connectionId: string): Promise<boolean> {
     try {
       const recordsToDelete = await database.record.findMany({
-        where: {
-          environment_id: environmentId,
-          integration_key: integrationKey,
-          linked_account_id: linkedAccountId,
-          deleted_at: null,
-        },
+        where: { connection_id: connectionId, deleted_at: null },
         select: { id: true, external_id: true, hash: true },
       });
 

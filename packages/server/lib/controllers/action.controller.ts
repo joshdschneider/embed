@@ -1,9 +1,9 @@
 import {
   DEFAULT_ERROR_MESSAGE,
-  ENVIRONMENT_ID_LOCALS_KEY,
   ErrorCode,
   actionService,
   errorService,
+  integrationService,
   providerService,
 } from '@embed/shared';
 import type { Request, Response } from 'express';
@@ -12,18 +12,15 @@ import { ActionObject, ActionRunObject } from '../utils/types';
 class ActionController {
   public async listActions(req: Request, res: Response) {
     try {
-      const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
-      const integrationKey = req.params['integration_key'];
-
-      if (!integrationKey) {
+      const integrationId = req.params['integration_id'];
+      if (!integrationId) {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
-          message: 'Integration unique key missing',
+          message: 'Integration ID missing',
         });
       }
 
-      const actions = await actionService.listActions(integrationKey, environmentId);
-
+      const actions = await actionService.listActions(integrationId);
       if (!actions) {
         return errorService.errorResponse(res, {
           code: ErrorCode.InternalServerError,
@@ -35,7 +32,8 @@ class ActionController {
         return {
           object: 'action',
           unique_key: action.unique_key,
-          integration: action.integration_key,
+          integration_id: action.integration_id,
+          provider_key: action.provider_key,
           is_enabled: action.is_enabled,
           created_at: action.created_at,
           updated_at: action.updated_at,
@@ -55,14 +53,13 @@ class ActionController {
 
   public async retrieveAction(req: Request, res: Response) {
     try {
-      const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
-      const integrationKey = req.params['integration_key'];
+      const integrationId = req.params['integration_id'];
       const actionKey = req.params['action_key'];
 
-      if (!integrationKey) {
+      if (!integrationId) {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
-          message: 'Integration unique key missing',
+          message: 'Integration ID missing',
         });
       } else if (!actionKey) {
         return errorService.errorResponse(res, {
@@ -71,8 +68,7 @@ class ActionController {
         });
       }
 
-      const action = await actionService.retrieveAction(actionKey, integrationKey, environmentId);
-
+      const action = await actionService.retrieveAction(actionKey, integrationId);
       if (!action) {
         return errorService.errorResponse(res, {
           code: ErrorCode.NotFound,
@@ -83,7 +79,8 @@ class ActionController {
       const actionObject: ActionObject = {
         object: 'action',
         unique_key: action.unique_key,
-        integration: action.integration_key,
+        integration_id: action.integration_id,
+        provider_key: action.provider_key,
         is_enabled: action.is_enabled,
         created_at: action.created_at,
         updated_at: action.updated_at,
@@ -102,14 +99,13 @@ class ActionController {
 
   public async enableAction(req: Request, res: Response) {
     try {
-      const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
-      const integrationKey = req.params['integration_key'];
+      const integrationId = req.params['integration_id'];
       const actionKey = req.params['action_key'];
 
-      if (!integrationKey) {
+      if (!integrationId) {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
-          message: 'Integration unique key missing',
+          message: 'Integration ID missing',
         });
       } else if (!actionKey) {
         return errorService.errorResponse(res, {
@@ -118,12 +114,9 @@ class ActionController {
         });
       }
 
-      const updatedAction = await actionService.updateAction(
-        actionKey,
-        integrationKey,
-        environmentId,
-        { is_enabled: true }
-      );
+      const updatedAction = await actionService.updateAction(actionKey, integrationId, {
+        is_enabled: true,
+      });
 
       if (!updatedAction) {
         return errorService.errorResponse(res, {
@@ -135,7 +128,8 @@ class ActionController {
       const actionObject: ActionObject = {
         object: 'action',
         unique_key: updatedAction.unique_key,
-        integration: updatedAction.integration_key,
+        integration_id: updatedAction.integration_id,
+        provider_key: updatedAction.provider_key,
         is_enabled: updatedAction.is_enabled,
         created_at: updatedAction.created_at,
         updated_at: updatedAction.updated_at,
@@ -154,14 +148,13 @@ class ActionController {
 
   public async disableAction(req: Request, res: Response) {
     try {
-      const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
-      const integrationKey = req.params['integration_key'];
+      const integrationId = req.params['integration_id'];
       const actionKey = req.params['action_key'];
 
-      if (!integrationKey) {
+      if (!integrationId) {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
-          message: 'Integration unique key missing',
+          message: 'Integration ID missing',
         });
       } else if (!actionKey) {
         return errorService.errorResponse(res, {
@@ -170,12 +163,9 @@ class ActionController {
         });
       }
 
-      const updatedAction = await actionService.updateAction(
-        actionKey,
-        integrationKey,
-        environmentId,
-        { is_enabled: false }
-      );
+      const updatedAction = await actionService.updateAction(actionKey, integrationId, {
+        is_enabled: false,
+      });
 
       if (!updatedAction) {
         return errorService.errorResponse(res, {
@@ -187,7 +177,8 @@ class ActionController {
       const actionObject: ActionObject = {
         object: 'action',
         unique_key: updatedAction.unique_key,
-        integration: updatedAction.integration_key,
+        integration_id: updatedAction.integration_id,
+        provider_key: updatedAction.provider_key,
         is_enabled: updatedAction.is_enabled,
         created_at: updatedAction.created_at,
         updated_at: updatedAction.updated_at,
@@ -206,21 +197,28 @@ class ActionController {
 
   public async listActionSchemas(req: Request, res: Response) {
     try {
-      const integrationKey = req.params['integration_key'];
-
-      if (!integrationKey) {
+      const integrationId = req.params['integration_id'];
+      if (!integrationId) {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
-          message: 'Integration unique key missing',
+          message: 'Integration ID missing',
         });
       }
 
-      const providerSpec = await providerService.getProviderSpec(integrationKey);
+      const integration = await integrationService.getIntegrationById(integrationId);
+      if (!integration) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.NotFound,
+          message: 'Integration not found',
+        });
+      }
 
+      const providerKey = integration.provider_key;
+      const providerSpec = await providerService.getProviderSpec(providerKey);
       if (!providerSpec) {
         return errorService.errorResponse(res, {
           code: ErrorCode.NotFound,
-          message: `Specification not found for ${integrationKey}`,
+          message: `Specification not found for ${providerKey}`,
         });
       }
 
@@ -240,13 +238,13 @@ class ActionController {
 
   public async retrieveActionSchema(req: Request, res: Response) {
     try {
-      const integrationKey = req.params['integration_key'];
+      const integrationId = req.params['integration_id'];
       const actionKey = req.params['action_key'];
 
-      if (!integrationKey) {
+      if (!integrationId) {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
-          message: 'Integration unique key missing',
+          message: 'Integration ID missing',
         });
       } else if (!actionKey) {
         return errorService.errorResponse(res, {
@@ -255,18 +253,24 @@ class ActionController {
         });
       }
 
-      const providerSpec = await providerService.getProviderSpec(integrationKey);
+      const integration = await integrationService.getIntegrationById(integrationId);
+      if (!integration) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.NotFound,
+          message: 'Integration not found',
+        });
+      }
 
+      const providerSpec = await providerService.getProviderSpec(integration.provider_key);
       if (!providerSpec) {
         return errorService.errorResponse(res, {
           code: ErrorCode.NotFound,
-          message: `Specification not found for ${integrationKey}`,
+          message: `Specification not found for ${integration.provider_key}`,
         });
       }
 
       const entries = Object.entries(providerSpec.actions || {});
       const action = entries.find(([k, v]) => k === actionKey);
-
       if (!action) {
         return errorService.errorResponse(res, {
           code: ErrorCode.NotFound,
@@ -301,13 +305,13 @@ class ActionController {
 
   public async listActionRuns(req: Request, res: Response) {
     try {
-      const linkedAccountId = req.params['linked_account_id'];
+      const connectionId = req.params['connection_id'];
       const actionKey = req.params['action_key'];
 
-      if (!linkedAccountId) {
+      if (!connectionId) {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
-          message: 'Linked account ID missing',
+          message: 'Connection ID missing',
         });
       } else if (!actionKey) {
         return errorService.errorResponse(res, {
@@ -316,11 +320,7 @@ class ActionController {
         });
       }
 
-      const actionRuns = await actionService.listLinkedAccountActionRuns(
-        actionKey,
-        linkedAccountId
-      );
-
+      const actionRuns = await actionService.listConnectionActionRuns(actionKey, connectionId);
       if (!actionRuns) {
         return errorService.errorResponse(res, {
           code: ErrorCode.InternalServerError,
@@ -331,9 +331,9 @@ class ActionController {
       const actionRunObjects: ActionRunObject[] = actionRuns.map((actionRun) => {
         return {
           object: 'action_run',
-          action: actionRun.action_key,
-          integration: actionRun.integration_key,
-          linked_account: actionRun.linked_account_id,
+          action_key: actionRun.action_key,
+          integration_id: actionRun.integration_id,
+          connection_id: actionRun.connection_id,
           created_at: actionRun.created_at,
           updated_at: actionRun.updated_at,
         };
@@ -370,9 +370,9 @@ class ActionController {
 
       const actionRunObject: ActionRunObject = {
         object: 'action_run',
-        action: actionRun.action_key,
-        integration: actionRun.integration_key,
-        linked_account: actionRun.linked_account_id,
+        action_key: actionRun.action_key,
+        integration_id: actionRun.integration_id,
+        connection_id: actionRun.connection_id,
         created_at: actionRun.created_at,
         updated_at: actionRun.updated_at,
       };

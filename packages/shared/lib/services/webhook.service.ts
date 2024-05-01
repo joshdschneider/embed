@@ -1,10 +1,10 @@
-import { LinkedAccount, Sync, Webhook, WebhookEvent } from '@prisma/client';
+import { Connection, Sync, Webhook, WebhookEvent } from '@prisma/client';
 import { backOff } from 'exponential-backoff';
 import { database } from '../utils/database';
 import { LogLevel, Resource } from '../utils/enums';
 import { generateId, getWebhookSignatureHeader, now } from '../utils/helpers';
 import {
-  LinkedAccountWebhookEvent,
+  ConnectionWebhookEvent,
   Metadata,
   SyncWebhookBody,
   SyncWebhookEvent,
@@ -164,16 +164,16 @@ class WebhookService {
     return delivered;
   }
 
-  public async sendLinkedAccountWebhook({
-    linkedAccount,
+  public async sendConnectionWebhook({
+    connection,
     activityId,
     action,
   }: {
-    linkedAccount: LinkedAccount;
+    connection: Connection;
     activityId: string | null;
     action: 'created' | 'updated';
   }): Promise<void> {
-    const webhooks = await this.listWebhooks(linkedAccount.environment_id);
+    const webhooks = await this.listWebhooks(connection.environment_id);
     if (!webhooks) {
       await activityService.createActivityLog(activityId, {
         timestamp: now(),
@@ -189,7 +189,7 @@ class WebhookService {
       return;
     }
 
-    const environment = await environmentService.getEnvironmentById(linkedAccount.environment_id);
+    const environment = await environmentService.getEnvironmentById(connection.environment_id);
     if (!environment) {
       await activityService.createActivityLog(activityId, {
         timestamp: now(),
@@ -201,11 +201,11 @@ class WebhookService {
       return await errorService.reportError(err);
     }
 
-    let event: LinkedAccountWebhookEvent;
+    let event: ConnectionWebhookEvent;
     if (action === 'created') {
-      event = 'linked_account.created';
+      event = 'connection.created';
     } else if (action === 'updated') {
-      event = 'linked_account.updated';
+      event = 'connection.updated';
     } else {
       await activityService.createActivityLog(activityId, {
         timestamp: now(),
@@ -224,12 +224,12 @@ class WebhookService {
         if (webhook.event_subscriptions.includes(event)) {
           const delivered = await this.sendWebhook(webhook, {
             event: event,
-            integration: linkedAccount.integration_key,
-            linked_account: linkedAccount.id,
-            metadata: linkedAccount.metadata as Metadata,
-            configuration: linkedAccount.configuration as Record<string, any>,
-            created_at: linkedAccount.created_at,
-            updated_at: linkedAccount.updated_at,
+            integration: connection.integration_id,
+            connection: connection.id,
+            metadata: connection.metadata as Metadata,
+            configuration: connection.configuration as Record<string, any>,
+            created_at: connection.created_at,
+            updated_at: connection.updated_at,
           });
 
           res.push({ delivered, url: webhook.url });
@@ -333,8 +333,8 @@ class WebhookService {
         if (webhook.event_subscriptions.includes(event)) {
           const body: SyncWebhookBody = {
             event: event,
-            integration: sync.integration_key,
-            linked_account: sync.linked_account_id,
+            integration: sync.integration_id,
+            connection: sync.connection_id,
             collection: sync.collection_key,
             timestamp: now(),
           };

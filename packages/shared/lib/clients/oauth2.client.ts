@@ -1,5 +1,5 @@
 import { AuthScheme, OAuth2, OAuthAuthorizationMethod, OAuthBodyFormat } from '@embed/providers';
-import type { Integration, LinkedAccount } from '@prisma/client';
+import type { Connection, Integration } from '@prisma/client';
 import { AuthorizationCode } from 'simple-oauth2';
 import integrationService from '../services/integration.service';
 import { interpolateString } from '../utils/helpers';
@@ -41,9 +41,9 @@ export function getSimpleOAuth2ClientConfig(
 export async function getFreshOAuth2Credentials(
   integration: Integration,
   specification: OAuth2,
-  linkedAccount: LinkedAccount
+  connection: Connection
 ): Promise<OAuth2Credentials> {
-  const configObj = (linkedAccount.configuration as Record<string, string>) || {};
+  const configObj = (connection.configuration as Record<string, string>) || {};
   const config = getSimpleOAuth2ClientConfig(integration, specification, configObj);
 
   if (specification.token_request_auth_method === 'basic') {
@@ -57,7 +57,7 @@ export async function getFreshOAuth2Credentials(
   }
 
   const client = new AuthorizationCode(config);
-  const credentials = JSON.parse(linkedAccount.credentials);
+  const credentials = JSON.parse(connection.credentials);
 
   const oldAccessToken = client.createToken({
     access_token: credentials.access_token,

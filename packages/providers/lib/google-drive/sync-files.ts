@@ -20,7 +20,7 @@ const FileSchema = z.object({
   parents: z.array(z.string()),
   mime_type: z.string(),
   base64: z.string().optional(),
-  chunks: z.array(FileChunkSchema).optional(),
+  content: z.array(FileChunkSchema).optional(),
   created_at: z.string(),
   updated_at: z.string(),
 });
@@ -127,27 +127,27 @@ async function processFile(file: GoogleDriveFile, context: SyncContext): Promise
     case 'application/vnd.google-apps.document':
     case 'application/vnd.google-apps.presentation':
       const docChunks = await processGoogleAppsFile(file, context);
-      return { ...fileObj, chunks: docChunks.map((chunk) => ({ chunk })) };
+      return { ...fileObj, content: docChunks.map((chunk) => ({ chunk })) };
 
     case 'application/pdf':
       const pdfChunks = await processPdf(file, context);
-      return { ...fileObj, chunks: pdfChunks.map((chunk) => ({ chunk })) };
+      return { ...fileObj, content: pdfChunks.map((chunk) => ({ chunk })) };
 
     case 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
       const docxChunks = await processDocx(file, context);
-      return { ...fileObj, chunks: docxChunks.map((chunk) => ({ chunk })) };
+      return { ...fileObj, content: docxChunks.map((chunk) => ({ chunk })) };
 
     case 'application/vnd.openxmlformats-officedocument.presentationml.presentation':
       const pptxChunks = await processPptx(file, context);
-      return { ...fileObj, chunks: pptxChunks.map((chunk) => ({ chunk })) };
+      return { ...fileObj, content: pptxChunks.map((chunk) => ({ chunk })) };
 
     case 'text/plain':
       const textChunks = await processText(file, context);
-      return { ...fileObj, chunks: textChunks.map((chunk) => ({ chunk })) };
+      return { ...fileObj, content: textChunks.map((chunk) => ({ chunk })) };
 
     case 'application/json':
       const jsonChunks = await processJson(file, context);
-      return { ...fileObj, chunks: jsonChunks.map((chunk) => ({ chunk })) };
+      return { ...fileObj, content: jsonChunks.map((chunk) => ({ chunk })) };
 
     case 'image/jpeg':
     case 'image/png':
@@ -165,7 +165,7 @@ async function processFile(file: GoogleDriveFile, context: SyncContext): Promise
     case 'audio/opus':
     case 'audio/webm':
       const audioChunks = await processAudio(file, context);
-      return { ...fileObj, chunks: audioChunks.map((chunk) => ({ chunk })) };
+      return { ...fileObj, content: audioChunks.map((chunk) => ({ chunk })) };
 
     default:
       return fileObj;
