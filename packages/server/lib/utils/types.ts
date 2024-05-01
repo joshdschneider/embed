@@ -12,6 +12,11 @@ export enum AccountType {
   Organization = 'organization',
 }
 
+export enum ConnectionType {
+  Individual = 'individual',
+  Organization = 'organization',
+}
+
 export interface DefaultTemplateData {
   branding: Branding;
   prefers_dark_mode: boolean;
@@ -81,12 +86,22 @@ export interface PreviewTemplateData extends DefaultTemplateData {
 export interface IntegrationObject {
   object: 'integration';
   id: string;
-  name: string | null;
+  provider_key: string;
+  logo_url: string | null;
+  logo_url_dark_mode: string | null;
+  display_name: string | null;
   auth_scheme: AuthScheme;
   is_enabled: boolean;
   created_at: number;
   updated_at: number;
 }
+
+export type IntegrationObjectWithCredentials = IntegrationObject & {
+  is_using_test_credentials: boolean;
+  oauth_client_id: string | null;
+  oauth_client_secret: string | null;
+  oauth_scopes: string[];
+};
 
 export const UpdateIntegrationRequestSchema = z.object({
   name: z.string().optional().nullable(),
@@ -151,6 +166,7 @@ export interface ConnectTokenObject {
   integration_id: string;
   connection_id: string | null;
   expires_in_mins: number;
+  type: ConnectionType | null;
   language: string;
   redirect_url: string | null;
   metadata: Record<string, any> | null;
@@ -170,19 +186,24 @@ export const CreateConnectTokenRequestSchema = z.object({
   expires_in_mins: z.number().optional(),
   language: z.string().optional(),
   redirect_url: z.string().optional(),
-  metadata: z.record(z.string(), z.any()).optional(),
+  type: z.string().optional(),
+  display_name: z.string().optional(),
   configuration: z.record(z.string(), z.any()).optional(),
+  inclusions: z.record(z.string(), z.any()).optional(),
+  exclusions: z.record(z.string(), z.any()).optional(),
+  metadata: z.record(z.string(), z.any()).optional(),
 });
 
 export interface ConnectionObject {
   object: 'connection';
   id: string;
-  external_id: string | null;
   integration_id: string;
-  name: string | null;
+  display_name: string | null;
   type: string;
   auth_scheme: AuthScheme;
   configuration: Record<string, any> | null;
+  inclusions: Record<string, any> | null;
+  exclusions: Record<string, any> | null;
   metadata: Record<string, any> | null;
   created_at: number;
   updated_at: number;

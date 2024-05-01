@@ -97,7 +97,7 @@ class UserController {
         key_hash: null,
         key_iv: null,
         key_tag: null,
-        name: null,
+        display_name: null,
         created_at: now(),
         updated_at: now(),
         deleted_at: null,
@@ -190,7 +190,7 @@ class UserController {
       return res.status(200).json({
         object: 'account',
         id: account.id,
-        cloud_organization_id: account.organization_id,
+        organization_id: account.organization_id,
         environments: account.environments.map((environment) => ({
           object: 'environment',
           ...environment,

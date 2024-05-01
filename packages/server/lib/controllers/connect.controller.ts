@@ -26,6 +26,7 @@ import {
   ApiKeyTemplateData,
   BasicTemplateData,
   ConfigTemplateData,
+  ConnectionType,
   ServiceAccountTemplateData,
 } from '../utils/types';
 
@@ -174,18 +175,25 @@ class ConnectController {
             message: `Upserting connection without credentials`,
           });
 
+          const connectionType = await this.getConnectionTypeFromToken(
+            connectToken.type,
+            integration.provider_key
+          );
+
           const response = await connectionService.upsertConnection({
             environment_id: connectToken.environment_id,
             id: connectToken.connection_id || generateId(Resource.Connection),
-            external_id: '', // TODO,
-            name: '', // TODO,
-            type: '', // TODO,
+            display_name: connectToken.display_name || null,
+            type: connectionType,
             auth_scheme: integration.auth_scheme,
             integration_id: integration.id,
             credentials: JSON.stringify({ type: AuthScheme.None }),
+            credentials_hash: null,
             credentials_iv: null,
             credentials_tag: null,
             configuration: connectToken.configuration || null,
+            inclusions: connectToken.inclusions || null,
+            exclusions: connectToken.exclusions || null,
             metadata: connectToken.metadata || null,
             created_at: now(),
             updated_at: now(),
@@ -245,6 +253,26 @@ class ConnectController {
         branding,
         prefersDarkMode,
       });
+    }
+  }
+
+  public async getConnectionTypeFromToken(
+    connectionType: string | null,
+    providerKey: string
+  ): Promise<ConnectionType> {
+    if (connectionType && connectionType === ConnectionType.Organization) {
+      const providerSpec = await providerService.getProviderSpec(providerKey);
+      if (!providerSpec) {
+        throw new Error(`Failed to get provider specifcation for ${providerKey}`);
+      } else if (!providerSpec.can_have_organization_account) {
+        throw new Error(`Integration ${providerKey} does not support organization connections`);
+      }
+
+      return ConnectionType.Organization;
+    } else if (connectionType && connectionType !== ConnectionType.Individual) {
+      throw new Error(`Invalid connection type ${connectionType}`);
+    } else {
+      return ConnectionType.Individual;
     }
   }
 
@@ -647,18 +675,25 @@ class ConnectController {
         throw new Error(`Invalid auth scheme ${integration.auth_scheme} for ${integration.id}`);
       }
 
+      const connectionType = await this.getConnectionTypeFromToken(
+        connectToken.type,
+        integration.provider_key
+      );
+
       const response = await connectionService.upsertConnection({
         environment_id: connectToken.environment_id,
         id: connectToken.connection_id || generateId(Resource.Connection),
-        external_id: '', // TODO,
-        name: '', // TODO,
-        type: '', // TODO,
+        display_name: connectToken.display_name || null,
+        type: connectionType,
         auth_scheme: integration.auth_scheme,
         integration_id: integration.id,
         credentials: JSON.stringify({ type: AuthScheme.ApiKey, apiKey }),
+        credentials_hash: null,
         credentials_iv: null,
         credentials_tag: null,
         configuration: connectToken.configuration || null,
+        inclusions: connectToken.inclusions || null,
+        exclusions: connectToken.exclusions || null,
         metadata: connectToken.metadata || null,
         created_at: now(),
         updated_at: now(),
@@ -902,18 +937,25 @@ class ConnectController {
         throw new Error(`Invalid auth scheme ${integration.auth_scheme} for ${integration.id}`);
       }
 
+      const connectionType = await this.getConnectionTypeFromToken(
+        connectToken.type,
+        integration.provider_key
+      );
+
       const response = await connectionService.upsertConnection({
         environment_id: connectToken.environment_id,
         id: connectToken.connection_id || generateId(Resource.Connection),
-        external_id: '', // TODO,
-        name: '', // TODO,
-        type: '', // TODO,
+        display_name: connectToken.display_name || null,
+        type: connectionType,
         auth_scheme: integration.auth_scheme,
         integration_id: integration.id,
         credentials: JSON.stringify({ type: AuthScheme.Basic, username, password }),
+        credentials_hash: null,
         credentials_iv: null,
         credentials_tag: null,
         configuration: connectToken.configuration || null,
+        inclusions: connectToken.inclusions || null,
+        exclusions: connectToken.exclusions || null,
         metadata: connectToken.metadata || null,
         created_at: now(),
         updated_at: now(),
@@ -1138,18 +1180,25 @@ class ConnectController {
         throw new Error(`Invalid auth scheme ${integration.auth_scheme} for ${integration.id}`);
       }
 
+      const connectionType = await this.getConnectionTypeFromToken(
+        connectToken.type,
+        integration.provider_key
+      );
+
       const response = await connectionService.upsertConnection({
         environment_id: connectToken.environment_id,
         id: connectToken.connection_id || generateId(Resource.Connection),
-        external_id: '', // TODO,
-        name: '', // TODO,
-        type: '', // TODO,
+        display_name: connectToken.display_name || null,
+        type: connectionType,
         auth_scheme: integration.auth_scheme,
         integration_id: integration.id,
         credentials: JSON.stringify({ type: AuthScheme.ServiceAccount, key: serviceAccountKey }),
+        credentials_hash: null,
         credentials_iv: null,
         credentials_tag: null,
         configuration: connectToken.configuration || null,
+        inclusions: connectToken.inclusions || null,
+        exclusions: connectToken.exclusions || null,
         metadata: connectToken.metadata || null,
         created_at: now(),
         updated_at: now(),

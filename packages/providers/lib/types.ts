@@ -17,7 +17,11 @@ export const NoAuthSchema = z.object({
 export type NoAuth = z.infer<typeof NoAuthSchema>;
 
 export const ApiAuthSchema = z.object({
-  scheme: z.union([z.literal(AuthScheme.Basic), z.literal(AuthScheme.ApiKey)]),
+  scheme: z.union([
+    z.literal(AuthScheme.Basic),
+    z.literal(AuthScheme.ApiKey),
+    z.literal(AuthScheme.ServiceAccount),
+  ]),
 });
 
 export type ApiAuth = z.infer<typeof ApiAuthSchema>;
@@ -151,6 +155,7 @@ export const CollectionsSchema = z.array(
     unique_key: z.string(),
     schema: CollectionSchemaSchema,
     required_scopes: z.array(z.string()).optional(),
+    required_for_organization_accounts: z.boolean().default(false),
   })
 );
 
@@ -192,6 +197,7 @@ export const ProviderSpecificationSchema = z.object({
   name: z.string(),
   base_url: z.string(),
   auth: AuthSchema,
+  can_have_organization_account: z.boolean().default(false),
   headers: z.record(z.string()).optional(),
   retry: RetrySchema.optional(),
   logo_url: z.string(),

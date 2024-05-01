@@ -11,7 +11,9 @@ import {
   errorService,
   generateId,
   getServerUrl,
+  integrationService,
   now,
+  providerService,
 } from '@embed/shared';
 import type { Request, Response } from 'express';
 import connectTokenService from '../services/connectToken.service';
@@ -19,6 +21,7 @@ import { zodError } from '../utils/helpers';
 import {
   ConnectTokenDeletedObject,
   ConnectTokenObject,
+  ConnectionType,
   CreateConnectTokenRequestSchema,
 } from '../utils/types';
 
@@ -41,9 +44,40 @@ class ConnectTokenController {
         expires_in_mins: expiresInMins,
         language,
         redirect_url: redirectUrl,
+        type,
+        display_name: displayName,
         configuration,
+        inclusions,
+        exclusions,
         metadata,
       } = parsedBody.data;
+
+      const integration = await integrationService.getIntegrationById(integrationId);
+      if (!integration) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.NotFound,
+          message: `Integration not found with ID ${integrationId}`,
+        });
+      }
+
+      if (type && type === ConnectionType.Organization) {
+        const providerSpec = await providerService.getProviderSpec(integration.provider_key);
+        if (!providerSpec) {
+          throw new Error(`Failed to get provider specifcation for ${integration.provider_key}`);
+        }
+
+        if (!providerSpec.can_have_organization_account) {
+          return errorService.errorResponse(res, {
+            code: ErrorCode.BadRequest,
+            message: `Integration ${integration.provider_key} does not support organization connections`,
+          });
+        }
+      } else if (type && type !== ConnectionType.Individual) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.BadRequest,
+          message: `Invalid connection type ${type}`,
+        });
+      }
 
       if (connectionId) {
         const connection = await connectionService.getConnectionById(connectionId);
@@ -103,8 +137,12 @@ class ConnectTokenController {
         expires_at: expiresAt,
         language: language || 'en',
         redirect_url: redirectUrl || null,
-        metadata: metadata || null,
+        type: type || null,
+        display_name: displayName || null,
         configuration: configuration || null,
+        inclusions: inclusions || null,
+        exclusions: exclusions || null,
+        metadata: metadata || null,
         code_verifier: null,
         prefers_dark_mode: false,
         request_token_secret: null,
@@ -159,6 +197,7 @@ class ConnectTokenController {
         integration_id: connectToken.integration_id,
         connection_id: connectToken.connection_id,
         redirect_url: connectToken.redirect_url,
+        type: connectToken.type as ConnectionType | null,
         language: connectToken.language,
         metadata: connectToken.metadata as Record<string, any> | null,
         configuration: connectToken.configuration as Record<string, any> | null,
@@ -197,6 +236,7 @@ class ConnectTokenController {
           integration_id: connectToken.integration_id,
           connection_id: connectToken.connection_id,
           redirect_url: connectToken.redirect_url,
+          type: connectToken.type as ConnectionType | null,
           language: connectToken.language,
           metadata: connectToken.metadata as Record<string, any> | null,
           configuration: connectToken.configuration as Record<string, any> | null,
@@ -241,6 +281,7 @@ class ConnectTokenController {
         integration_id: connectToken.integration_id,
         connection_id: connectToken.connection_id,
         redirect_url: connectToken.redirect_url,
+        type: connectToken.type as ConnectionType | null,
         language: connectToken.language,
         metadata: connectToken.metadata as Record<string, any> | null,
         configuration: connectToken.configuration as Record<string, any> | null,

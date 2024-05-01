@@ -8,8 +8,11 @@ class ApiKeyService {
   public async createApiKey(apiKey: ApiKey): Promise<ApiKey | null> {
     try {
       const keyHash = encryptionService.hashString(apiKey.key);
-      const hashedApiKey: ApiKey = { ...apiKey, key_hash: keyHash };
-      const encryptedApiKey = encryptionService.encryptApiKey(hashedApiKey);
+      const encryptedApiKey = encryptionService.encryptApiKey({
+        ...apiKey,
+        key_hash: keyHash,
+      });
+
       const createdApiKey = await database.apiKey.create({
         data: encryptedApiKey,
       });
@@ -37,12 +40,12 @@ class ApiKeyService {
   public async updateApiKey(
     apiKeyId: string,
     environmentId: string,
-    name: string
+    displayName: string
   ): Promise<ApiKey | null> {
     try {
       const apiKey = await database.apiKey.update({
         where: { id: apiKeyId, environment_id: environmentId, deleted_at: null },
-        data: { name, updated_at: now() },
+        data: { display_name: displayName, updated_at: now() },
       });
 
       return encryptionService.decryptApiKey(apiKey);
