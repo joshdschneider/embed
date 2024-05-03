@@ -12,7 +12,6 @@ auth:
       response_type: code
       access_type: offline
       prompt: consent
-  - scheme: service_account
 
 can_have_organization_account: false
 
