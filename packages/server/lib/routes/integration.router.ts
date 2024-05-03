@@ -13,6 +13,10 @@ integrationRouter
   .get(integrationController.listIntegrations.bind(integrationController));
 
 integrationRouter
+  .route('/')
+  .post(integrationController.createIntegration.bind(integrationController));
+
+integrationRouter
   .route('/:integration_id')
   .get(integrationController.retrieveIntegration.bind(integrationController));
 

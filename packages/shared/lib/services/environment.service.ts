@@ -87,6 +87,14 @@ class EnvironmentService {
         where: { id: environmentId },
         data: {
           type: environment.type || undefined,
+          auto_enable_actions: environment.auto_enable_actions ?? undefined,
+          auto_enable_collections: environment.auto_enable_collections ?? undefined,
+          auto_start_syncs: environment.auto_start_syncs ?? undefined,
+          default_sync_frequency: environment.default_sync_frequency || undefined,
+          default_multimodal_embedding_model:
+            environment.default_multimodal_embedding_model || undefined,
+          default_text_embedding_model: environment.default_text_embedding_model || undefined,
+          multimodal_enabled_by_default: environment.multimodal_enabled_by_default ?? undefined,
           branding: environment.branding || undefined,
           updated_at: now(),
         },

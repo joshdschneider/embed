@@ -39,6 +39,22 @@ class ActionService {
     }
   }
 
+  public async createAction(action: Action): Promise<Action | null> {
+    try {
+      return await database.action.create({
+        data: {
+          ...action,
+          created_at: now(),
+          updated_at: now(),
+          deleted_at: null,
+        },
+      });
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
+    }
+  }
+
   public async updateAction(
     actionKey: string,
     integrationId: string,

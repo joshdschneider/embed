@@ -113,6 +113,29 @@ class CollectionService {
     }
   }
 
+  public async createCollection(collection: Collection): Promise<Collection | null> {
+    try {
+      const newCollection = await database.collection.create({
+        data: {
+          ...collection,
+          created_at: now(),
+          updated_at: now(),
+        },
+      });
+
+      await this.createCollectionIndex({
+        environmentId: newCollection.environment_id,
+        integrationId: newCollection.integration_id,
+        collectionKey: newCollection.unique_key,
+      });
+
+      return newCollection;
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
+    }
+  }
+
   public async createCollectionIndex({
     environmentId,
     integrationId,

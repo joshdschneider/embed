@@ -83,6 +83,23 @@ export interface PreviewTemplateData extends DefaultTemplateData {
   };
 }
 
+export interface EnvironmentObject {
+  object: 'environment';
+  id: string;
+  account_id: string;
+  type: EnvironmentType;
+  auto_enable_collections: boolean;
+  auto_enable_actions: boolean;
+  auto_start_syncs: boolean;
+  default_sync_frequency: string;
+  default_text_embedding_model: string;
+  default_multimodal_embedding_model: string;
+  multimodal_enabled_by_default: boolean;
+  branding: any;
+  created_at: number;
+  updated_at: number;
+}
+
 export interface IntegrationObject {
   object: 'integration';
   id: string;
@@ -103,8 +120,27 @@ export type IntegrationObjectWithCredentials = IntegrationObject & {
   oauth_scopes: string[];
 };
 
+export const CreateIntegrationRequestSchema = z.object({
+  provider_key: z.string(),
+  auth_scheme: z.union([
+    z.literal(AuthScheme.OAuth2),
+    z.literal(AuthScheme.OAuth1),
+    z.literal(AuthScheme.Basic),
+    z.literal(AuthScheme.ApiKey),
+    z.literal(AuthScheme.ServiceAccount),
+    z.literal(AuthScheme.None),
+  ]),
+  display_name: z.string().optional().nullable(),
+  is_using_test_credentials: z.boolean().optional(),
+  oauth_client_id: z.string().optional().nullable(),
+  oauth_client_secret: z.string().optional().nullable(),
+  oauth_scopes: z.array(z.string()).optional().nullable(),
+});
+
+export type CreateIntegrationRequest = z.infer<typeof CreateIntegrationRequestSchema>;
+
 export const UpdateIntegrationRequestSchema = z.object({
-  name: z.string().optional().nullable(),
+  display_name: z.string().optional().nullable(),
   is_using_test_credentials: z.boolean().optional(),
   oauth_client_id: z.string().optional().nullable(),
   oauth_client_secret: z.string().optional().nullable(),
@@ -120,8 +156,8 @@ export interface CollectionObject {
   provider_key: string;
   is_enabled: boolean;
   default_sync_frequency: string;
-  auto_start_sync: boolean;
-  exclude_properties_from_sync: string[];
+  auto_start_syncs: boolean;
+  exclude_properties_from_syncs: string[];
   text_embedding_model: string;
   multimodal_embedding_model: string;
   multimodal_enabled: boolean;
@@ -131,8 +167,8 @@ export interface CollectionObject {
 
 export const UpdateCollectionRequestSchema = z.object({
   default_sync_frequency: z.string().optional(),
-  auto_start_sync: z.boolean().optional(),
-  exclude_properties_from_sync: z.array(z.string()).optional(),
+  auto_start_syncs: z.boolean().optional(),
+  exclude_properties_from_syncs: z.array(z.string()).optional(),
   text_embedding_model: z.string().optional(),
   multimodal_embedding_model: z.string().optional(),
   multimodal_enabled: z.boolean().optional(),
@@ -182,16 +218,16 @@ export interface ConnectTokenDeletedObject {
 
 export const CreateConnectTokenRequestSchema = z.object({
   integration_id: z.string(),
-  connection_id: z.string().optional(),
-  expires_in_mins: z.number().optional(),
-  language: z.string().optional(),
-  redirect_url: z.string().optional(),
+  connection_id: z.string().optional().nullable(),
+  expires_in_mins: z.number().optional().nullable(),
+  language: z.string().optional().nullable(),
+  redirect_url: z.string().optional().nullable(),
   type: z.string().optional(),
-  display_name: z.string().optional(),
-  configuration: z.record(z.string(), z.any()).optional(),
-  inclusions: z.record(z.string(), z.any()).optional(),
-  exclusions: z.record(z.string(), z.any()).optional(),
-  metadata: z.record(z.string(), z.any()).optional(),
+  display_name: z.string().optional().nullable(),
+  configuration: z.record(z.string(), z.any()).optional().nullable(),
+  inclusions: z.record(z.string(), z.any()).optional().nullable(),
+  exclusions: z.record(z.string(), z.any()).optional().nullable(),
+  metadata: z.record(z.string(), z.any()).optional().nullable(),
 });
 
 export interface ConnectionObject {

@@ -163,11 +163,12 @@ export const DEFAULT_LIMIT = 20;
 export const SYNC_TASK_QUEUE = 'syncs';
 export const ACTIONS_TASK_QUEUE = 'actions';
 
-export const DEFAULT_SYNC_FREQUENCY = '1d';
-export const DEFAULT_SYNC_AUTO_START = false;
-
 export const DEFAULT_TEXT_EMBEDDING_MODEL = TextEmbeddingModel.OpenaiTextEmbedding3Small;
 export const DEFAULT_MULTIMODAL_EMBEDDING_MODEL = MultimodalEmbeddingModel.AmazonTitanMultimodalG1;
+export const DEFAULT_AUTO_ENABLE_COLLECTIONS = true;
+export const DEFAULT_AUTO_ENABLE_ACTIONS = true;
+export const DEFAULT_AUTO_START_SYNCS = false;
+export const DEFAULT_SYNC_FREQUENCY = 'daily';
 export const DEFAULT_MULTIMODAL_ENABLED = true;
 
 export const DEFAULT_QUERY_LIMIT = 10;
