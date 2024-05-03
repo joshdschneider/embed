@@ -34,6 +34,7 @@ class IntegrationService {
 
       return encryptionService.decryptIntegration(integration);
     } catch (err) {
+      console.error(err);
       await errorService.reportError(err);
       return null;
     }
@@ -75,6 +76,15 @@ class IntegrationService {
     data: Partial<Integration>
   ): Promise<Integration | null> {
     try {
+      if (data.oauth_client_secret) {
+        const encryptedIntegration = encryptionService.encryptIntegration({
+          ...data,
+        } as Integration);
+        data.oauth_client_secret = encryptedIntegration.oauth_client_secret;
+        data.oauth_client_secret_iv = encryptedIntegration.oauth_client_secret_iv;
+        data.oauth_client_secret_tag = encryptedIntegration.oauth_client_secret_tag;
+      }
+
       const integration = await database.integration.update({
         where: { id: integrationId, deleted_at: null },
         data: { ...data, updated_at: now() },
@@ -92,14 +102,13 @@ class IntegrationService {
     oauth_client_secret: string;
   } {
     if (!integration.is_using_test_credentials) {
-      const decryptedIntegration = encryptionService.decryptIntegration(integration);
-      if (!decryptedIntegration.oauth_client_id || !decryptedIntegration.oauth_client_secret) {
+      if (!integration.oauth_client_id || !integration.oauth_client_secret) {
         throw new Error('Client credentials are missing');
       }
 
       return {
-        oauth_client_id: decryptedIntegration.oauth_client_id,
-        oauth_client_secret: decryptedIntegration.oauth_client_secret,
+        oauth_client_id: integration.oauth_client_id,
+        oauth_client_secret: integration.oauth_client_secret,
       };
     }
 

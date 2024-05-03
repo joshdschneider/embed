@@ -34,13 +34,20 @@ model User {
 }
 
 model Environment {
-  id         String @id
-  account_id String
-  type       String
-  branding   Json
-  created_at Int
-  updated_at Int
-  deleted_at Int?
+  id                                 String  @id
+  account_id                         String
+  type                               String
+  auto_enable_collections            Boolean
+  auto_enable_actions                Boolean
+  auto_start_syncs                   Boolean
+  default_sync_frequency             String
+  default_text_embedding_model       String
+  default_multimodal_embedding_model String
+  multimodal_enabled_by_default      Boolean
+  branding                           Json
+  created_at                         Int
+  updated_at                         Int
+  deleted_at                         Int?
 
   api_keys       ApiKey[]
   integrations   Integration[]
@@ -148,20 +155,20 @@ model Connection {
 }
 
 model Collection {
-  unique_key                   String
-  integration_id               String
-  provider_key                 String
-  environment_id               String
-  is_enabled                   Boolean
-  default_sync_frequency       String
-  auto_start_sync              Boolean
-  exclude_properties_from_sync String[]
-  text_embedding_model         String
-  multimodal_embedding_model   String
-  multimodal_enabled           Boolean
-  created_at                   Int
-  updated_at                   Int
-  deleted_at                   Int?
+  unique_key                    String
+  integration_id                String
+  provider_key                  String
+  environment_id                String
+  is_enabled                    Boolean
+  default_sync_frequency        String
+  auto_start_syncs              Boolean
+  exclude_properties_from_syncs String[]
+  text_embedding_model          String
+  multimodal_embedding_model    String
+  multimodal_enabled            Boolean
+  created_at                    Int
+  updated_at                    Int
+  deleted_at                    Int?
 
   syncs   Sync[]
   records Record[]

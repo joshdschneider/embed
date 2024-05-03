@@ -42,7 +42,7 @@ class SyncService {
         throw new Error('Failed to create sync schedule');
       }
 
-      if (!collection.is_enabled || !collection.auto_start_sync) {
+      if (!collection.is_enabled || !collection.auto_start_syncs) {
         return;
       }
 

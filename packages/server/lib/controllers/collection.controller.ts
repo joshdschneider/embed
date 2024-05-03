@@ -45,8 +45,8 @@ class CollectionController {
           provider_key: collection.provider_key,
           is_enabled: collection.is_enabled,
           default_sync_frequency: collection.default_sync_frequency,
-          auto_start_sync: collection.auto_start_sync,
-          exclude_properties_from_sync: collection.exclude_properties_from_sync,
+          auto_start_syncs: collection.auto_start_syncs,
+          exclude_properties_from_syncs: collection.exclude_properties_from_syncs,
           text_embedding_model: collection.text_embedding_model,
           multimodal_embedding_model: collection.multimodal_embedding_model,
           multimodal_enabled: collection.multimodal_enabled,
@@ -98,8 +98,8 @@ class CollectionController {
         provider_key: collection.provider_key,
         is_enabled: collection.is_enabled,
         default_sync_frequency: collection.default_sync_frequency,
-        auto_start_sync: collection.auto_start_sync,
-        exclude_properties_from_sync: collection.exclude_properties_from_sync,
+        auto_start_syncs: collection.auto_start_syncs,
+        exclude_properties_from_syncs: collection.exclude_properties_from_syncs,
         text_embedding_model: collection.text_embedding_model,
         multimodal_embedding_model: collection.multimodal_embedding_model,
         multimodal_enabled: collection.multimodal_enabled,
@@ -155,8 +155,8 @@ class CollectionController {
         provider_key: updatedCollection.provider_key,
         is_enabled: updatedCollection.is_enabled,
         default_sync_frequency: updatedCollection.default_sync_frequency,
-        auto_start_sync: updatedCollection.auto_start_sync,
-        exclude_properties_from_sync: updatedCollection.exclude_properties_from_sync,
+        auto_start_syncs: updatedCollection.auto_start_syncs,
+        exclude_properties_from_syncs: updatedCollection.exclude_properties_from_syncs,
         text_embedding_model: updatedCollection.text_embedding_model,
         multimodal_embedding_model: updatedCollection.multimodal_embedding_model,
         multimodal_enabled: updatedCollection.multimodal_enabled,
@@ -212,8 +212,8 @@ class CollectionController {
         provider_key: updatedCollection.provider_key,
         is_enabled: updatedCollection.is_enabled,
         default_sync_frequency: updatedCollection.default_sync_frequency,
-        auto_start_sync: updatedCollection.auto_start_sync,
-        exclude_properties_from_sync: updatedCollection.exclude_properties_from_sync,
+        auto_start_syncs: updatedCollection.auto_start_syncs,
+        exclude_properties_from_syncs: updatedCollection.exclude_properties_from_syncs,
         text_embedding_model: updatedCollection.text_embedding_model,
         multimodal_embedding_model: updatedCollection.multimodal_embedding_model,
         multimodal_enabled: updatedCollection.multimodal_enabled,
@@ -259,8 +259,8 @@ class CollectionController {
 
       const {
         default_sync_frequency,
-        auto_start_sync,
-        exclude_properties_from_sync,
+        auto_start_syncs,
+        exclude_properties_from_syncs,
         text_embedding_model,
         multimodal_embedding_model,
         multimodal_enabled,
@@ -271,12 +271,12 @@ class CollectionController {
         data.default_sync_frequency = default_sync_frequency;
       }
 
-      if (typeof auto_start_sync === 'boolean') {
-        data.auto_start_sync = auto_start_sync;
+      if (typeof auto_start_syncs === 'boolean') {
+        data.auto_start_syncs = auto_start_syncs;
       }
 
-      if (typeof exclude_properties_from_sync !== 'undefined') {
-        data.exclude_properties_from_sync = exclude_properties_from_sync;
+      if (typeof exclude_properties_from_syncs !== 'undefined') {
+        data.exclude_properties_from_syncs = exclude_properties_from_syncs;
       }
 
       if (typeof text_embedding_model !== 'undefined') {
@@ -311,8 +311,8 @@ class CollectionController {
         provider_key: updatedCollection.provider_key,
         is_enabled: updatedCollection.is_enabled,
         default_sync_frequency: updatedCollection.default_sync_frequency,
-        auto_start_sync: updatedCollection.auto_start_sync,
-        exclude_properties_from_sync: updatedCollection.exclude_properties_from_sync,
+        auto_start_syncs: updatedCollection.auto_start_syncs,
+        exclude_properties_from_syncs: updatedCollection.exclude_properties_from_syncs,
         text_embedding_model: updatedCollection.text_embedding_model,
         multimodal_embedding_model: updatedCollection.multimodal_embedding_model,
         multimodal_enabled: updatedCollection.multimodal_enabled,
