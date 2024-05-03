@@ -258,6 +258,7 @@ class CollectionController {
       }
 
       const {
+        is_enabled,
         default_sync_frequency,
         auto_start_syncs,
         exclude_properties_from_syncs,
@@ -267,6 +268,10 @@ class CollectionController {
       } = parsedBody.data;
 
       const data: Partial<Collection> = { updated_at: now() };
+      if (typeof is_enabled === 'boolean') {
+        data.is_enabled = is_enabled;
+      }
+
       if (typeof default_sync_frequency !== 'undefined') {
         data.default_sync_frequency = default_sync_frequency;
       }

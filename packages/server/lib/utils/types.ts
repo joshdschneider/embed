@@ -166,6 +166,7 @@ export interface CollectionObject {
 }
 
 export const UpdateCollectionRequestSchema = z.object({
+  is_enabled: z.boolean().optional(),
   default_sync_frequency: z.string().optional(),
   auto_start_syncs: z.boolean().optional(),
   exclude_properties_from_syncs: z.array(z.string()).optional(),
