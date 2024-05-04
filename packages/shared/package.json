@@ -20,6 +20,7 @@
     "@prisma/client": "^5.11.0",
     "@temporalio/activity": "^1.9.1",
     "@types/ms": "^0.7.34",
+    "@workos-inc/node": "^7.3.0",
     "axios": "^1.6.7",
     "cohere-ai": "^7.7.7",
     "dotenv": "^16.4.5",

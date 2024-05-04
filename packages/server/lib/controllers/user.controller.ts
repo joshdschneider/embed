@@ -9,7 +9,10 @@ import {
   DEFAULT_SYNC_FREQUENCY,
   DEFAULT_TEXT_EMBEDDING_MODEL,
   ErrorCode,
+  Organization,
   Resource,
+  User,
+  WorkOSUser,
   apiKeyService,
   environmentService,
   errorService,
@@ -17,15 +20,18 @@ import {
   now,
 } from '@embed/shared';
 import type { Request, Response } from 'express';
-import accountService from '../services/account.service';
+import organizationService from '../services/organization.service';
 import userService from '../services/user.service';
+import { DEFAULT_ORGANIZATION_NAME } from '../utils/constants';
 import { generateSecretKey } from '../utils/helpers';
-import { AccountType, EnvironmentType } from '../utils/types';
+import { EnvironmentType } from '../utils/types';
 
 class UserController {
-  public async createUser(req: Request, res: Response) {
+  public async handleUserAuth(req: Request, res: Response) {
     try {
-      const { user, organization_id } = req.body;
+      const user = req.body['user'] as WorkOSUser;
+      const organizationId = req.body['organization_id'] as string | undefined;
+
       if (!user) {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
@@ -33,55 +39,105 @@ class UserController {
         });
       }
 
+      let _user: User;
+      let _organization: Organization;
+
       const existingUser = await userService.getUserById(user.id);
-      if (existingUser) {
+      if (!existingUser) {
+        const newUser = await userService.persistUser({
+          id: user.id,
+          email: user.email,
+          first_name: user.firstName,
+          last_name: user.lastName,
+          created_at: now(),
+          updated_at: now(),
+          deleted_at: null,
+        });
+
+        if (!newUser) {
+          return errorService.errorResponse(res, {
+            code: ErrorCode.InternalServerError,
+            message: DEFAULT_ERROR_MESSAGE,
+          });
+        }
+
+        const newUserOrg = await organizationService.createOrganization(DEFAULT_ORGANIZATION_NAME);
+        if (!newUserOrg) {
+          return errorService.errorResponse(res, {
+            code: ErrorCode.InternalServerError,
+            message: DEFAULT_ERROR_MESSAGE,
+          });
+        }
+
+        const newUserOrgMembership = await organizationService.createOrganizationMembership({
+          userId: newUser.id,
+          organizationId: newUserOrg.id,
+        });
+
+        if (!newUserOrgMembership) {
+          return errorService.errorResponse(res, {
+            code: ErrorCode.InternalServerError,
+            message: DEFAULT_ERROR_MESSAGE,
+          });
+        }
+
+        _user = newUser;
+        _organization = newUserOrg;
+      } else if (existingUser.organization_memberships.length === 0) {
+        const existingUserNewOrg =
+          await organizationService.createOrganization(DEFAULT_ORGANIZATION_NAME);
+
+        if (!existingUserNewOrg) {
+          return errorService.errorResponse(res, {
+            code: ErrorCode.InternalServerError,
+            message: DEFAULT_ERROR_MESSAGE,
+          });
+        }
+
+        const existingUserNewOrgMembership = await organizationService.createOrganizationMembership(
+          { userId: existingUser.id, organizationId: existingUserNewOrg.id }
+        );
+
+        if (!existingUserNewOrgMembership) {
+          return errorService.errorResponse(res, {
+            code: ErrorCode.InternalServerError,
+            message: DEFAULT_ERROR_MESSAGE,
+          });
+        }
+
+        _user = existingUser;
+        _organization = existingUserNewOrg;
+      } else {
+        let existingOrgId = organizationId;
+        if (!existingOrgId) {
+          existingOrgId = existingUser.organization_memberships[0]!.organization_id;
+        }
+
+        const existingOrg = await organizationService.getOrganizationById(existingOrgId);
+        if (!existingOrg) {
+          return errorService.errorResponse(res, {
+            code: ErrorCode.NotFound,
+            message: 'Organization not found',
+          });
+        }
+
         return res.status(200).json({
           object: 'user',
           id: existingUser.id,
           email: existingUser.email,
           first_name: existingUser.first_name,
           last_name: existingUser.last_name,
-        });
-      }
-
-      const account = await accountService.createAccount({
-        id: generateId(Resource.Account),
-        name: null,
-        type: AccountType.Personal,
-        organization_id: organization_id || null,
-        created_at: now(),
-        updated_at: now(),
-        deleted_at: null,
-      });
-
-      if (!account) {
-        return errorService.errorResponse(res, {
-          code: ErrorCode.InternalServerError,
-          message: DEFAULT_ERROR_MESSAGE,
-        });
-      }
-
-      const newUser = await userService.createUser({
-        id: user.id,
-        account_id: account.id,
-        email: user.email,
-        first_name: user.first_name,
-        last_name: user.last_name,
-        created_at: now(),
-        updated_at: now(),
-        deleted_at: null,
-      });
-
-      if (!newUser) {
-        return errorService.errorResponse(res, {
-          code: ErrorCode.InternalServerError,
-          message: DEFAULT_ERROR_MESSAGE,
+          organization: {
+            object: 'organization',
+            id: existingOrg.id,
+            name: existingOrg.name,
+          },
         });
       }
 
       const stagingEnvironment = await environmentService.createEnvironment({
         id: generateId(Resource.Environment),
-        account_id: account.id,
+        organization_id: _organization.id,
         type: EnvironmentType.Staging,
         auto_enable_collections: DEFAULT_AUTO_ENABLE_COLLECTIONS,
         auto_enable_actions: DEFAULT_AUTO_ENABLE_ACTIONS,
@@ -124,53 +180,16 @@ class UserController {
         });
       }
 
-      // Seed test integration?
-
       return res.status(200).json({
         object: 'user',
-        id: newUser.id,
-        account_id: newUser.account_id,
-        email: newUser.email,
-        first_name: newUser.first_name,
-        last_name: newUser.last_name,
-      });
-    } catch (err) {
-      await errorService.reportError(err);
-
-      return errorService.errorResponse(res, {
-        code: ErrorCode.InternalServerError,
-        message: DEFAULT_ERROR_MESSAGE,
-      });
-    }
-  }
-
-  public async retrieveUser(req: Request, res: Response) {
-    try {
-      const { user_id } = req.params;
-      if (!user_id) {
-        return errorService.errorResponse(res, {
-          code: ErrorCode.BadRequest,
-          message: 'User ID missing',
-        });
-      }
-
-      const user = await userService.getUserById(user_id);
-      if (!user) {
-        return errorService.errorResponse(res, {
-          code: ErrorCode.NotFound,
-          message: 'User not found',
-        });
-      }
-
-      return res.status(200).json({
-        object: 'user',
-        id: user.id,
-        email: user.email,
-        first_name: user.first_name,
-        last_name: user.last_name,
-        account: {
-          object: 'account',
-          ...user.account,
+        id: _user.id,
+        email: _user.email,
+        first_name: _user.first_name,
+        last_name: _user.last_name,
+        organization: {
+          object: 'organization',
+          id: _organization.id,
+          name: _organization.name,
         },
       });
     } catch (err) {
@@ -183,32 +202,55 @@ class UserController {
     }
   }
 
-  public async retrieveUserAccount(req: Request, res: Response) {
+  public async retrieveUserWithOrg(req: Request, res: Response) {
     try {
       const { user_id } = req.params;
+      const { organization_id } = req.query;
+
       if (!user_id) {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
           message: 'User ID missing',
         });
+      } else if (!organization_id || organization_id !== 'string') {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.BadRequest,
+          message: 'Organization ID missing or invalid',
+        });
       }
 
-      const account = await accountService.getAccountByUserId(user_id);
-      if (!account) {
+      const user = await userService.getUserById(user_id);
+      if (!user) {
         return errorService.errorResponse(res, {
           code: ErrorCode.NotFound,
           message: 'User not found',
         });
+      } else if (!user.organization_memberships.some((org) => org.id === organization_id)) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.Forbidden,
+          message: `User is not a member of organization with ID ${organization_id}`,
+        });
+      }
+
+      const organization = await organizationService.getOrganizationById(organization_id);
+      if (!organization) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.NotFound,
+          message: 'Organization not found',
+        });
       }
 
       return res.status(200).json({
-        object: 'account',
-        id: account.id,
-        organization_id: account.organization_id,
-        environments: account.environments.map((environment) => ({
-          object: 'environment',
-          ...environment,
-        })),
+        object: 'user',
+        id: user.id,
+        email: user.email,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        organization: {
+          object: 'organization',
+          id: organization.id,
+          name: organization.name,
+        },
       });
     } catch (err) {
       await errorService.reportError(err);

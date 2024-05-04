@@ -7,13 +7,19 @@ import encryptionService from './encryption.service';
 import errorService from './error.service';
 
 class EnvironmentService {
+  public async listEnvironments(organizationId: string): Promise<Environment[] | null> {
+    try {
+      return await database.environment.findMany({ where: { organization_id: organizationId } });
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
+    }
+  }
+
   public async createEnvironment(environment: Environment): Promise<Environment | null> {
     try {
       return await database.environment.create({
-        data: {
-          ...environment,
-          branding: environment.branding || DEFAULT_BRANDING,
-        },
+        data: { ...environment, branding: environment.branding || DEFAULT_BRANDING },
       });
     } catch (err) {
       await errorService.reportError(err);
@@ -23,9 +29,7 @@ class EnvironmentService {
 
   public async getEnvironmentById(environmentId: string): Promise<Environment | null> {
     try {
-      return await database.environment.findUnique({
-        where: { id: environmentId },
-      });
+      return await database.environment.findUnique({ where: { id: environmentId } });
     } catch (err) {
       await errorService.reportError(err);
       return null;
@@ -52,21 +56,21 @@ class EnvironmentService {
     }
   }
 
-  public async findUserEnvironment(
-    userId: string,
+  public async findOrganizationEnvironment(
+    organizationId: string,
     environmentId: string
   ): Promise<Environment | null> {
     try {
-      const user = await database.user.findUnique({
-        where: { id: userId },
-        include: { account: { include: { environments: true } } },
+      const organization = await database.organization.findUnique({
+        where: { id: organizationId },
+        include: { environments: true },
       });
 
-      if (!user) {
+      if (!organization) {
         return null;
       }
 
-      const environment = user.account.environments.find((env) => env.id === environmentId);
+      const environment = organization.environments.find((env) => env.id === environmentId);
       if (!environment) {
         return null;
       }

@@ -1,20 +1,6 @@
 -- CreateTable
-CREATE TABLE "Account" (
-    "id" TEXT NOT NULL,
-    "type" TEXT NOT NULL,
-    "name" TEXT,
-    "organization_id" TEXT,
-    "created_at" INTEGER NOT NULL,
-    "updated_at" INTEGER NOT NULL,
-    "deleted_at" INTEGER,
-
-    CONSTRAINT "Account_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
 CREATE TABLE "User" (
     "id" TEXT NOT NULL,
-    "account_id" TEXT NOT NULL,
     "email" TEXT NOT NULL,
     "first_name" TEXT,
     "last_name" TEXT,
@@ -26,9 +12,32 @@ CREATE TABLE "User" (
 );
 
 -- CreateTable
+CREATE TABLE "Organization" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "created_at" INTEGER NOT NULL,
+    "updated_at" INTEGER NOT NULL,
+    "deleted_at" INTEGER,
+
+    CONSTRAINT "Organization_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "OrganizationMembership" (
+    "id" TEXT NOT NULL,
+    "organization_id" TEXT NOT NULL,
+    "user_id" TEXT NOT NULL,
+    "role" TEXT,
+    "created_at" INTEGER NOT NULL,
+    "updated_at" INTEGER NOT NULL,
+
+    CONSTRAINT "OrganizationMembership_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "Environment" (
     "id" TEXT NOT NULL,
-    "account_id" TEXT NOT NULL,
+    "organization_id" TEXT NOT NULL,
     "type" TEXT NOT NULL,
     "auto_enable_collections" BOOLEAN NOT NULL,
     "auto_enable_actions" BOOLEAN NOT NULL,
@@ -319,10 +328,13 @@ CREATE UNIQUE INDEX "Record_external_id_connection_id_collection_key_key" ON "Re
 CREATE UNIQUE INDEX "Record_hash_connection_id_collection_key_key" ON "Record"("hash", "connection_id", "collection_key");
 
 -- AddForeignKey
-ALTER TABLE "User" ADD CONSTRAINT "User_account_id_fkey" FOREIGN KEY ("account_id") REFERENCES "Account"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "OrganizationMembership" ADD CONSTRAINT "OrganizationMembership_organization_id_fkey" FOREIGN KEY ("organization_id") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Environment" ADD CONSTRAINT "Environment_account_id_fkey" FOREIGN KEY ("account_id") REFERENCES "Account"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "OrganizationMembership" ADD CONSTRAINT "OrganizationMembership_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Environment" ADD CONSTRAINT "Environment_organization_id_fkey" FOREIGN KEY ("organization_id") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "ApiKey" ADD CONSTRAINT "ApiKey_environment_id_fkey" FOREIGN KEY ("environment_id") REFERENCES "Environment"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

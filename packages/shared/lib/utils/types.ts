@@ -1,4 +1,9 @@
 import { SourceObject } from '@embed/providers';
+import { Organization, OrganizationMembership, User } from '@workos-inc/node';
+
+export type WorkOSUser = User;
+export type WorkOSOrganization = Organization;
+export type WorkOSOrganizationMembership = OrganizationMembership;
 
 export interface SyncArgs {
   environmentId: string;
@@ -18,20 +23,15 @@ export interface ActionArgs {
 }
 
 export type Branding = {
-  name: string | null;
   appearance: string;
   border_radius: string;
   light_mode: {
-    logo: string | null;
-    favicon: string | null;
     page_background: string;
     button_background: string;
     button_text: string;
     links: string;
   };
   dark_mode: {
-    logo: string | null;
-    favicon: string | null;
     page_background: string;
     button_background: string;
     button_text: string;

@@ -31,14 +31,21 @@ export * from './utils/helpers';
 export * from './utils/types';
 
 export {
-  Account,
   Action,
+  ActionRun,
+  Activity,
+  ActivityLog,
   ApiKey,
   Collection,
   ConnectToken,
   Connection,
   Environment,
   Integration,
+  Organization,
+  OrganizationMembership,
+  Record,
+  Sync,
+  SyncRun,
   User,
   Webhook,
   WebhookEvent,
