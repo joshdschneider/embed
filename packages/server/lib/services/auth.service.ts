@@ -1,10 +1,10 @@
 import {
-  ACCOUNT_ID_LOCALS_KEY,
   DEFAULT_ERROR_MESSAGE,
   EMBED_AUTH_TOKEN_KEY,
   EMBED_ENVIRONMENT_KEY,
   ENVIRONMENT_ID_LOCALS_KEY,
   ErrorCode,
+  ORGANIZATION_ID_LOCALS_KEY,
   environmentService,
   errorService,
   getAuthTokenSecret,
@@ -25,8 +25,8 @@ class AuthService {
         });
       }
 
-      const { account_id: accountId, id: environmentId } = environment;
-      res.locals[ACCOUNT_ID_LOCALS_KEY] = accountId;
+      const { organization_id: organizationId, id: environmentId } = environment;
+      res.locals[ORGANIZATION_ID_LOCALS_KEY] = organizationId;
       res.locals[ENVIRONMENT_ID_LOCALS_KEY] = environmentId;
 
       next();
@@ -62,9 +62,9 @@ class AuthService {
       }
 
       const secret = new Uint8Array(Buffer.from(authTokenSecret, 'base64'));
-      const tokenResult = await jwtVerify<{ user: { id: string } }>(token, secret);
-      const user = tokenResult.payload['user'];
-      if (!user.id) {
+      const tokenResult = await jwtVerify<{ id: string }>(token, secret);
+      const userId = tokenResult.payload['id'];
+      if (!userId) {
         return errorService.errorResponse(res, {
           code: ErrorCode.Forbidden,
           message: 'Invalid token payload',
@@ -80,7 +80,7 @@ class AuthService {
           });
         }
 
-        const environment = await environmentService.findUserEnvironment(user.id, environmentId);
+        const environment = await environmentService.getEnvironmentById(environmentId);
         if (!environment) {
           return errorService.errorResponse(res, {
             code: ErrorCode.Forbidden,
@@ -88,7 +88,7 @@ class AuthService {
           });
         }
 
-        res.locals[ACCOUNT_ID_LOCALS_KEY] = environment.account_id;
+        res.locals[ORGANIZATION_ID_LOCALS_KEY] = environment.organization_id;
         res.locals[ENVIRONMENT_ID_LOCALS_KEY] = environment.id;
 
         next();

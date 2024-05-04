@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import { BedrockRuntimeClient } from '@aws-sdk/client-bedrock-runtime';
+import WorkOS from '@workos-inc/node';
 import { CohereClient } from 'cohere-ai';
 import { GoogleAuth } from 'google-auth-library';
 import OpenAI from 'openai';
@@ -77,6 +78,15 @@ export function getAuthTokenSecret() {
   return process.env['EMBED_AUTH_TOKEN_SECRET'];
 }
 
+export function getWorkOS(): WorkOS {
+  const apiKey = process.env['WORKOS_API_KEY'];
+  if (!apiKey) {
+    throw new Error('WorkOS API key not set');
+  }
+
+  return new WorkOS(apiKey);
+}
+
 export function getOpenai(): OpenAI {
   const apiKey = process.env['OPENAI_API_KEY'];
   if (!apiKey) {
@@ -147,7 +157,7 @@ export function getMistralApiKey() {
   return apiKey;
 }
 
-export const ACCOUNT_ID_LOCALS_KEY = 'embed_account_id';
+export const ORGANIZATION_ID_LOCALS_KEY = 'embed_organization_id';
 export const ENVIRONMENT_ID_LOCALS_KEY = 'embed_environment_id';
 
 export const ENCRYPTION_KEY_BYTE_LENGTH = 32;
@@ -181,20 +191,15 @@ export const DEFAULT_PROXY_RESPONSE_TYPE = 'json';
 export const SUPPORTED_LANGUAGES = ['en'];
 
 export const DEFAULT_BRANDING = {
-  name: null,
   appearance: 'system',
   border_radius: 'medium',
   light_mode: {
-    logo: null,
-    favicon: null,
     page_background: 'FCFCFC',
     button_background: '000000',
     button_text: 'FFFFFF',
     links: '5753C6',
   },
   dark_mode: {
-    logo: null,
-    favicon: null,
     page_background: '000000',
     button_background: 'FFFFFF',
     button_text: '000000',

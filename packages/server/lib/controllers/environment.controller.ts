@@ -11,6 +11,54 @@ import type { Request, Response } from 'express';
 import { EnvironmentObject, EnvironmentType } from '../utils/types';
 
 class EnvironmentController {
+  public async listEnvironments(req: Request, res: Response) {
+    try {
+      const organizationId = req.query['organization_id'];
+      if (!organizationId || typeof organizationId !== 'string') {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.BadRequest,
+          message: 'Invalid organization ID',
+        });
+      }
+
+      const environments = await environmentService.listEnvironments(organizationId);
+      if (!environments) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.InternalServerError,
+          message: DEFAULT_ERROR_MESSAGE,
+        });
+      }
+
+      const envs: EnvironmentObject[] = environments.map((env) => {
+        return {
+          object: 'environment',
+          id: env.id,
+          organization_id: env.organization_id,
+          type: env.type as EnvironmentType,
+          auto_enable_actions: env.auto_enable_actions,
+          auto_enable_collections: env.auto_enable_collections,
+          auto_start_syncs: env.auto_start_syncs,
+          default_sync_frequency: env.default_sync_frequency,
+          default_multimodal_embedding_model: env.default_multimodal_embedding_model,
+          default_text_embedding_model: env.default_text_embedding_model,
+          multimodal_enabled_by_default: env.multimodal_enabled_by_default,
+          branding: env.branding,
+          created_at: env.created_at,
+          updated_at: env.updated_at,
+        };
+      });
+
+      res.status(200).json({ object: 'list', data: envs });
+    } catch (err) {
+      await errorService.reportError(err);
+
+      return errorService.errorResponse(res, {
+        code: ErrorCode.InternalServerError,
+        message: DEFAULT_ERROR_MESSAGE,
+      });
+    }
+  }
+
   public async retrieveEnvironment(req: Request, res: Response) {
     try {
       const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
@@ -26,7 +74,7 @@ class EnvironmentController {
       const environmentObject: EnvironmentObject = {
         object: 'environment',
         id: environment.id,
-        account_id: environment.account_id,
+        organization_id: environment.organization_id,
         type: environment.type as EnvironmentType,
         auto_enable_actions: environment.auto_enable_actions,
         auto_enable_collections: environment.auto_enable_collections,
@@ -120,7 +168,7 @@ class EnvironmentController {
       const environmentObject: EnvironmentObject = {
         object: 'environment',
         id: environment.id,
-        account_id: environment.account_id,
+        organization_id: environment.organization_id,
         type: environment.type as EnvironmentType,
         auto_enable_actions: environment.auto_enable_actions,
         auto_enable_collections: environment.auto_enable_collections,

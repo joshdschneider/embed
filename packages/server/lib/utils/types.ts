@@ -86,7 +86,7 @@ export interface PreviewTemplateData extends DefaultTemplateData {
 export interface EnvironmentObject {
   object: 'environment';
   id: string;
-  account_id: string;
+  organization_id: string;
   type: EnvironmentType;
   auto_enable_collections: boolean;
   auto_enable_actions: boolean;

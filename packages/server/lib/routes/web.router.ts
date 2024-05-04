@@ -8,24 +8,24 @@ import authMiddleware from '../middleware/auth.middleware';
 const webRouter = express.Router();
 
 webRouter
-  .route('/users/:user_id')
-  .get(
-    authMiddleware.webUserAuth.bind(authMiddleware),
-    userController.retrieveUser.bind(userController)
-  );
-
-webRouter
-  .route('/users/:user_id/account')
-  .get(
-    authMiddleware.webUserAuth.bind(authMiddleware),
-    userController.retrieveUserAccount.bind(userController)
-  );
-
-webRouter
   .route('/users')
   .post(
     authMiddleware.webUserAuth.bind(authMiddleware),
-    userController.createUser.bind(userController)
+    userController.handleUserAuth.bind(userController)
+  );
+
+webRouter
+  .route('/users/:user_id')
+  .get(
+    authMiddleware.webUserAuth.bind(authMiddleware),
+    userController.retrieveUserWithOrg.bind(userController)
+  );
+
+webRouter
+  .route('/environments')
+  .get(
+    authMiddleware.webUserAuth.bind(authMiddleware),
+    environmentController.listEnvironments.bind(environmentController)
   );
 
 webRouter

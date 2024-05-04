@@ -15,6 +15,7 @@ import connectTokenRouter from './routes/connectToken.router';
 import connectionRouter from './routes/connection.router';
 import integrationRouter from './routes/integration.router';
 import oauthRouter from './routes/oauth.router';
+import previewRouter from './routes/preview.router';
 import providerRouter from './routes/provider.router';
 import proxyRouter from './routes/proxy.router';
 import webRouter from './routes/web.router';
@@ -45,6 +46,7 @@ function setupExpressApp() {
   app.use('/web', webRouter);
   app.use('/oauth', oauthRouter);
   app.use('/connect', connectRouter);
+  app.use('/preview', previewRouter);
   app.use('/providers', providerRouter);
 
   return app;
