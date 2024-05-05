@@ -7,11 +7,6 @@ export enum EnvironmentType {
   Production = 'production',
 }
 
-export enum AccountType {
-  Personal = 'personal',
-  Organization = 'organization',
-}
-
 export enum ConnectionType {
   Individual = 'individual',
   Organization = 'organization',
@@ -83,6 +78,29 @@ export interface PreviewTemplateData extends DefaultTemplateData {
   };
 }
 
+export type UserObject = {
+  object: 'user';
+  id: string;
+  email: string;
+  first_name: string | null;
+  last_name: string | null;
+};
+
+export type InvitationObject = {
+  object: 'invitation';
+  id: string;
+  email: string;
+  state: 'pending' | 'accepted' | 'revoked' | 'expired';
+  acceptedAt?: string;
+  revokedAt?: string;
+  expiresAt: string;
+  token: string;
+  acceptInvitationUrl: string;
+  organizationId?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export interface EnvironmentObject {
   object: 'environment';
   id: string;
@@ -96,6 +114,14 @@ export interface EnvironmentObject {
   default_multimodal_embedding_model: string;
   multimodal_enabled_by_default: boolean;
   branding: any;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface OrganizationObject {
+  object: 'organization';
+  id: string;
+  name: string;
   created_at: number;
   updated_at: number;
 }

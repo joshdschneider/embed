@@ -113,6 +113,15 @@ class UserController {
           existingOrgId = existingUser.organization_memberships[0]!.organization_id;
         }
 
+        if (
+          !existingUser.organization_memberships.some((om) => om.organization_id === organizationId)
+        ) {
+          await organizationService.createOrganizationMembership({
+            userId: existingUser.id,
+            organizationId: existingOrgId,
+          });
+        }
+
         const existingOrg = await organizationService.getOrganizationById(existingOrgId);
         if (!existingOrg) {
           return errorService.errorResponse(res, {
@@ -212,7 +221,7 @@ class UserController {
           code: ErrorCode.BadRequest,
           message: 'User ID missing',
         });
-      } else if (!organization_id || organization_id !== 'string') {
+      } else if (!organization_id || typeof organization_id !== 'string') {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
           message: 'Organization ID missing or invalid',
@@ -225,7 +234,9 @@ class UserController {
           code: ErrorCode.NotFound,
           message: 'User not found',
         });
-      } else if (!user.organization_memberships.some((org) => org.id === organization_id)) {
+      } else if (
+        !user.organization_memberships.some((org) => org.organization_id === organization_id)
+      ) {
         return errorService.errorResponse(res, {
           code: ErrorCode.Forbidden,
           message: `User is not a member of organization with ID ${organization_id}`,

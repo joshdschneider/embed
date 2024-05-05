@@ -1,9 +1,10 @@
 import { SourceObject } from '@embed/providers';
-import { Organization, OrganizationMembership, User } from '@workos-inc/node';
+import { Invitation, Organization, OrganizationMembership, User } from '@workos-inc/node';
 
 export type WorkOSUser = User;
 export type WorkOSOrganization = Organization;
 export type WorkOSOrganizationMembership = OrganizationMembership;
+export type WorkOSInvitation = Invitation;
 
 export interface SyncArgs {
   environmentId: string;
