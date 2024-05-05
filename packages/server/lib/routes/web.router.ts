@@ -1,6 +1,7 @@
 import express from 'express';
 import apiKeyController from '../controllers/apiKey.controller';
 import environmentController from '../controllers/environment.controller';
+import organizationController from '../controllers/organization.controller';
 import previewController from '../controllers/preview.controller';
 import userController from '../controllers/user.controller';
 import authMiddleware from '../middleware/auth.middleware';
@@ -40,6 +41,41 @@ webRouter.use(authMiddleware.webEnvironmentAuth.bind(authMiddleware));
 webRouter
   .route('/environments/:environment_id')
   .post(environmentController.modifyEnvironment.bind(environmentController));
+
+webRouter
+  .route('/organizations/:organization_id')
+  .post(
+    authMiddleware.webEnvironmentAuth.bind(authMiddleware),
+    organizationController.updateOrganization.bind(organizationController)
+  );
+
+webRouter
+  .route('/organizations/:organization_id/members')
+  .get(
+    authMiddleware.webEnvironmentAuth.bind(authMiddleware),
+    organizationController.getOrganizationMembers.bind(organizationController)
+  );
+
+webRouter
+  .route('/organizations/:organization_id/invitations')
+  .get(
+    authMiddleware.webEnvironmentAuth.bind(authMiddleware),
+    organizationController.getOrganizationInvitations.bind(organizationController)
+  );
+
+webRouter
+  .route('/organizations/:organization_id/invitations/:invitation_id/revoke')
+  .post(
+    authMiddleware.webEnvironmentAuth.bind(authMiddleware),
+    organizationController.revokeOrganizationInvitation.bind(organizationController)
+  );
+
+webRouter
+  .route('/organizations/:organization_id/invitations')
+  .post(
+    authMiddleware.webEnvironmentAuth.bind(authMiddleware),
+    organizationController.inviteUserToOrganization.bind(organizationController)
+  );
 
 webRouter.route('/api-keys').post(apiKeyController.generateApiKey.bind(apiKeyController));
 
