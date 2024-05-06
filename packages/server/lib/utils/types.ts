@@ -1,5 +1,5 @@
 import { AuthScheme } from '@embed/providers';
-import { Branding, SyncRunStatus, SyncStatus } from '@embed/shared';
+import { Branding, SyncFrequency, SyncRunStatus, SyncStatus } from '@embed/shared';
 import { z } from 'zod';
 
 export enum EnvironmentType {
@@ -273,6 +273,7 @@ export interface ConnectionObject {
 }
 
 export const UpdateConnectionRequestSchema = z.object({
+  display_name: z.string().optional().nullable(),
   configuration: z.record(z.string(), z.any()).optional().nullable(),
   metadata: z.record(z.string(), z.any()).optional().nullable(),
 });
@@ -297,7 +298,13 @@ export interface SyncObject {
 }
 
 export const UpdateSyncRequestSchema = z.object({
-  frequency: z.string(),
+  frequency: z.enum([
+    SyncFrequency.RealTime,
+    SyncFrequency.Hourly,
+    SyncFrequency.Daily,
+    SyncFrequency.Weekly,
+    SyncFrequency.Monthly,
+  ]),
 });
 
 export interface SyncRunObject {

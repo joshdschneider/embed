@@ -11,6 +11,7 @@ import { generateId, hashObjects, now } from '../utils/helpers';
 import { BaseContext, BaseContextOptions } from './base.context';
 
 export type SyncContextOptions = BaseContextOptions & {
+  providerKey: string;
   collectionKey: string;
   multimodalEnabled: boolean;
   syncRunId: string;
@@ -19,6 +20,7 @@ export type SyncContextOptions = BaseContextOptions & {
 };
 
 export class SyncContext extends BaseContext {
+  public providerKey: string;
   public collectionKey: string;
   public multimodalEnabled: boolean;
   public syncRunId: string;
@@ -30,6 +32,7 @@ export class SyncContext extends BaseContext {
 
   constructor(options: SyncContextOptions) {
     super(options);
+    this.providerKey = options.providerKey;
     this.collectionKey = options.collectionKey;
     this.multimodalEnabled = options.multimodalEnabled;
     this.syncRunId = options.syncRunId;
@@ -53,7 +56,7 @@ export class SyncContext extends BaseContext {
 
     try {
       const collection = await providerService.getProviderCollection(
-        this.integrationId,
+        this.providerKey,
         this.collectionKey
       );
 
@@ -146,6 +149,7 @@ export class SyncContext extends BaseContext {
         environmentId: this.environmentId,
         collectionKey: this.collectionKey,
         integrationId: this.integrationId,
+        providerKey: this.providerKey,
         connectionId: this.connectionId,
         objects: hashedObjectsToCreate,
       });
@@ -169,6 +173,7 @@ export class SyncContext extends BaseContext {
         environmentId: this.environmentId,
         collectionKey: this.collectionKey,
         integrationId: this.integrationId,
+        providerKey: this.providerKey,
         connectionId: this.connectionId,
         objects: hashedObjectsToUpdate,
       });

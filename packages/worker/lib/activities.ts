@@ -100,6 +100,7 @@ export async function triggerSync(args: SyncArgs): Promise<void> {
       environmentId: sync.environment_id,
       connectionId: sync.connection_id,
       integrationId: sync.integration_id,
+      providerKey: sync.provider_key,
       collectionKey: sync.collection_key,
       activityId: activityId,
       multimodalEnabled: modelSettings.multimodalEnabled,
