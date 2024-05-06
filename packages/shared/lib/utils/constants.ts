@@ -6,7 +6,7 @@ import WorkOS from '@workos-inc/node';
 import { CohereClient } from 'cohere-ai';
 import { GoogleAuth } from 'google-auth-library';
 import OpenAI from 'openai';
-import { MultimodalEmbeddingModel, TextEmbeddingModel } from './enums';
+import { MultimodalEmbeddingModel, SyncFrequency, TextEmbeddingModel } from './enums';
 
 export function getServerUrl() {
   return process.env['SERVER_URL'];
@@ -178,7 +178,7 @@ export const DEFAULT_MULTIMODAL_EMBEDDING_MODEL = MultimodalEmbeddingModel.Amazo
 export const DEFAULT_AUTO_ENABLE_COLLECTIONS = true;
 export const DEFAULT_AUTO_ENABLE_ACTIONS = true;
 export const DEFAULT_AUTO_START_SYNCS = false;
-export const DEFAULT_SYNC_FREQUENCY = 'daily';
+export const DEFAULT_SYNC_FREQUENCY = SyncFrequency.Daily;
 export const DEFAULT_MULTIMODAL_ENABLED = true;
 
 export const DEFAULT_QUERY_LIMIT = 10;

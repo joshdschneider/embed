@@ -2,7 +2,14 @@ import { Collection, Sync, SyncRun, SyncSchedule } from '@prisma/client';
 import { StringValue } from 'ms';
 import TemporalClient from '../clients/temporal.client';
 import { database } from '../utils/database';
-import { LogLevel, Resource, SyncRunStatus, SyncScheduleStatus, SyncStatus } from '../utils/enums';
+import {
+  LogLevel,
+  Resource,
+  SyncFrequency,
+  SyncRunStatus,
+  SyncScheduleStatus,
+  SyncStatus,
+} from '../utils/enums';
 import { generateId, getFrequencyInterval, now } from '../utils/helpers';
 import activityService from './activity.service';
 import errorService from './error.service';
@@ -135,7 +142,7 @@ class SyncService {
   public async updateSyncFrequency(
     connectionId: string,
     collectionKey: string,
-    frequency: StringValue
+    frequency: SyncFrequency
   ): Promise<Sync | null> {
     try {
       const syncSchedule = await this.getSyncSchedule(connectionId, collectionKey);
@@ -143,10 +150,7 @@ class SyncService {
         throw new Error('Sync schedule not found');
       }
 
-      const { interval, offset, error } = getFrequencyInterval(frequency, new Date());
-      if (error !== null) {
-        throw new Error(error);
-      }
+      const { interval, offset } = getFrequencyInterval(frequency, new Date());
 
       const temporal = await TemporalClient.getInstance();
       const temporalSyncScheduleId = TemporalClient.generateSyncScheduleId(
@@ -433,14 +437,10 @@ class SyncService {
 
       let syncSchedule: SyncSchedule;
 
-      const { interval, offset, error } = getFrequencyInterval(
-        sync.frequency as StringValue,
+      const { interval, offset } = getFrequencyInterval(
+        sync.frequency as SyncFrequency,
         new Date()
       );
-
-      if (error !== null) {
-        throw new Error(error);
-      }
 
       if (existingSyncSchedule) {
         syncSchedule = await database.syncSchedule.update({

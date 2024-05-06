@@ -71,10 +71,12 @@ class CollectionService {
 
   public async queryCollection({
     connection,
+    providerKey,
     collectionKey,
     queryOptions,
   }: {
     connection: Connection;
+    providerKey: string;
     collectionKey: string;
     queryOptions: QueryOptions;
   }) {
@@ -83,6 +85,7 @@ class CollectionService {
       return await elastic.query({
         connection,
         collectionKey,
+        providerKey,
         queryOptions,
       });
     } catch (err) {
@@ -93,10 +96,12 @@ class CollectionService {
 
   public async imageSearchCollection({
     connection,
+    providerKey,
     collectionKey,
     imageSearchOptions,
   }: {
     connection: Connection;
+    providerKey: string;
     collectionKey: string;
     imageSearchOptions: ImageSearchOptions;
   }) {
@@ -104,6 +109,7 @@ class CollectionService {
       const elastic = ElasticClient.getInstance();
       return await elastic.imageSearch({
         connection,
+        providerKey,
         collectionKey,
         imageSearchOptions,
       });
@@ -123,11 +129,16 @@ class CollectionService {
         },
       });
 
-      await this.createCollectionIndex({
+      const collectionCreated = await this.createCollectionIndex({
         environmentId: newCollection.environment_id,
         integrationId: newCollection.integration_id,
+        providerKey: newCollection.provider_key,
         collectionKey: newCollection.unique_key,
       });
+
+      if (!collectionCreated) {
+        throw new Error('Failed to create collection in Elastic');
+      }
 
       return newCollection;
     } catch (err) {
@@ -139,10 +150,12 @@ class CollectionService {
   public async createCollectionIndex({
     environmentId,
     integrationId,
+    providerKey,
     collectionKey,
   }: {
     environmentId: string;
     integrationId: string;
+    providerKey: string;
     collectionKey: string;
   }): Promise<boolean> {
     try {
@@ -150,6 +163,7 @@ class CollectionService {
       return await elastic.createIndex({
         environmentId,
         integrationId,
+        providerKey,
         collectionKey,
       });
     } catch (err) {
@@ -213,6 +227,7 @@ class CollectionService {
       const indexCreated = await this.createCollectionIndex({
         environmentId: collection.environment_id,
         integrationId: collection.integration_id,
+        providerKey: collection.provider_key,
         collectionKey: collection.unique_key,
       });
 

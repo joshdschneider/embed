@@ -810,9 +810,9 @@ class OAuthController {
     if (providerSpec.collections) {
       const collections = await collectionService.listCollections(integration.id);
       const enabledKeys = collections?.filter((c) => c.is_enabled).map((c) => c.unique_key) || [];
-      const allEnabledCollections = Object.entries(providerSpec.collections)
-        .filter(([k, v]) => enabledKeys.includes(k))
-        .map(([k, v]) => ({ ...v }));
+      const allEnabledCollections = providerSpec.collections
+        .filter((c) => enabledKeys.includes(c.unique_key))
+        .map((c) => ({ ...c }));
 
       allEnabledCollections.forEach((c) => {
         c.required_scopes?.forEach((scope) => scopes.add(scope));
@@ -822,9 +822,9 @@ class OAuthController {
     if (providerSpec.actions) {
       const actions = await actionService.listActions(integration.id);
       const enabledKeys = actions?.filter((a) => a.is_enabled).map((a) => a.unique_key) || [];
-      const allEnabledActions = Object.entries(providerSpec.actions)
-        .filter(([k, v]) => enabledKeys.includes(k))
-        .map(([k, v]) => ({ ...v }));
+      const allEnabledActions = providerSpec.actions
+        .filter((a) => enabledKeys.includes(a.unique_key))
+        .map((a) => ({ ...a }));
 
       allEnabledActions.forEach((a) => {
         a.required_scopes?.forEach((scope) => scopes.add(scope));

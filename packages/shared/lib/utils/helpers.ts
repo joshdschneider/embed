@@ -2,8 +2,7 @@ import { CollectionProperty, SourceObject } from '@embed/providers';
 import crypto from 'crypto';
 import md5 from 'md5';
 import ms, { StringValue } from 'ms';
-import { DEFAULT_ERROR_MESSAGE } from './constants';
-import { Resource } from './enums';
+import { Resource, SyncFrequency } from './enums';
 import { SourceObjectWithHash } from './types';
 
 export function generateId(prefix: Resource, byteLength = 8): string {
@@ -18,37 +17,36 @@ export function unixToDate(unixTimestamp: number): Date {
   return new Date(unixTimestamp * 1000);
 }
 
-export function getFrequencyInterval(
-  frequency: StringValue,
-  date: Date
-):
-  | { interval: StringValue; offset: number; error: null }
-  | { interval: null; offset: null; error: string } {
-  try {
-    if (!ms(frequency)) {
+export function getIntervalFromFrequency(frequency: SyncFrequency): StringValue {
+  switch (frequency) {
+    case SyncFrequency.RealTime:
+      return '1d'; // fallback with daily sync
+    case SyncFrequency.Hourly:
+      return '1h';
+    case SyncFrequency.Daily:
+      return '1d';
+    case SyncFrequency.Weekly:
+      return '1w';
+    case SyncFrequency.Monthly:
+      return '4w';
+    default:
       throw new Error('Invalid sync interval');
-    } else if (ms(frequency) < ms('5m')) {
-      throw new Error('Sync interval is too short');
-    }
-
-    const intervalMs = ms(frequency);
-    const nowMs = date.getMinutes() * 60 * 1000 + date.getSeconds() * 1000 + date.getMilliseconds();
-    const offset = nowMs % intervalMs;
-
-    if (isNaN(offset)) {
-      throw new Error('Invalid sync interval');
-    }
-
-    return { interval: frequency, offset: offset, error: null };
-  } catch (err) {
-    let error = DEFAULT_ERROR_MESSAGE;
-
-    if (err instanceof Error) {
-      error = err.message;
-    }
-
-    return { interval: null, offset: null, error };
   }
+}
+
+export function getFrequencyInterval(
+  frequency: SyncFrequency,
+  date: Date
+): { interval: StringValue; offset: number } {
+  const nowMs = date.getMinutes() * 60 * 1000 + date.getSeconds() * 1000 + date.getMilliseconds();
+  const interval = getIntervalFromFrequency(frequency);
+  const intervalMs = ms(interval);
+  const offset = nowMs % intervalMs;
+  if (isNaN(offset)) {
+    throw new Error('Invalid sync interval');
+  }
+
+  return { interval, offset };
 }
 
 export function interpolateIfNeeded(str: string, replacers: Record<string, any>) {

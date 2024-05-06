@@ -8,7 +8,6 @@ import {
   syncService,
 } from '@embed/shared';
 import type { Request, Response } from 'express';
-import { StringValue } from 'ms';
 import { zodError } from '../utils/helpers';
 import { SyncObject, SyncRunObject, UpdateSyncRequestSchema } from '../utils/types';
 
@@ -143,7 +142,7 @@ class SyncController {
       const updatedSync = await syncService.updateSyncFrequency(
         connectionId,
         collectionKey,
-        frequency as StringValue
+        frequency
       );
 
       if (!updatedSync) {

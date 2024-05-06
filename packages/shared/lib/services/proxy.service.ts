@@ -3,23 +3,24 @@ import { Connection } from '@prisma/client';
 import axios, { AxiosError, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { backOff } from 'exponential-backoff';
 import { DEFAULT_PROXY_ATTEMPTS, DEFAULT_PROXY_RESPONSE_TYPE } from '../utils/constants';
-import { database } from '../utils/database';
 import { interpolateIfNeeded } from '../utils/helpers';
 import connectionService from './connection.service';
+import integrationService from './integration.service';
 import providerService from './provider.service';
 
 class ProxyService {
   public async proxy<T = any>(options: ProxyOptions): Promise<AxiosResponse<T>> {
-    const connection = await database.connection.findUnique({
-      where: { id: options.connectionId, deleted_at: null },
-      include: { integration: true },
-    });
-
+    const connection = await connectionService.getConnectionById(options.connectionId);
     if (!connection) {
       throw new AxiosError(`Connection not found with ID ${options.connectionId}`, '400');
     }
 
-    const providerSpec = await providerService.getProviderSpec(connection.integration.provider_key);
+    const integration = await integrationService.getIntegrationById(connection.integration_id);
+    if (!integration) {
+      throw new AxiosError(`Integration not found for connection ${options.connectionId}`, '400');
+    }
+
+    const providerSpec = await providerService.getProviderSpec(integration.provider_key);
     if (!providerSpec) {
       throw new Error('Provider specification not found');
     }

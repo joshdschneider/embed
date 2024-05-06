@@ -456,6 +456,14 @@ class CollectionController {
         });
       }
 
+      const integration = await integrationService.getIntegrationById(connection.integration_id);
+      if (!integration) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.NotFound,
+          message: `Integration not found for connection ${connection.id}`,
+        });
+      }
+
       const parsedBody = QueryCollectionRequestSchema.safeParse(req.body);
       if (!parsedBody.success) {
         return errorService.errorResponse(res, {
@@ -466,6 +474,7 @@ class CollectionController {
 
       const results = await collectionService.queryCollection({
         connection,
+        providerKey: integration.provider_key,
         collectionKey,
         queryOptions: parsedBody.data,
       });
@@ -513,6 +522,14 @@ class CollectionController {
         });
       }
 
+      const integration = await integrationService.getIntegrationById(connection.integration_id);
+      if (!integration) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.NotFound,
+          message: `Integration not found for connection ${connection.id}`,
+        });
+      }
+
       const parsedBody = ImageSearchCollectionRequestSchema.safeParse(req.body);
       if (!parsedBody.success) {
         return errorService.errorResponse(res, {
@@ -523,6 +540,7 @@ class CollectionController {
 
       const results = await collectionService.imageSearchCollection({
         connection,
+        providerKey: integration.provider_key,
         collectionKey,
         imageSearchOptions: parsedBody.data,
       });

@@ -154,6 +154,7 @@ class ConnectionController {
       }
 
       const connection = await connectionService.updateConnection(connectionId, {
+        display_name: parsedBody.data.display_name,
         configuration: parsedBody.data.configuration,
         metadata: parsedBody.data.metadata,
       });

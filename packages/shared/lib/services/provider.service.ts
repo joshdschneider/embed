@@ -31,13 +31,12 @@ class ProviderService {
   public async getProviderCollection(providerKey: string, collectionKey: string) {
     try {
       const spec = await this.registry.getProviderSpecification(providerKey);
-      const collectionEntries = Object.entries(spec?.collections || {});
-      const providerCollection = collectionEntries.find(([k, v]) => k === collectionKey);
+      const providerCollection = spec?.collections?.find((c) => c.unique_key === collectionKey);
       if (!providerCollection) {
         return null;
       }
 
-      return providerCollection[1];
+      return providerCollection;
     } catch (err) {
       errorService.reportError(err);
       return null;

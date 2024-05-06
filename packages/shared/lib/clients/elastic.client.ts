@@ -76,10 +76,12 @@ class ElasticClient {
 
   public async query({
     connection,
+    providerKey,
     collectionKey,
     queryOptions,
   }: {
     connection: Connection;
+    providerKey: string;
     collectionKey: string;
     queryOptions: QueryOptions;
   }) {
@@ -90,14 +92,12 @@ class ElasticClient {
     );
 
     const providerCollection = await providerService.getProviderCollection(
-      connection.integration_id,
+      providerKey,
       collectionKey
     );
 
     if (!providerCollection) {
-      throw new Error(
-        `Failed to get collection ${collectionKey} for provider ${connection.integration_id}`
-      );
+      throw new Error(`Failed to get collection ${collectionKey} for provider ${providerKey}`);
     }
 
     const schemaProperties = providerCollection.schema.properties;
@@ -162,10 +162,12 @@ class ElasticClient {
 
   public async imageSearch({
     connection,
+    providerKey,
     collectionKey,
     imageSearchOptions,
   }: {
     connection: Connection;
+    providerKey: string;
     collectionKey: string;
     imageSearchOptions: ImageSearchOptions;
   }) {
@@ -175,15 +177,9 @@ class ElasticClient {
       collectionKey
     );
 
-    const collection = await providerService.getProviderCollection(
-      connection.integration_id,
-      collectionKey
-    );
-
+    const collection = await providerService.getProviderCollection(providerKey, collectionKey);
     if (!collection) {
-      throw new Error(
-        `Failed to get collection ${collectionKey} for provider ${connection.integration_id}`
-      );
+      throw new Error(`Failed to get collection ${collectionKey} for provider ${providerKey}`);
     }
 
     const returnProperties = imageSearchOptions.returnProperties;
@@ -215,10 +211,12 @@ class ElasticClient {
   public async createIndex({
     environmentId,
     integrationId,
+    providerKey,
     collectionKey,
   }: {
     environmentId: string;
     integrationId: string;
+    providerKey: string;
     collectionKey: string;
   }): Promise<boolean> {
     try {
@@ -232,7 +230,7 @@ class ElasticClient {
       }
 
       const providerCollection = await providerService.getProviderCollection(
-        integrationId,
+        providerKey,
         collectionKey
       );
 
@@ -383,12 +381,14 @@ class ElasticClient {
     connectionId,
     integrationId,
     environmentId,
+    providerKey,
     collectionKey,
     objects,
   }: {
     connectionId: string;
     integrationId: string;
     environmentId: string;
+    providerKey: string;
     collectionKey: string;
     objects: SourceObjectWithHash[];
   }): Promise<boolean> {
@@ -398,7 +398,7 @@ class ElasticClient {
 
     try {
       const providerCollection = await providerService.getProviderCollection(
-        integrationId,
+        providerKey,
         collectionKey
       );
 
@@ -452,18 +452,20 @@ class ElasticClient {
     connectionId,
     integrationId,
     environmentId,
+    providerKey,
     collectionKey,
     object,
   }: {
     connectionId: string;
     integrationId: string;
     environmentId: string;
+    providerKey: string;
     collectionKey: string;
     object: SourceObjectWithHash;
   }): Promise<boolean> {
     try {
       const providerCollection = await providerService.getProviderCollection(
-        integrationId,
+        providerKey,
         collectionKey
       );
 
@@ -507,12 +509,14 @@ class ElasticClient {
     connectionId,
     integrationId,
     environmentId,
+    providerKey,
     collectionKey,
     objects,
   }: {
     connectionId: string;
     integrationId: string;
     environmentId: string;
+    providerKey: string;
     collectionKey: string;
     objects: SourceObjectWithHash[];
   }): Promise<boolean> {
@@ -522,7 +526,7 @@ class ElasticClient {
 
     try {
       const providerCollection = await providerService.getProviderCollection(
-        integrationId,
+        providerKey,
         collectionKey
       );
 

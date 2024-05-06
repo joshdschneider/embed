@@ -56,6 +56,14 @@ export enum SyncScheduleStatus {
   Stopped = 'stopped',
 }
 
+export enum SyncFrequency {
+  RealTime = 'real_time',
+  Hourly = 'hourly',
+  Daily = 'daily',
+  Weekly = 'weekly',
+  Monthly = 'monthly',
+}
+
 export enum PaginationType {
   Cursor = 'cursor',
   Link = 'link',
