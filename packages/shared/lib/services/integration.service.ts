@@ -4,6 +4,8 @@ import yaml from 'js-yaml';
 import path from 'path';
 import { database } from '../utils/database';
 import { now } from '../utils/helpers';
+import actionService from './action.service';
+import collectionService from './collection.service';
 import encryptionService from './encryption.service';
 import errorService from './error.service';
 
@@ -94,6 +96,49 @@ class IntegrationService {
     } catch (err) {
       await errorService.reportError(err);
       return null;
+    }
+  }
+
+  public async deleteIntegration(integrationId: string): Promise<boolean> {
+    try {
+      const collections = await collectionService.listCollections(integrationId);
+      if (!collections) {
+        return false;
+      }
+
+      for (const collection of collections) {
+        const collectionDeleted = await collectionService.deleteCollection({
+          integrationId,
+          collectionKey: collection.unique_key,
+          environmentId: collection.environment_id,
+        });
+
+        if (!collectionDeleted) {
+          return false;
+        }
+      }
+
+      const actions = await actionService.listActions(integrationId);
+      if (!actions) {
+        return false;
+      }
+
+      for (const action of actions) {
+        const actionDeleted = await actionService.deleteAction(action.unique_key, integrationId);
+        if (!actionDeleted) {
+          return false;
+        }
+      }
+
+      await database.integration.update({
+        where: { id: integrationId },
+        data: { deleted_at: now() },
+      });
+
+      return true;
+    } catch (err) {
+      await errorService.reportError(err);
+      return false;
     }
   }
 

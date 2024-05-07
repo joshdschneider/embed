@@ -1,4 +1,5 @@
 import express from 'express';
+import activityController from '../controllers/activity.controller';
 import apiKeyController from '../controllers/apiKey.controller';
 import environmentController from '../controllers/environment.controller';
 import organizationController from '../controllers/organization.controller';
@@ -44,38 +45,25 @@ webRouter
 
 webRouter
   .route('/organizations/:organization_id')
-  .post(
-    authMiddleware.webEnvironmentAuth.bind(authMiddleware),
-    organizationController.updateOrganization.bind(organizationController)
-  );
+  .post(organizationController.updateOrganization.bind(organizationController));
 
 webRouter
   .route('/organizations/:organization_id/members')
-  .get(
-    authMiddleware.webEnvironmentAuth.bind(authMiddleware),
-    organizationController.getOrganizationMembers.bind(organizationController)
-  );
+  .get(organizationController.getOrganizationMembers.bind(organizationController));
 
 webRouter
   .route('/organizations/:organization_id/invitations')
-  .get(
-    authMiddleware.webEnvironmentAuth.bind(authMiddleware),
-    organizationController.getOrganizationInvitations.bind(organizationController)
-  );
+  .get(organizationController.getOrganizationInvitations.bind(organizationController));
 
 webRouter
   .route('/organizations/:organization_id/invitations/:invitation_id/revoke')
-  .post(
-    authMiddleware.webEnvironmentAuth.bind(authMiddleware),
-    organizationController.revokeOrganizationInvitation.bind(organizationController)
-  );
+  .post(organizationController.revokeOrganizationInvitation.bind(organizationController));
 
 webRouter
   .route('/organizations/:organization_id/invitations')
-  .post(
-    authMiddleware.webEnvironmentAuth.bind(authMiddleware),
-    organizationController.inviteUserToOrganization.bind(organizationController)
-  );
+  .post(organizationController.inviteUserToOrganization.bind(organizationController));
+
+webRouter.route('/activities').get(activityController.listActivities.bind(activityController));
 
 webRouter.route('/api-keys').post(apiKeyController.generateApiKey.bind(apiKeyController));
 

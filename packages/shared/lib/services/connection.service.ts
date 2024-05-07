@@ -105,7 +105,9 @@ class ConnectionService {
         ...(options?.query && {
           OR: [
             { id: { contains: options.query } },
+            { display_name: { contains: options.query } },
             { integration_id: { contains: options.query } },
+            { integration: { display_name: { contains: options.query } } },
           ],
         }),
       };

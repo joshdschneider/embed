@@ -18,6 +18,7 @@ import { zodError } from '../utils/helpers';
 import {
   CreateIntegrationRequestSchema,
   EnvironmentType,
+  IntegrationDeletedObject,
   IntegrationObject,
   IntegrationObjectWithCredentials,
   UpdateIntegrationRequestSchema,
@@ -554,6 +555,41 @@ class IntegrationController {
       };
 
       res.status(200).send(integrationObject);
+    } catch (err) {
+      await errorService.reportError(err);
+
+      return errorService.errorResponse(res, {
+        code: ErrorCode.InternalServerError,
+        message: DEFAULT_ERROR_MESSAGE,
+      });
+    }
+  }
+
+  public async deleteIntegration(req: Request, res: Response) {
+    try {
+      const integrationId = req.params['integration_id'];
+      if (!integrationId) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.BadRequest,
+          message: 'Integration unique key missing',
+        });
+      }
+
+      const integrationDeleted = await integrationService.deleteIntegration(integrationId);
+      if (!integrationDeleted) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.BadRequest,
+          message: 'Failed to delete integration',
+        });
+      }
+
+      const integrationDeletedObject: IntegrationDeletedObject = {
+        object: 'integration.deleted',
+        id: integrationId,
+        deleted: true,
+      };
+
+      res.status(200).json(integrationDeletedObject);
     } catch (err) {
       await errorService.reportError(err);
 

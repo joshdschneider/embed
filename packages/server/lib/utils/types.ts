@@ -1,5 +1,12 @@
 import { AuthScheme } from '@embed/providers';
-import { Branding, SyncFrequency, SyncRunStatus, SyncStatus } from '@embed/shared';
+import {
+  Branding,
+  LogAction,
+  LogLevel,
+  SyncFrequency,
+  SyncRunStatus,
+  SyncStatus,
+} from '@embed/shared';
 import { z } from 'zod';
 
 export enum EnvironmentType {
@@ -175,6 +182,12 @@ export const UpdateIntegrationRequestSchema = z.object({
 
 export type UpdateIntegrationRequest = z.infer<typeof UpdateIntegrationRequestSchema>;
 
+export interface IntegrationDeletedObject {
+  object: 'integration.deleted';
+  id: string;
+  deleted: true;
+}
+
 export interface CollectionObject {
   object: 'collection';
   unique_key: string;
@@ -329,6 +342,30 @@ export interface WebhookObject {
   signing_secret: string;
   created_at: number;
   updated_at: number;
+}
+
+export interface ActivityObject {
+  object: 'activity';
+  id: string;
+  environment_id: string;
+  integration_id: string | null;
+  connection_id: string | null;
+  connect_token_id: string | null;
+  collection_key: string | null;
+  action_key: string | null;
+  level: LogLevel;
+  action: LogAction;
+  timestamp: number;
+}
+
+export interface ActivityLogObject {
+  object: 'activity_log';
+  id: string;
+  activity_id: string;
+  level: string;
+  message: string;
+  payload: any;
+  timestamp: number;
 }
 
 export const CreateWebhookRequestSchema = z.object({
