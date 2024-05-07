@@ -305,6 +305,43 @@ class CollectionService {
       return false;
     }
   }
+
+  public async deleteCollection({
+    environmentId,
+    integrationId,
+    collectionKey,
+  }: {
+    environmentId: string;
+    integrationId: string;
+    collectionKey: string;
+  }): Promise<boolean> {
+    try {
+      const didDelete = await this.deleteCollectionIndex({
+        environmentId,
+        integrationId,
+        collectionKey,
+      });
+
+      if (!didDelete) {
+        return false;
+      }
+
+      await database.collection.update({
+        where: {
+          unique_key_integration_id: {
+            unique_key: collectionKey,
+            integration_id: integrationId,
+          },
+        },
+        data: { deleted_at: now() },
+      });
+
+      return true;
+    } catch (err) {
+      await errorService.reportError(err);
+      return false;
+    }
+  }
 }
 
 export default new CollectionService();

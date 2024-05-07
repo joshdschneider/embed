@@ -1,11 +1,95 @@
 import type { Activity, ActivityLog } from '@prisma/client';
 import logger from '../clients/logger.client';
+import { DEFAULT_LIMIT, MAX_LIMIT, MIN_LIMIT } from '../utils/constants';
 import { database } from '../utils/database';
 import { LogLevel, Resource } from '../utils/enums';
 import { generateId } from '../utils/helpers';
 import errorService from './error.service';
 
 class ActivityService {
+  public async listActivities(
+    environmentId: string,
+    options?: {
+      connectionId?: string;
+      query?: string;
+      order?: 'asc' | 'desc';
+      pagination?: {
+        limit?: number;
+        before?: string;
+        after?: string;
+      };
+    }
+  ): Promise<{
+    activities: (Activity & { logs: ActivityLog[] })[];
+    hasMore: boolean;
+    firstId: string | null;
+    lastId: string | null;
+  } | null> {
+    try {
+      const limit = Math.min(
+        MAX_LIMIT,
+        Math.max(MIN_LIMIT, options?.pagination?.limit || DEFAULT_LIMIT)
+      );
+
+      const order = options?.order || 'desc';
+      const whereClause = {
+        environment_id: environmentId,
+        ...(options?.connectionId && { connection_id: options.connectionId }),
+        ...(options?.query && {
+          OR: [
+            { integration_id: { contains: options.query } },
+            { connection_id: { contains: options.query } },
+            { connect_token_id: { contains: options.query } },
+            { collection_key: { contains: options.query } },
+            { action_key: { contains: options.query } },
+            { level: { contains: options.query } },
+            { action: { contains: options.query } },
+            { logs: { some: { message: { contains: options.query } } } },
+          ],
+        }),
+      };
+
+      let orderBy = { timestamp: order };
+      let cursorCondition = {};
+      let take = limit + 1;
+
+      if (options?.pagination?.after) {
+        cursorCondition = { cursor: { id: options.pagination.after }, skip: 1 };
+      } else if (options?.pagination?.before) {
+        cursorCondition = { cursor: { id: options.pagination.before }, skip: 1 };
+        orderBy = { timestamp: order === 'asc' ? 'desc' : 'asc' };
+        take = -take;
+      }
+
+      let activities = await database.activity.findMany({
+        where: whereClause,
+        include: { logs: true },
+        orderBy,
+        take,
+        ...cursorCondition,
+      });
+
+      const hasMore = activities.length > limit;
+      if (hasMore) {
+        activities = activities.slice(0, -1);
+      }
+
+      if (options?.pagination?.before) {
+        activities.reverse();
+      }
+
+      return {
+        activities,
+        hasMore,
+        firstId: activities[0]?.id || null,
+        lastId: activities[activities.length - 1]?.id || null,
+      };
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
+    }
+  }
+
   public async createActivity(activity: Activity): Promise<string | null> {
     try {
       const newActivity = await database.activity.create({

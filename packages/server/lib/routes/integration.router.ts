@@ -25,6 +25,10 @@ integrationRouter
   .post(integrationController.updateIntegration.bind(integrationController));
 
 integrationRouter
+  .route('/:integration_id')
+  .delete(integrationController.deleteIntegration.bind(integrationController));
+
+integrationRouter
   .route('/:integration_id/enable')
   .post(integrationController.enableIntegration.bind(integrationController));
 

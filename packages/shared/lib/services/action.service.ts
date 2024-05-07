@@ -104,6 +104,25 @@ class ActionService {
     }
   }
 
+  public async deleteAction(actionKey: string, integrationId: string): Promise<boolean> {
+    try {
+      await database.action.update({
+        where: {
+          unique_key_integration_id: {
+            unique_key: actionKey,
+            integration_id: integrationId,
+          },
+          deleted_at: null,
+        },
+        data: { deleted_at: now() },
+      });
+      return true;
+    } catch (err) {
+      await errorService.reportError(err);
+      return false;
+    }
+  }
+
   public async listConnectionActionRuns(
     actionKey: string,
     connectionId: string
