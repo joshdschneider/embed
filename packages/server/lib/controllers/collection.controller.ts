@@ -1,3 +1,4 @@
+import { CollectionProperty } from '@embed/providers';
 import {
   Collection,
   DEFAULT_ERROR_MESSAGE,
@@ -10,6 +11,8 @@ import {
   providerService,
 } from '@embed/shared';
 import type { Request, Response } from 'express';
+import collectionHook from '../hooks/collection.hook';
+import { RESERVED_COLLECTION_PROPERTIES } from '../utils/constants';
 import { zodError } from '../utils/helpers';
 import {
   CollectionObject,
@@ -249,6 +252,18 @@ class CollectionController {
         });
       }
 
+      const initialCollection = await collectionService.retrieveCollection(
+        collectionKey,
+        integrationId
+      );
+
+      if (!initialCollection) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.NotFound,
+          message: 'Collection not found',
+        });
+      }
+
       const parsedBody = UpdateCollectionRequestSchema.safeParse(req.body);
       if (!parsedBody.success) {
         return errorService.errorResponse(res, {
@@ -281,6 +296,15 @@ class CollectionController {
       }
 
       if (typeof exclude_properties_from_syncs !== 'undefined') {
+        exclude_properties_from_syncs.forEach((prop) => {
+          if (RESERVED_COLLECTION_PROPERTIES.includes(prop)) {
+            return errorService.errorResponse(res, {
+              code: ErrorCode.BadRequest,
+              message: `Cannot exclude reserved property ${prop}`,
+            });
+          }
+        });
+
         data.exclude_properties_from_syncs = exclude_properties_from_syncs;
       }
 
@@ -308,6 +332,11 @@ class CollectionController {
           message: DEFAULT_ERROR_MESSAGE,
         });
       }
+
+      collectionHook.collectionUpdated({
+        initialCollection,
+        updatedCollection,
+      });
 
       const collectionObject: CollectionObject = {
         object: 'collection',
@@ -420,7 +449,8 @@ class CollectionController {
       }
 
       const schema = collection[1].schema;
-      res.status(200).json(schema);
+      const formattedSchema = CollectionController.formatCollectionSchema(schema);
+      res.status(200).json(formattedSchema);
     } catch (err) {
       await errorService.reportError(err);
 
@@ -429,6 +459,36 @@ class CollectionController {
         message: DEFAULT_ERROR_MESSAGE,
       });
     }
+  }
+
+  public static formatCollectionSchema(schema: {
+    description: string;
+    properties: Record<string, CollectionProperty>;
+    name: string;
+    required?: string[] | undefined;
+  }) {
+    const formatProperties = (properties: Record<string, CollectionProperty>) => {
+      return Object.fromEntries(
+        Object.entries(properties)
+          .filter(([k, v]) => !v.hidden)
+          .map(([k, v]): [string, CollectionProperty] => {
+            return [
+              k,
+              {
+                type: v.type,
+                description: v.description,
+                items: v.items,
+                filterable: v.filterable,
+                vector_searchable: v.vector_searchable,
+                keyword_searchable: v.keyword_searchable,
+                properties: v.properties ? formatProperties(v.properties) : undefined,
+              },
+            ];
+          })
+      );
+    };
+
+    return { ...schema, properties: formatProperties(schema.properties) };
   }
 
   public async queryCollection(req: Request, res: Response) {

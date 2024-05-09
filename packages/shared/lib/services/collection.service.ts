@@ -1,7 +1,7 @@
 import { Collection, Connection } from '@prisma/client';
 import ElasticClient from '../clients/elastic.client';
 import { database } from '../utils/database';
-import { MultimodalEmbeddingModel, TextEmbeddingModel } from '../utils/enums';
+import { MultimodalEmbeddingModel, SyncStatus, TextEmbeddingModel } from '../utils/enums';
 import { now } from '../utils/helpers';
 import { ImageSearchOptions, QueryOptions } from '../utils/types';
 import errorService from './error.service';
@@ -237,6 +237,28 @@ class CollectionService {
 
       for (const sync of shouldResync) {
         await syncService.triggerSync(sync);
+      }
+
+      return true;
+    } catch (err) {
+      await errorService.reportError(err);
+      return false;
+    }
+  }
+
+  public async onCollectionDisabled(collection: Collection) {
+    try {
+      const syncs = await database.sync.findMany({
+        where: {
+          integration_id: collection.integration_id,
+          collection_key: collection.unique_key,
+          deleted_at: null,
+        },
+      });
+
+      const shouldStop = syncs.filter((sync) => sync.status === SyncStatus.Running);
+      for (const sync of shouldStop) {
+        await syncService.stopSync(sync);
       }
 
       return true;

@@ -12,7 +12,6 @@ import {
   Organization,
   Resource,
   User,
-  WorkOSUser,
   apiKeyService,
   environmentService,
   errorService,
@@ -29,7 +28,7 @@ import { EnvironmentType } from '../utils/types';
 class UserController {
   public async handleUserAuth(req: Request, res: Response) {
     try {
-      const user = req.body['user'] as WorkOSUser;
+      const user = req.body['user'];
       const organizationId = req.body['organization_id'] as string | undefined;
 
       if (!user) {
@@ -42,13 +41,14 @@ class UserController {
       let _user: User;
       let _organization: Organization;
 
+      const orgName = user.first_name ? `${user.first_name}'s Team` : DEFAULT_ORGANIZATION_NAME;
       const existingUser = await userService.getUserById(user.id);
       if (!existingUser) {
         const newUser = await userService.persistUser({
           id: user.id,
           email: user.email,
-          first_name: user.firstName,
-          last_name: user.lastName,
+          first_name: user.first_name,
+          last_name: user.last_name,
           created_at: now(),
           updated_at: now(),
           deleted_at: null,
@@ -61,7 +61,7 @@ class UserController {
           });
         }
 
-        const newUserOrg = await organizationService.createOrganization(DEFAULT_ORGANIZATION_NAME);
+        const newUserOrg = await organizationService.createOrganization(orgName);
         if (!newUserOrg) {
           return errorService.errorResponse(res, {
             code: ErrorCode.InternalServerError,
@@ -84,9 +84,7 @@ class UserController {
         _user = newUser;
         _organization = newUserOrg;
       } else if (existingUser.organization_memberships.length === 0) {
-        const existingUserNewOrg =
-          await organizationService.createOrganization(DEFAULT_ORGANIZATION_NAME);
-
+        const existingUserNewOrg = await organizationService.createOrganization(orgName);
         if (!existingUserNewOrg) {
           return errorService.errorResponse(res, {
             code: ErrorCode.InternalServerError,
