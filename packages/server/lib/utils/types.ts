@@ -1,6 +1,7 @@
 import { AuthScheme } from '@embed/providers';
 import {
   Branding,
+  DEFAULT_LIMIT,
   LogAction,
   LogLevel,
   SyncFrequency,
@@ -399,6 +400,7 @@ export const PaginationParametersSchema = z.object({
   limit: z
     .string()
     .optional()
+    .default(DEFAULT_LIMIT.toString())
     .transform((val) => (val !== undefined ? Number(val) : undefined))
     .refine((val) => val && !isNaN(val) && val >= 1 && val <= 100, {
       message: 'Limit must be a number between 1 and 100',

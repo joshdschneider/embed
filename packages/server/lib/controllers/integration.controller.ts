@@ -22,6 +22,7 @@ import {
   IntegrationDeletedObject,
   IntegrationObject,
   IntegrationObjectWithCredentials,
+  PaginationParametersSchema,
   UpdateIntegrationRequestSchema,
 } from '../utils/types';
 
@@ -29,14 +30,31 @@ class IntegrationController {
   public async listIntegrations(req: Request, res: Response) {
     try {
       const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
-      const integrations = await integrationService.listIntegrations(environmentId);
-      if (!integrations) {
+      const searchQuery = req.query['query'] as string | undefined;
+      const parsedParams = PaginationParametersSchema.safeParse(req.query);
+
+      if (!parsedParams.success) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.BadRequest,
+          message: zodError(parsedParams.error),
+        });
+      }
+
+      const { before, after, limit, order } = parsedParams.data;
+      const list = await integrationService.listIntegrations(environmentId, {
+        query: searchQuery,
+        order,
+        pagination: { after, before, limit },
+      });
+
+      if (!list) {
         return errorService.errorResponse(res, {
           code: ErrorCode.InternalServerError,
           message: DEFAULT_ERROR_MESSAGE,
         });
       }
 
+      const { integrations, firstId, lastId, hasMore } = list;
       const providers = await providerService.listProviders();
       if (!providers) {
         return errorService.errorResponse(res, {
@@ -61,7 +79,13 @@ class IntegrationController {
         };
       });
 
-      res.status(200).json({ object: 'list', data: integrationObjects });
+      res.status(200).json({
+        object: 'list',
+        data: integrationObjects,
+        first_id: firstId,
+        last_id: lastId,
+        has_more: hasMore,
+      });
     } catch (err) {
       await errorService.reportError(err);
 

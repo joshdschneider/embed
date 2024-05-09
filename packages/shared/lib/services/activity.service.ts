@@ -2,7 +2,7 @@ import type { Activity, ActivityLog } from '@prisma/client';
 import logger from '../clients/logger.client';
 import { DEFAULT_LIMIT, MAX_LIMIT, MIN_LIMIT } from '../utils/constants';
 import { database } from '../utils/database';
-import { LogLevel, Resource } from '../utils/enums';
+import { LogLevel, QueryMode, Resource } from '../utils/enums';
 import { generateId } from '../utils/helpers';
 import errorService from './error.service';
 
@@ -32,19 +32,20 @@ class ActivityService {
       );
 
       const order = options?.order || 'desc';
+      const query = options?.query;
       const whereClause = {
         environment_id: environmentId,
         ...(options?.connectionId && { connection_id: options.connectionId }),
         ...(options?.query && {
           OR: [
-            { integration_id: { contains: options.query } },
-            { connection_id: { contains: options.query } },
-            { session_token_id: { contains: options.query } },
-            { collection_key: { contains: options.query } },
-            { action_key: { contains: options.query } },
-            { level: { contains: options.query } },
-            { action: { contains: options.query } },
-            { logs: { some: { message: { contains: options.query } } } },
+            { integration_id: { contains: query, mode: QueryMode.insensitive } },
+            { connection_id: { contains: query, mode: QueryMode.insensitive } },
+            { session_token_id: { contains: query, mode: QueryMode.insensitive } },
+            { collection_key: { contains: query, mode: QueryMode.insensitive } },
+            { action_key: { contains: query, mode: QueryMode.insensitive } },
+            { level: { contains: query, mode: QueryMode.insensitive } },
+            { action: { contains: query, mode: QueryMode.insensitive } },
+            { logs: { some: { message: { contains: query, mode: QueryMode.insensitive } } } },
           ],
         }),
       };

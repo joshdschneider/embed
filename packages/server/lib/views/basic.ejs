@@ -237,7 +237,7 @@
             <% } %>
           </div>
         </div>
-        <form action="/connect/<%= session_token %>/basic" method="post">
+        <form action="/session/<%= session_token %>/basic" method="post">
           <div class="input-group">
             <label for="username">Enter your <%= integration.name %> username</label>
             <input type="text" id="username" name="username" />

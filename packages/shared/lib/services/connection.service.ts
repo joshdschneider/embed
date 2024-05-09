@@ -4,6 +4,7 @@ import ElasticClient from '../clients/elastic.client';
 import { getFreshOAuth2Credentials } from '../clients/oauth2.client';
 import { DEFAULT_LIMIT, MAX_LIMIT, MIN_LIMIT } from '../utils/constants';
 import { database } from '../utils/database';
+import { QueryMode } from '../utils/enums';
 import { now } from '../utils/helpers';
 import encryptionService from './encryption.service';
 import errorService from './error.service';
@@ -85,6 +86,7 @@ class ConnectionService {
         before?: string;
         after?: string;
       };
+      integrationId?: string;
     }
   ): Promise<{
     connections: Connection[];
@@ -99,15 +101,17 @@ class ConnectionService {
       );
 
       const order = options?.order || 'desc';
+      const query = options?.query;
       const whereClause = {
         environment_id: environmentId,
         deleted_at: null,
+        ...(options?.integrationId && { integration_id: options.integrationId }),
         ...(options?.query && {
           OR: [
-            { id: { contains: options.query } },
-            { display_name: { contains: options.query } },
-            { integration_id: { contains: options.query } },
-            { integration: { display_name: { contains: options.query } } },
+            { id: { contains: query, mode: QueryMode.insensitive } },
+            { display_name: { contains: query, mode: QueryMode.insensitive } },
+            { integration_id: { contains: query, mode: QueryMode.insensitive } },
+            { integration: { display_name: { contains: query, mode: QueryMode.insensitive } } },
           ],
         }),
       };

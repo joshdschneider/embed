@@ -102,3 +102,8 @@ export const embeddingModelDimensions = {
   [MultimodalEmbeddingModel.AmazonTitanMultimodalG1]: 1024,
   [MultimodalEmbeddingModel.GoogleVertexMultimodalEmbedding001]: 1408,
 };
+
+export enum QueryMode {
+  default = 'default',
+  insensitive = 'insensitive',
+}
