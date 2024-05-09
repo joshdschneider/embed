@@ -3,6 +3,7 @@ import {
   ErrorCode,
   SyncRunStatus,
   SyncStatus,
+  collectionService,
   connectionService,
   errorService,
   syncService,
@@ -200,6 +201,22 @@ class SyncController {
       });
     }
 
+    const collection = await collectionService.retrieveCollection(
+      sync.collection_key,
+      sync.integration_id
+    );
+    if (!collection) {
+      return errorService.errorResponse(res, {
+        code: ErrorCode.NotFound,
+        message: `Collection not found for sync`,
+      });
+    } else if (!collection.is_enabled) {
+      return errorService.errorResponse(res, {
+        code: ErrorCode.Forbidden,
+        message: `Collection is disabled`,
+      });
+    }
+
     try {
       const startedSync = await syncService.startSync(sync);
       if (!startedSync) {
@@ -257,6 +274,24 @@ class SyncController {
       });
     }
 
+    if (sync.status === SyncStatus.Stopped) {
+      const collection = await collectionService.retrieveCollection(
+        sync.collection_key,
+        sync.integration_id
+      );
+      if (!collection) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.NotFound,
+          message: `Collection not found for sync`,
+        });
+      } else if (!collection.is_enabled) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.Forbidden,
+          message: `Collection is disabled`,
+        });
+      }
+    }
+
     try {
       const stoppedSync = await syncService.stopSync(sync);
       if (!stoppedSync) {
@@ -308,6 +343,22 @@ class SyncController {
       return errorService.errorResponse(res, {
         code: ErrorCode.NotFound,
         message: `Sync not found with collection ${collectionKey} for connection ${connectionId}`,
+      });
+    }
+
+    const collection = await collectionService.retrieveCollection(
+      sync.collection_key,
+      sync.integration_id
+    );
+    if (!collection) {
+      return errorService.errorResponse(res, {
+        code: ErrorCode.NotFound,
+        message: `Collection not found for sync`,
+      });
+    } else if (!collection.is_enabled) {
+      return errorService.errorResponse(res, {
+        code: ErrorCode.Forbidden,
+        message: `Collection is disabled`,
       });
     }
 

@@ -172,9 +172,7 @@ class SyncService {
         throw new Error('Failed to update sync schedule in database');
       }
 
-      return await this.updateSync(connectionId, collectionKey, {
-        frequency: interval,
-      });
+      return await this.updateSync(connectionId, collectionKey, { frequency });
     } catch (err) {
       await errorService.reportError(err);
       return null;

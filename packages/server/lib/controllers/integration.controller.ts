@@ -14,6 +14,7 @@ import {
 } from '@embed/shared';
 import crypto from 'crypto';
 import type { Request, Response } from 'express';
+import integrationHook from '../hooks/integration.hook';
 import { zodError } from '../utils/helpers';
 import {
   CreateIntegrationRequestSchema,
@@ -245,6 +246,8 @@ class IntegrationController {
           message: DEFAULT_ERROR_MESSAGE,
         });
       }
+
+      integrationHook.onIntegrationDisabled(updatedIntegration);
 
       const integrationObject: IntegrationObject = {
         object: 'integration',

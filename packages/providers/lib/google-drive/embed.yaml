@@ -67,7 +67,7 @@ schemas:
             filterable: false
           metadata:
             type: object
-            description: Metadata associated with the chunk.
+            description: Metadata associated with the chunk of content.
             filterable: false
             keyword_searchable: false
             vector_searchable: false
