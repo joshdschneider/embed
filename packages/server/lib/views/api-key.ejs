@@ -237,7 +237,7 @@
             <% } %>
           </div>
         </div>
-        <form action="/connect/<%= session_token %>/api-key" method="post">
+        <form action="/session/<%= session_token %>/api-key" method="post">
           <div class="input-group">
             <label for="key">Enter your <%= integration.name %> API key</label>
             <input required="true" id="key" type="password" id="key" name="key" />

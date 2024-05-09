@@ -127,7 +127,7 @@ class SessionController {
       }
 
       const authScheme = integration.auth_scheme;
-      const baseUrl = `${serverUrl}/connect/${token}`;
+      const baseUrl = `${serverUrl}/session/${token}`;
 
       switch (authScheme) {
         case AuthScheme.OAuth1:

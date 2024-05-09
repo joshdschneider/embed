@@ -19,6 +19,7 @@ class ConnectionController {
   public async listConnections(req: Request, res: Response) {
     try {
       const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
+      const integrationId = req.query['integration_id'] as string | undefined;
       const searchQuery = req.query['query'] as string | undefined;
       const parsedParams = PaginationParametersSchema.safeParse(req.query);
 
@@ -34,6 +35,7 @@ class ConnectionController {
         query: searchQuery,
         order,
         pagination: { after, before, limit },
+        integrationId,
       });
 
       if (!list) {

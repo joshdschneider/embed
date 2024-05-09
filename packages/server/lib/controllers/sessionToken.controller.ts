@@ -340,7 +340,7 @@ class SessionTokenController {
       throw new Error('Server URL is not defined');
     }
 
-    return `${serverUrl}/connect/${token}`;
+    return `${serverUrl}/session/${token}`;
   }
 
   private expiresInMinutes(expiresAt: number) {

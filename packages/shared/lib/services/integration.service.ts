@@ -2,7 +2,9 @@ import { Action, Integration } from '@prisma/client';
 import fs from 'fs';
 import yaml from 'js-yaml';
 import path from 'path';
+import { DEFAULT_LIMIT, MAX_LIMIT, MIN_LIMIT } from '../utils/constants';
 import { database } from '../utils/database';
+import { QueryMode } from '../utils/enums';
 import { now } from '../utils/helpers';
 import actionService from './action.service';
 import collectionService from './collection.service';
@@ -60,13 +62,81 @@ class IntegrationService {
     }
   }
 
-  public async listIntegrations(environmentId: string): Promise<Integration[] | null> {
+  public async listIntegrations(
+    environmentId: string,
+    options?: {
+      query?: string;
+      order?: 'asc' | 'desc';
+      pagination?: {
+        limit?: number;
+        before?: string;
+        after?: string;
+      };
+    }
+  ): Promise<{
+    integrations: Integration[];
+    hasMore: boolean;
+    firstId: string | null;
+    lastId: string | null;
+  } | null> {
     try {
-      const integrations = await database.integration.findMany({
-        where: { environment_id: environmentId, deleted_at: null },
+      const limit = Math.min(
+        MAX_LIMIT,
+        Math.max(MIN_LIMIT, options?.pagination?.limit || DEFAULT_LIMIT)
+      );
+
+      const order = options?.order || 'desc';
+      const query = options?.query;
+      const whereClause = {
+        environment_id: environmentId,
+        deleted_at: null,
+        ...(options?.query && {
+          OR: [
+            { id: { contains: query, mode: QueryMode.insensitive } },
+            { display_name: { contains: query, mode: QueryMode.insensitive } },
+            { provider_key: { contains: query, mode: QueryMode.insensitive } },
+          ],
+        }),
+      };
+
+      let orderBy = { created_at: order };
+      let cursorCondition = {};
+      let take = limit + 1;
+
+      if (options?.pagination?.after) {
+        cursorCondition = { cursor: { id: options.pagination.after }, skip: 1 };
+      } else if (options?.pagination?.before) {
+        cursorCondition = { cursor: { id: options.pagination.before }, skip: 1 };
+        orderBy = { created_at: order === 'asc' ? 'desc' : 'asc' };
+        take = -take;
+      }
+
+      let integrations = await database.integration.findMany({
+        where: whereClause,
+        orderBy,
+        take,
+        ...cursorCondition,
       });
 
-      return integrations.map((i) => encryptionService.decryptIntegration(i));
+      const hasMore = integrations.length > limit;
+      if (hasMore) {
+        integrations = integrations.slice(0, -1);
+      }
+
+      if (options?.pagination?.before) {
+        integrations.reverse();
+      }
+
+      const decryptedIntegrations = integrations.map((i) => {
+        return encryptionService.decryptIntegration(i);
+      });
+
+      return {
+        integrations: decryptedIntegrations,
+        hasMore,
+        firstId: decryptedIntegrations[0]?.id || null,
+        lastId: decryptedIntegrations[decryptedIntegrations.length - 1]?.id || null,
+      };
     } catch (err) {
       await errorService.reportError(err);
       return null;
