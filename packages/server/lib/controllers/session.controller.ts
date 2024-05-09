@@ -16,7 +16,7 @@ import {
 import type { Request, Response } from 'express';
 import publisher from '../clients/publisher.client';
 import connectionHook from '../hooks/connection.hook';
-import connectTokenService from '../services/connectToken.service';
+import sessionTokenService from '../services/sessionToken.service';
 import {
   appendParamsToUrl,
   extractConfigurationKeys,
@@ -30,7 +30,7 @@ import {
   ServiceAccountTemplateData,
 } from '../utils/types';
 
-class ConnectController {
+class SessionController {
   public async routeView(req: Request, res: Response) {
     const token = req.params['token'];
     let connectMethod = req.query['connect_method'] as string | undefined;
@@ -41,7 +41,7 @@ class ConnectController {
 
     if (!token) {
       return await publisher.publishError(res, {
-        error: 'Connect token missing',
+        error: 'Session token missing',
         connectMethod,
         wsClientId,
         redirectUrl,
@@ -49,10 +49,10 @@ class ConnectController {
       });
     }
 
-    const connectToken = await connectTokenService.getConnectTokenById(token);
-    if (!connectToken) {
+    const sessionToken = await sessionTokenService.getSessionTokenById(token);
+    if (!sessionToken) {
       return await publisher.publishError(res, {
-        error: 'Invalid connect token',
+        error: 'Invalid session token',
         wsClientId,
         connectMethod,
         redirectUrl,
@@ -61,27 +61,27 @@ class ConnectController {
     }
 
     if (connectMethod || wsClientId || redirectUrl || prefersDarkMode) {
-      const updatedConnectToken = await connectTokenService.updateConnectToken(connectToken.id, {
+      const updatedSessionToken = await sessionTokenService.updateSessionToken(sessionToken.id, {
         connect_method: connectMethod,
         websocket_client_id: wsClientId,
         redirect_url: redirectUrl,
         prefers_dark_mode: prefersDarkMode,
       });
 
-      if (updatedConnectToken) {
-        connectMethod = updatedConnectToken.connect_method || undefined;
-        wsClientId = updatedConnectToken.websocket_client_id || undefined;
-        redirectUrl = updatedConnectToken.redirect_url || undefined;
-        prefersDarkMode = updatedConnectToken.prefers_dark_mode || false;
+      if (updatedSessionToken) {
+        connectMethod = updatedSessionToken.connect_method || undefined;
+        wsClientId = updatedSessionToken.websocket_client_id || undefined;
+        redirectUrl = updatedSessionToken.redirect_url || undefined;
+        prefersDarkMode = updatedSessionToken.prefers_dark_mode || false;
       }
     }
 
-    const activityId = await activityService.findActivityIdByConnectToken(connectToken.id);
-    const branding = await environmentService.getEnvironmentBranding(connectToken.environment_id);
+    const activityId = await activityService.findActivityIdBySessionToken(sessionToken.id);
+    const branding = await environmentService.getEnvironmentBranding(sessionToken.environment_id);
 
     try {
-      if (connectToken.expires_at < now()) {
-        const errorMessage = 'Connect token expired';
+      if (sessionToken.expires_at < now()) {
+        const errorMessage = 'Session token expired';
         await activityService.createActivityLog(activityId, {
           timestamp: now(),
           level: LogLevel.Error,
@@ -98,9 +98,9 @@ class ConnectController {
         });
       }
 
-      const integration = await integrationService.getIntegrationById(connectToken.integration_id);
+      const integration = await integrationService.getIntegrationById(sessionToken.integration_id);
       if (!integration) {
-        throw new Error(`Failed to retrieve integration with ID ${connectToken.integration_id}`);
+        throw new Error(`Failed to retrieve integration with ID ${sessionToken.integration_id}`);
       }
 
       if (!integration.is_enabled) {
@@ -176,14 +176,14 @@ class ConnectController {
           });
 
           const connectionType = await this.getConnectionTypeFromToken(
-            connectToken.type,
+            sessionToken.type,
             integration.provider_key
           );
 
           const response = await connectionService.upsertConnection({
-            environment_id: connectToken.environment_id,
-            id: connectToken.connection_id || generateId(Resource.Connection),
-            display_name: connectToken.display_name || null,
+            environment_id: sessionToken.environment_id,
+            id: sessionToken.connection_id || generateId(Resource.Connection),
+            display_name: sessionToken.display_name || null,
             type: connectionType,
             auth_scheme: integration.auth_scheme,
             integration_id: integration.id,
@@ -191,10 +191,10 @@ class ConnectController {
             credentials_hash: null,
             credentials_iv: null,
             credentials_tag: null,
-            configuration: connectToken.configuration || null,
-            inclusions: connectToken.inclusions || null,
-            exclusions: connectToken.exclusions || null,
-            metadata: connectToken.metadata || null,
+            configuration: sessionToken.configuration || null,
+            inclusions: sessionToken.inclusions || null,
+            exclusions: sessionToken.exclusions || null,
+            metadata: sessionToken.metadata || null,
             created_at: now(),
             updated_at: now(),
             deleted_at: null,
@@ -214,7 +214,7 @@ class ConnectController {
             message: `Connection ${response.action} without credentials`,
           });
 
-          await connectTokenService.deleteConnectToken(connectToken.id);
+          await sessionTokenService.deleteSessionToken(sessionToken.id);
 
           if (response.action === 'created') {
             connectionHook.connectionCreated({ connection: response.connection, activityId });
@@ -280,28 +280,28 @@ class ConnectController {
     const token = req.params['token'];
     if (!token) {
       return await publisher.publishError(res, {
-        error: 'Connect token missing',
+        error: 'Session token missing',
       });
     }
 
-    const connectToken = await connectTokenService.getConnectTokenById(token);
-    if (!connectToken) {
+    const sessionToken = await sessionTokenService.getSessionTokenById(token);
+    if (!sessionToken) {
       return await publisher.publishError(res, {
-        error: 'Invalid connect token',
+        error: 'Invalid session token',
       });
     }
 
-    const connectMethod = connectToken.connect_method || undefined;
-    const wsClientId = connectToken.websocket_client_id || undefined;
-    const redirectUrl = connectToken.redirect_url || undefined;
-    const prefersDarkMode = connectToken.prefers_dark_mode || false;
+    const connectMethod = sessionToken.connect_method || undefined;
+    const wsClientId = sessionToken.websocket_client_id || undefined;
+    const redirectUrl = sessionToken.redirect_url || undefined;
+    const prefersDarkMode = sessionToken.prefers_dark_mode || false;
 
-    const activityId = await activityService.findActivityIdByConnectToken(connectToken.id);
-    const branding = await environmentService.getEnvironmentBranding(connectToken.environment_id);
+    const activityId = await activityService.findActivityIdBySessionToken(sessionToken.id);
+    const branding = await environmentService.getEnvironmentBranding(sessionToken.environment_id);
 
     try {
-      if (connectToken.expires_at < now()) {
-        const errorMessage = 'Connect token expired';
+      if (sessionToken.expires_at < now()) {
+        const errorMessage = 'Session token expired';
         await activityService.createActivityLog(activityId, {
           timestamp: now(),
           level: LogLevel.Error,
@@ -323,9 +323,9 @@ class ConnectController {
         throw new Error('SERVER_URL is undefined');
       }
 
-      const integration = await integrationService.getIntegrationById(connectToken.integration_id);
+      const integration = await integrationService.getIntegrationById(sessionToken.integration_id);
       if (!integration) {
-        throw new Error(`Failed to retrieve integration with ID ${connectToken.integration_id}`);
+        throw new Error(`Failed to retrieve integration with ID ${sessionToken.integration_id}`);
       } else if (
         integration.auth_scheme !== AuthScheme.OAuth2 &&
         integration.auth_scheme !== AuthScheme.OAuth1
@@ -360,7 +360,7 @@ class ConnectController {
 
         const data: ConfigTemplateData = {
           server_url: serverUrl,
-          connect_token: token,
+          session_token: token,
           integration: {
             provider_key: integration.provider_key,
             name: providerSpec.name,
@@ -408,24 +408,24 @@ class ConnectController {
 
     if (!token) {
       return await publisher.publishError(res, {
-        error: 'Connect token missing',
+        error: 'Session token missing',
       });
     }
 
-    const connectToken = await connectTokenService.getConnectTokenById(token);
-    if (!connectToken) {
+    const sessionToken = await sessionTokenService.getSessionTokenById(token);
+    if (!sessionToken) {
       return await publisher.publishError(res, {
-        error: 'Invalid connect token',
+        error: 'Invalid session token',
       });
     }
 
-    const connectMethod = connectToken.connect_method || undefined;
-    const wsClientId = connectToken.websocket_client_id || undefined;
-    const redirectUrl = connectToken.redirect_url || undefined;
-    const prefersDarkMode = connectToken.prefers_dark_mode || false;
+    const connectMethod = sessionToken.connect_method || undefined;
+    const wsClientId = sessionToken.websocket_client_id || undefined;
+    const redirectUrl = sessionToken.redirect_url || undefined;
+    const prefersDarkMode = sessionToken.prefers_dark_mode || false;
 
-    const activityId = await activityService.findActivityIdByConnectToken(connectToken.id);
-    const branding = await environmentService.getEnvironmentBranding(connectToken.environment_id);
+    const activityId = await activityService.findActivityIdBySessionToken(sessionToken.id);
+    const branding = await environmentService.getEnvironmentBranding(sessionToken.environment_id);
 
     try {
       if (!config || typeof config !== 'object') {
@@ -446,8 +446,8 @@ class ConnectController {
         });
       }
 
-      if (connectToken.expires_at < now()) {
-        const errorMessage = 'Connect token expired';
+      if (sessionToken.expires_at < now()) {
+        const errorMessage = 'Session token expired';
         await activityService.createActivityLog(activityId, {
           timestamp: now(),
           level: LogLevel.Error,
@@ -469,12 +469,12 @@ class ConnectController {
         throw new Error('SERVER_URL is undefined');
       }
 
-      const updatedConnectToken = await connectTokenService.updateConnectToken(connectToken.id, {
+      const updatedSessionToken = await sessionTokenService.updateSessionToken(sessionToken.id, {
         configuration: config,
       });
 
-      if (!updatedConnectToken) {
-        throw new Error(`Failed to update connect token ${connectToken.id}`);
+      if (!updatedSessionToken) {
+        throw new Error(`Failed to update session token ${sessionToken.id}`);
       }
 
       await activityService.createActivityLog(activityId, {
@@ -512,28 +512,28 @@ class ConnectController {
     const token = req.params['token'];
     if (!token) {
       return await publisher.publishError(res, {
-        error: 'Connect token missing',
+        error: 'Session token missing',
       });
     }
 
-    const connectToken = await connectTokenService.getConnectTokenById(token);
-    if (!connectToken) {
+    const sessionToken = await sessionTokenService.getSessionTokenById(token);
+    if (!sessionToken) {
       return await publisher.publishError(res, {
-        error: 'Invalid connect token',
+        error: 'Invalid session token',
       });
     }
 
-    const connectMethod = connectToken.connect_method || undefined;
-    const wsClientId = connectToken.websocket_client_id || undefined;
-    const redirectUrl = connectToken.redirect_url || undefined;
-    const prefersDarkMode = connectToken.prefers_dark_mode || false;
+    const connectMethod = sessionToken.connect_method || undefined;
+    const wsClientId = sessionToken.websocket_client_id || undefined;
+    const redirectUrl = sessionToken.redirect_url || undefined;
+    const prefersDarkMode = sessionToken.prefers_dark_mode || false;
 
-    const activityId = await activityService.findActivityIdByConnectToken(connectToken.id);
-    const branding = await environmentService.getEnvironmentBranding(connectToken.environment_id);
+    const activityId = await activityService.findActivityIdBySessionToken(sessionToken.id);
+    const branding = await environmentService.getEnvironmentBranding(sessionToken.environment_id);
 
     try {
-      if (connectToken.expires_at < now()) {
-        const errorMessage = 'Connect token expired';
+      if (sessionToken.expires_at < now()) {
+        const errorMessage = 'Session token expired';
         await activityService.createActivityLog(activityId, {
           timestamp: now(),
           level: LogLevel.Error,
@@ -555,9 +555,9 @@ class ConnectController {
         throw new Error('SERVER_URL is undefined');
       }
 
-      const integration = await integrationService.getIntegrationById(connectToken.integration_id);
+      const integration = await integrationService.getIntegrationById(sessionToken.integration_id);
       if (!integration) {
-        throw new Error(`Failed to retrieve integration with ID ${connectToken.integration_id}`);
+        throw new Error(`Failed to retrieve integration with ID ${sessionToken.integration_id}`);
       } else if (integration.auth_scheme !== AuthScheme.ApiKey) {
         throw new Error(`Invalid auth scheme ${integration.auth_scheme} for ${integration.id}`);
       }
@@ -575,7 +575,7 @@ class ConnectController {
 
       const data: ApiKeyTemplateData = {
         server_url: serverUrl,
-        connect_token: token,
+        session_token: token,
         integration: {
           provider_key: integration.provider_key,
           name: providerSpec.name,
@@ -612,24 +612,24 @@ class ConnectController {
 
     if (!token) {
       return await publisher.publishError(res, {
-        error: 'Connect token missing',
+        error: 'Session token missing',
       });
     }
 
-    const connectToken = await connectTokenService.getConnectTokenById(token);
-    if (!connectToken) {
+    const sessionToken = await sessionTokenService.getSessionTokenById(token);
+    if (!sessionToken) {
       return await publisher.publishError(res, {
-        error: 'Invalid connect token',
+        error: 'Invalid session token',
       });
     }
 
-    const connectMethod = connectToken.connect_method || undefined;
-    const wsClientId = connectToken.websocket_client_id || undefined;
-    const redirectUrl = connectToken.redirect_url || undefined;
-    const prefersDarkMode = connectToken.prefers_dark_mode || false;
+    const connectMethod = sessionToken.connect_method || undefined;
+    const wsClientId = sessionToken.websocket_client_id || undefined;
+    const redirectUrl = sessionToken.redirect_url || undefined;
+    const prefersDarkMode = sessionToken.prefers_dark_mode || false;
 
-    const activityId = await activityService.findActivityIdByConnectToken(connectToken.id);
-    const branding = await environmentService.getEnvironmentBranding(connectToken.environment_id);
+    const activityId = await activityService.findActivityIdBySessionToken(sessionToken.id);
+    const branding = await environmentService.getEnvironmentBranding(sessionToken.environment_id);
 
     try {
       if (!apiKey || typeof apiKey !== 'string') {
@@ -650,8 +650,8 @@ class ConnectController {
         });
       }
 
-      if (connectToken.expires_at < now()) {
-        const errorMessage = 'Connect token expired';
+      if (sessionToken.expires_at < now()) {
+        const errorMessage = 'Session token expired';
         await activityService.createActivityLog(activityId, {
           timestamp: now(),
           level: LogLevel.Error,
@@ -668,22 +668,22 @@ class ConnectController {
         });
       }
 
-      const integration = await integrationService.getIntegrationById(connectToken.integration_id);
+      const integration = await integrationService.getIntegrationById(sessionToken.integration_id);
       if (!integration) {
-        throw new Error(`Failed to retrieve integration with ID ${connectToken.integration_id}`);
+        throw new Error(`Failed to retrieve integration with ID ${sessionToken.integration_id}`);
       } else if (integration.auth_scheme !== AuthScheme.ApiKey) {
         throw new Error(`Invalid auth scheme ${integration.auth_scheme} for ${integration.id}`);
       }
 
       const connectionType = await this.getConnectionTypeFromToken(
-        connectToken.type,
+        sessionToken.type,
         integration.provider_key
       );
 
       const response = await connectionService.upsertConnection({
-        environment_id: connectToken.environment_id,
-        id: connectToken.connection_id || generateId(Resource.Connection),
-        display_name: connectToken.display_name || null,
+        environment_id: sessionToken.environment_id,
+        id: sessionToken.connection_id || generateId(Resource.Connection),
+        display_name: sessionToken.display_name || null,
         type: connectionType,
         auth_scheme: integration.auth_scheme,
         integration_id: integration.id,
@@ -691,10 +691,10 @@ class ConnectController {
         credentials_hash: null,
         credentials_iv: null,
         credentials_tag: null,
-        configuration: connectToken.configuration || null,
-        inclusions: connectToken.inclusions || null,
-        exclusions: connectToken.exclusions || null,
-        metadata: connectToken.metadata || null,
+        configuration: sessionToken.configuration || null,
+        inclusions: sessionToken.inclusions || null,
+        exclusions: sessionToken.exclusions || null,
+        metadata: sessionToken.metadata || null,
         created_at: now(),
         updated_at: now(),
         deleted_at: null,
@@ -714,7 +714,7 @@ class ConnectController {
         message: `Connection ${response.action} with API key credentials`,
       });
 
-      await connectTokenService.deleteConnectToken(connectToken.id);
+      await sessionTokenService.deleteSessionToken(sessionToken.id);
 
       if (response.action === 'created') {
         connectionHook.connectionCreated({ connection: response.connection, activityId });
@@ -755,28 +755,28 @@ class ConnectController {
     const token = req.params['token'];
     if (!token) {
       return await publisher.publishError(res, {
-        error: 'Connect token missing',
+        error: 'Session token missing',
       });
     }
 
-    const connectToken = await connectTokenService.getConnectTokenById(token);
-    if (!connectToken) {
+    const sessionToken = await sessionTokenService.getSessionTokenById(token);
+    if (!sessionToken) {
       return await publisher.publishError(res, {
-        error: 'Invalid connect token',
+        error: 'Invalid session token',
       });
     }
 
-    const connectMethod = connectToken.connect_method || undefined;
-    const wsClientId = connectToken.websocket_client_id || undefined;
-    const redirectUrl = connectToken.redirect_url || undefined;
-    const prefersDarkMode = connectToken.prefers_dark_mode || false;
+    const connectMethod = sessionToken.connect_method || undefined;
+    const wsClientId = sessionToken.websocket_client_id || undefined;
+    const redirectUrl = sessionToken.redirect_url || undefined;
+    const prefersDarkMode = sessionToken.prefers_dark_mode || false;
 
-    const activityId = await activityService.findActivityIdByConnectToken(connectToken.id);
-    const branding = await environmentService.getEnvironmentBranding(connectToken.environment_id);
+    const activityId = await activityService.findActivityIdBySessionToken(sessionToken.id);
+    const branding = await environmentService.getEnvironmentBranding(sessionToken.environment_id);
 
     try {
-      if (connectToken.expires_at < now()) {
-        const errorMessage = 'Connect token expired';
+      if (sessionToken.expires_at < now()) {
+        const errorMessage = 'Session token expired';
         await activityService.createActivityLog(activityId, {
           timestamp: now(),
           level: LogLevel.Error,
@@ -798,9 +798,9 @@ class ConnectController {
         throw new Error('SERVER_URL is undefined');
       }
 
-      const integration = await integrationService.getIntegrationById(connectToken.integration_id);
+      const integration = await integrationService.getIntegrationById(sessionToken.integration_id);
       if (!integration) {
-        throw new Error(`Failed to retrieve integration with ID ${connectToken.integration_id}`);
+        throw new Error(`Failed to retrieve integration with ID ${sessionToken.integration_id}`);
       } else if (integration.auth_scheme !== AuthScheme.Basic) {
         throw new Error(`Invalid auth scheme ${integration.auth_scheme} for ${integration.id}`);
       }
@@ -818,7 +818,7 @@ class ConnectController {
 
       const data: BasicTemplateData = {
         server_url: serverUrl,
-        connect_token: token,
+        session_token: token,
         integration: {
           provider_key: integration.provider_key,
           name: providerSpec.name,
@@ -856,24 +856,24 @@ class ConnectController {
 
     if (!token) {
       return await publisher.publishError(res, {
-        error: 'Connect token missing',
+        error: 'Session token missing',
       });
     }
 
-    const connectToken = await connectTokenService.getConnectTokenById(token);
-    if (!connectToken) {
+    const sessionToken = await sessionTokenService.getSessionTokenById(token);
+    if (!sessionToken) {
       return await publisher.publishError(res, {
-        error: 'Invalid connect token',
+        error: 'Invalid session token',
       });
     }
 
-    const connectMethod = connectToken.connect_method || undefined;
-    const wsClientId = connectToken.websocket_client_id || undefined;
-    const redirectUrl = connectToken.redirect_url || undefined;
-    const prefersDarkMode = connectToken.prefers_dark_mode || false;
+    const connectMethod = sessionToken.connect_method || undefined;
+    const wsClientId = sessionToken.websocket_client_id || undefined;
+    const redirectUrl = sessionToken.redirect_url || undefined;
+    const prefersDarkMode = sessionToken.prefers_dark_mode || false;
 
-    const activityId = await activityService.findActivityIdByConnectToken(connectToken.id);
-    const branding = await environmentService.getEnvironmentBranding(connectToken.environment_id);
+    const activityId = await activityService.findActivityIdBySessionToken(sessionToken.id);
+    const branding = await environmentService.getEnvironmentBranding(sessionToken.environment_id);
 
     try {
       if (!username || typeof username !== 'string') {
@@ -912,8 +912,8 @@ class ConnectController {
         });
       }
 
-      if (connectToken.expires_at < now()) {
-        const errorMessage = 'Connect token expired';
+      if (sessionToken.expires_at < now()) {
+        const errorMessage = 'Session token expired';
         await activityService.createActivityLog(activityId, {
           timestamp: now(),
           level: LogLevel.Error,
@@ -930,22 +930,22 @@ class ConnectController {
         });
       }
 
-      const integration = await integrationService.getIntegrationById(connectToken.integration_id);
+      const integration = await integrationService.getIntegrationById(sessionToken.integration_id);
       if (!integration) {
-        throw new Error(`Failed to retrieve integration with ID ${connectToken.integration_id}`);
+        throw new Error(`Failed to retrieve integration with ID ${sessionToken.integration_id}`);
       } else if (integration.auth_scheme !== AuthScheme.Basic) {
         throw new Error(`Invalid auth scheme ${integration.auth_scheme} for ${integration.id}`);
       }
 
       const connectionType = await this.getConnectionTypeFromToken(
-        connectToken.type,
+        sessionToken.type,
         integration.provider_key
       );
 
       const response = await connectionService.upsertConnection({
-        environment_id: connectToken.environment_id,
-        id: connectToken.connection_id || generateId(Resource.Connection),
-        display_name: connectToken.display_name || null,
+        environment_id: sessionToken.environment_id,
+        id: sessionToken.connection_id || generateId(Resource.Connection),
+        display_name: sessionToken.display_name || null,
         type: connectionType,
         auth_scheme: integration.auth_scheme,
         integration_id: integration.id,
@@ -953,10 +953,10 @@ class ConnectController {
         credentials_hash: null,
         credentials_iv: null,
         credentials_tag: null,
-        configuration: connectToken.configuration || null,
-        inclusions: connectToken.inclusions || null,
-        exclusions: connectToken.exclusions || null,
-        metadata: connectToken.metadata || null,
+        configuration: sessionToken.configuration || null,
+        inclusions: sessionToken.inclusions || null,
+        exclusions: sessionToken.exclusions || null,
+        metadata: sessionToken.metadata || null,
         created_at: now(),
         updated_at: now(),
         deleted_at: null,
@@ -976,7 +976,7 @@ class ConnectController {
         message: `Connection ${response.action} with basic credentials`,
       });
 
-      await connectTokenService.deleteConnectToken(connectToken.id);
+      await sessionTokenService.deleteSessionToken(sessionToken.id);
 
       if (response.action === 'created') {
         connectionHook.connectionCreated({ connection: response.connection, activityId });
@@ -1017,28 +1017,28 @@ class ConnectController {
     const token = req.params['token'];
     if (!token) {
       return await publisher.publishError(res, {
-        error: 'Connect token missing',
+        error: 'Session token missing',
       });
     }
 
-    const connectToken = await connectTokenService.getConnectTokenById(token);
-    if (!connectToken) {
+    const sessionToken = await sessionTokenService.getSessionTokenById(token);
+    if (!sessionToken) {
       return await publisher.publishError(res, {
-        error: 'Invalid connect token',
+        error: 'Invalid session token',
       });
     }
 
-    const connectMethod = connectToken.connect_method || undefined;
-    const wsClientId = connectToken.websocket_client_id || undefined;
-    const redirectUrl = connectToken.redirect_url || undefined;
-    const prefersDarkMode = connectToken.prefers_dark_mode || false;
+    const connectMethod = sessionToken.connect_method || undefined;
+    const wsClientId = sessionToken.websocket_client_id || undefined;
+    const redirectUrl = sessionToken.redirect_url || undefined;
+    const prefersDarkMode = sessionToken.prefers_dark_mode || false;
 
-    const activityId = await activityService.findActivityIdByConnectToken(connectToken.id);
-    const branding = await environmentService.getEnvironmentBranding(connectToken.environment_id);
+    const activityId = await activityService.findActivityIdBySessionToken(sessionToken.id);
+    const branding = await environmentService.getEnvironmentBranding(sessionToken.environment_id);
 
     try {
-      if (connectToken.expires_at < now()) {
-        const errorMessage = 'Connect token expired';
+      if (sessionToken.expires_at < now()) {
+        const errorMessage = 'Session token expired';
         await activityService.createActivityLog(activityId, {
           timestamp: now(),
           level: LogLevel.Error,
@@ -1060,9 +1060,9 @@ class ConnectController {
         throw new Error('SERVER_URL is undefined');
       }
 
-      const integration = await integrationService.getIntegrationById(connectToken.integration_id);
+      const integration = await integrationService.getIntegrationById(sessionToken.integration_id);
       if (!integration) {
-        throw new Error(`Failed to retrieve integration with ID ${connectToken.integration_id}`);
+        throw new Error(`Failed to retrieve integration with ID ${sessionToken.integration_id}`);
       } else if (integration.auth_scheme !== AuthScheme.ServiceAccount) {
         throw new Error(`Invalid auth scheme ${integration.auth_scheme} for ${integration.id}`);
       }
@@ -1080,7 +1080,7 @@ class ConnectController {
 
       const data: ServiceAccountTemplateData = {
         server_url: serverUrl,
-        connect_token: token,
+        session_token: token,
         integration: {
           provider_key: integration.provider_key,
           name: providerSpec.name,
@@ -1117,24 +1117,24 @@ class ConnectController {
 
     if (!token) {
       return await publisher.publishError(res, {
-        error: 'Connect token missing',
+        error: 'Session token missing',
       });
     }
 
-    const connectToken = await connectTokenService.getConnectTokenById(token);
-    if (!connectToken) {
+    const sessionToken = await sessionTokenService.getSessionTokenById(token);
+    if (!sessionToken) {
       return await publisher.publishError(res, {
-        error: 'Invalid connect token',
+        error: 'Invalid session token',
       });
     }
 
-    const connectMethod = connectToken.connect_method || undefined;
-    const wsClientId = connectToken.websocket_client_id || undefined;
-    const redirectUrl = connectToken.redirect_url || undefined;
-    const prefersDarkMode = connectToken.prefers_dark_mode || false;
+    const connectMethod = sessionToken.connect_method || undefined;
+    const wsClientId = sessionToken.websocket_client_id || undefined;
+    const redirectUrl = sessionToken.redirect_url || undefined;
+    const prefersDarkMode = sessionToken.prefers_dark_mode || false;
 
-    const activityId = await activityService.findActivityIdByConnectToken(connectToken.id);
-    const branding = await environmentService.getEnvironmentBranding(connectToken.environment_id);
+    const activityId = await activityService.findActivityIdBySessionToken(sessionToken.id);
+    const branding = await environmentService.getEnvironmentBranding(sessionToken.environment_id);
 
     try {
       if (!serviceAccountKey || typeof serviceAccountKey !== 'string') {
@@ -1155,8 +1155,8 @@ class ConnectController {
         });
       }
 
-      if (connectToken.expires_at < now()) {
-        const errorMessage = 'Connect token expired';
+      if (sessionToken.expires_at < now()) {
+        const errorMessage = 'Session token expired';
         await activityService.createActivityLog(activityId, {
           timestamp: now(),
           level: LogLevel.Error,
@@ -1173,22 +1173,22 @@ class ConnectController {
         });
       }
 
-      const integration = await integrationService.getIntegrationById(connectToken.integration_id);
+      const integration = await integrationService.getIntegrationById(sessionToken.integration_id);
       if (!integration) {
-        throw new Error(`Failed to retrieve integration with ID ${connectToken.integration_id}`);
+        throw new Error(`Failed to retrieve integration with ID ${sessionToken.integration_id}`);
       } else if (integration.auth_scheme !== AuthScheme.ServiceAccount) {
         throw new Error(`Invalid auth scheme ${integration.auth_scheme} for ${integration.id}`);
       }
 
       const connectionType = await this.getConnectionTypeFromToken(
-        connectToken.type,
+        sessionToken.type,
         integration.provider_key
       );
 
       const response = await connectionService.upsertConnection({
-        environment_id: connectToken.environment_id,
-        id: connectToken.connection_id || generateId(Resource.Connection),
-        display_name: connectToken.display_name || null,
+        environment_id: sessionToken.environment_id,
+        id: sessionToken.connection_id || generateId(Resource.Connection),
+        display_name: sessionToken.display_name || null,
         type: connectionType,
         auth_scheme: integration.auth_scheme,
         integration_id: integration.id,
@@ -1196,10 +1196,10 @@ class ConnectController {
         credentials_hash: null,
         credentials_iv: null,
         credentials_tag: null,
-        configuration: connectToken.configuration || null,
-        inclusions: connectToken.inclusions || null,
-        exclusions: connectToken.exclusions || null,
-        metadata: connectToken.metadata || null,
+        configuration: sessionToken.configuration || null,
+        inclusions: sessionToken.inclusions || null,
+        exclusions: sessionToken.exclusions || null,
+        metadata: sessionToken.metadata || null,
         created_at: now(),
         updated_at: now(),
         deleted_at: null,
@@ -1219,7 +1219,7 @@ class ConnectController {
         message: `Connection ${response.action} with service account credentials`,
       });
 
-      await connectTokenService.deleteConnectToken(connectToken.id);
+      await sessionTokenService.deleteSessionToken(sessionToken.id);
 
       if (response.action === 'created') {
         connectionHook.connectionCreated({ connection: response.connection, activityId });
@@ -1257,4 +1257,4 @@ class ConnectController {
   }
 }
 
-export default new ConnectController();
+export default new SessionController();

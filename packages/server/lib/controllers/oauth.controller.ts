@@ -1,5 +1,5 @@
 import { AuthScheme, OAuth, OAuth1, OAuth2, ProviderSpecification } from '@embed/providers';
-import type { ConnectToken, Integration } from '@embed/shared';
+import type { Integration, SessionToken } from '@embed/shared';
 import {
   Branding,
   DEFAULT_ERROR_MESSAGE,
@@ -25,37 +25,37 @@ import type { Request, Response } from 'express';
 import SimpleOAuth2 from 'simple-oauth2';
 import publisher from '../clients/publisher.client';
 import connectionHook from '../hooks/connection.hook';
-import connectTokenService from '../services/connectToken.service';
+import sessionTokenService from '../services/sessionToken.service';
 import { extractConfigurationKeys, getOauthCallbackUrl } from '../utils/helpers';
-import connectController from './connect.controller';
+import sessionController from './session.controller';
 
 class OAuthController {
   public async authorize(req: Request, res: Response) {
     const token = req.query['token'];
     if (!token || typeof token !== 'string') {
       return await publisher.publishError(res, {
-        error: 'Connect token missing',
+        error: 'Session token missing',
       });
     }
 
-    const connectToken = await connectTokenService.getConnectTokenById(token);
-    if (!connectToken) {
+    const sessionToken = await sessionTokenService.getSessionTokenById(token);
+    if (!sessionToken) {
       return await publisher.publishError(res, {
-        error: 'Invalid connect token',
+        error: 'Invalid session token',
       });
     }
 
-    const connectMethod = connectToken.connect_method || undefined;
-    const wsClientId = connectToken.websocket_client_id || undefined;
-    const redirectUrl = connectToken.redirect_url || undefined;
-    const prefersDarkMode = connectToken.prefers_dark_mode || false;
+    const connectMethod = sessionToken.connect_method || undefined;
+    const wsClientId = sessionToken.websocket_client_id || undefined;
+    const redirectUrl = sessionToken.redirect_url || undefined;
+    const prefersDarkMode = sessionToken.prefers_dark_mode || false;
 
-    const activityId = await activityService.findActivityIdByConnectToken(connectToken.id);
-    const branding = await environmentService.getEnvironmentBranding(connectToken.environment_id);
+    const activityId = await activityService.findActivityIdBySessionToken(sessionToken.id);
+    const branding = await environmentService.getEnvironmentBranding(sessionToken.environment_id);
 
     try {
-      if (connectToken.expires_at < now()) {
-        const errorMessage = 'Connect token expired';
+      if (sessionToken.expires_at < now()) {
+        const errorMessage = 'Session token expired';
         await activityService.createActivityLog(activityId, {
           timestamp: now(),
           level: LogLevel.Error,
@@ -72,9 +72,9 @@ class OAuthController {
         });
       }
 
-      const integration = await integrationService.getIntegrationById(connectToken.integration_id);
+      const integration = await integrationService.getIntegrationById(sessionToken.integration_id);
       if (!integration) {
-        throw new Error(`Failed to retrieve integration with ID ${connectToken.integration_id}`);
+        throw new Error(`Failed to retrieve integration with ID ${sessionToken.integration_id}`);
       }
 
       if (!integration.is_enabled) {
@@ -107,13 +107,13 @@ class OAuthController {
       }
 
       const scopes = scopesArray.join((authSpec as OAuth).scope_separator || ' ');
-      const updatedConnectToken = await connectTokenService.updateConnectToken(connectToken.id, {
+      const updatedSessionToken = await sessionTokenService.updateSessionToken(sessionToken.id, {
         code_verifier: crypto.randomBytes(24).toString('hex'),
         updated_at: now(),
       });
 
-      if (!updatedConnectToken) {
-        throw new Error('Failed to update connect token');
+      if (!updatedSessionToken) {
+        throw new Error('Failed to update session token');
       }
 
       await activityService.createActivityLog(activityId, {
@@ -127,7 +127,7 @@ class OAuthController {
           authSpec: authSpec as OAuth2,
           scopes,
           integration,
-          connectToken: updatedConnectToken,
+          sessionToken: updatedSessionToken,
           activityId,
           branding,
         });
@@ -136,7 +136,7 @@ class OAuthController {
           authSpec: authSpec as OAuth1,
           scopes,
           integration,
-          connectToken: updatedConnectToken,
+          sessionToken: updatedSessionToken,
           activityId,
           branding,
         });
@@ -165,14 +165,14 @@ class OAuthController {
   private async oauth2Request(
     res: Response,
     {
-      connectToken,
+      sessionToken,
       authSpec,
       scopes,
       integration,
       activityId,
       branding,
     }: {
-      connectToken: ConnectToken;
+      sessionToken: SessionToken;
       authSpec: OAuth2;
       scopes: string;
       integration: Integration;
@@ -180,10 +180,10 @@ class OAuthController {
       branding: Branding;
     }
   ) {
-    const connectMethod = connectToken.connect_method || undefined;
-    const wsClientId = connectToken.websocket_client_id || undefined;
-    const redirectUrl = connectToken.redirect_url || undefined;
-    const prefersDarkMode = connectToken.prefers_dark_mode || false;
+    const connectMethod = sessionToken.connect_method || undefined;
+    const wsClientId = sessionToken.websocket_client_id || undefined;
+    const redirectUrl = sessionToken.redirect_url || undefined;
+    const prefersDarkMode = sessionToken.prefers_dark_mode || false;
 
     try {
       if (!integration.is_using_test_credentials) {
@@ -210,14 +210,14 @@ class OAuthController {
       const tokenUrlKeys = extractConfigurationKeys(authSpec.token_url);
       if (authorizationUrlKeys.length > 0 || tokenUrlKeys.length > 0) {
         if (
-          !connectToken.configuration ||
+          !sessionToken.configuration ||
           missesInterpolationParam(
             authSpec.authorization_url,
-            connectToken.configuration as Record<string, string>
+            sessionToken.configuration as Record<string, string>
           ) ||
           missesInterpolationParam(
             authSpec.token_url,
-            connectToken.configuration as Record<string, string>
+            sessionToken.configuration as Record<string, string>
           )
         ) {
           const errorMessage = 'Missing configuration fields';
@@ -228,7 +228,7 @@ class OAuthController {
             payload: {
               authorization_url: authSpec.authorization_url,
               token_url: authSpec.token_url,
-              configuration: connectToken.configuration,
+              configuration: sessionToken.configuration,
             },
           });
 
@@ -252,7 +252,7 @@ class OAuthController {
         if (!authSpec.disable_pkce) {
           const h = crypto
             .createHash('sha256')
-            .update(connectToken.code_verifier!)
+            .update(sessionToken.code_verifier!)
             .digest('base64')
             .replace(/\+/g, '-')
             .replace(/\//g, '_')
@@ -269,14 +269,14 @@ class OAuthController {
         const simpleOAuth2ClientConfig = getSimpleOAuth2ClientConfig(
           integration,
           authSpec,
-          connectToken.configuration as Record<string, string>
+          sessionToken.configuration as Record<string, string>
         );
 
         const authorizationCode = new SimpleOAuth2.AuthorizationCode(simpleOAuth2ClientConfig);
         const authorizationUri = authorizationCode.authorizeURL({
           redirect_uri: callbackUrl,
           scope: scopes,
-          state: connectToken.id,
+          state: sessionToken.id,
           ...authParams,
         });
 
@@ -314,14 +314,14 @@ class OAuthController {
   private async oauth1Request(
     res: Response,
     {
-      connectToken,
+      sessionToken,
       authSpec,
       scopes,
       integration,
       activityId,
       branding,
     }: {
-      connectToken: ConnectToken;
+      sessionToken: SessionToken;
       authSpec: OAuth1;
       scopes: string;
       integration: Integration;
@@ -329,14 +329,14 @@ class OAuthController {
       branding: Branding;
     }
   ) {
-    const connectMethod = connectToken.connect_method || undefined;
-    const wsClientId = connectToken.websocket_client_id || undefined;
-    const redirectUrl = connectToken.redirect_url || undefined;
-    const prefersDarkMode = connectToken.prefers_dark_mode || false;
+    const connectMethod = sessionToken.connect_method || undefined;
+    const wsClientId = sessionToken.websocket_client_id || undefined;
+    const redirectUrl = sessionToken.redirect_url || undefined;
+    const prefersDarkMode = sessionToken.prefers_dark_mode || false;
 
     try {
       const callbackUrl = getOauthCallbackUrl();
-      const callbackParams = new URLSearchParams({ state: connectToken.id });
+      const callbackParams = new URLSearchParams({ state: sessionToken.id });
       const oauth1CallbackURL = `${callbackUrl}?${callbackParams.toString()}`;
 
       const oauth1Client = new OAuth1Client({
@@ -347,13 +347,13 @@ class OAuthController {
       });
 
       const requestToken = await oauth1Client.getOAuthRequestToken();
-      const updatedConnectToken = await connectTokenService.updateConnectToken(connectToken.id, {
+      const updatedSessionToken = await sessionTokenService.updateSessionToken(sessionToken.id, {
         request_token_secret: requestToken.request_token_secret,
         updated_at: now(),
       });
 
-      if (!updatedConnectToken) {
-        throw new Error('Failed to update connect token');
+      if (!updatedSessionToken) {
+        throw new Error('Failed to update session token');
       }
 
       const redirectUrl = oauth1Client.getAuthorizationURL(requestToken);
@@ -395,9 +395,9 @@ class OAuthController {
       });
     }
 
-    const connectToken = await connectTokenService.getConnectTokenById(state);
-    if (!connectToken) {
-      const err = new Error('Failed to retrieve connect token from OAuth callback');
+    const sessionToken = await sessionTokenService.getSessionTokenById(state);
+    if (!sessionToken) {
+      const err = new Error('Failed to retrieve session token from OAuth callback');
       await errorService.reportError(err);
 
       return await publisher.publishError(res, {
@@ -405,16 +405,16 @@ class OAuthController {
       });
     }
 
-    const connectMethod = connectToken.connect_method || undefined;
-    const wsClientId = connectToken.websocket_client_id || undefined;
-    const redirectUrl = connectToken.redirect_url || undefined;
-    const prefersDarkMode = connectToken.prefers_dark_mode || false;
+    const connectMethod = sessionToken.connect_method || undefined;
+    const wsClientId = sessionToken.websocket_client_id || undefined;
+    const redirectUrl = sessionToken.redirect_url || undefined;
+    const prefersDarkMode = sessionToken.prefers_dark_mode || false;
 
-    const activityId = await activityService.findActivityIdByConnectToken(connectToken.id);
-    const branding = await environmentService.getEnvironmentBranding(connectToken.environment_id);
+    const activityId = await activityService.findActivityIdBySessionToken(sessionToken.id);
+    const branding = await environmentService.getEnvironmentBranding(sessionToken.environment_id);
 
     try {
-      const integration = await integrationService.getIntegrationById(connectToken.integration_id);
+      const integration = await integrationService.getIntegrationById(sessionToken.integration_id);
       if (!integration) {
         throw new Error('Failed to retrieve integration');
       }
@@ -439,7 +439,7 @@ class OAuthController {
 
       if (authSpec.scheme === AuthScheme.OAuth2) {
         return this.oauth2Callback(req, res, {
-          connectToken,
+          sessionToken,
           authSpec: authSpec as OAuth2,
           integration,
           activityId,
@@ -447,7 +447,7 @@ class OAuthController {
         });
       } else if (authSpec.scheme === AuthScheme.OAuth1) {
         return this.oauth1Callback(req, res, {
-          connectToken,
+          sessionToken,
           authSpec: authSpec as OAuth1,
           scopes,
           integration,
@@ -480,13 +480,13 @@ class OAuthController {
     req: Request,
     res: Response,
     {
-      connectToken,
+      sessionToken,
       authSpec,
       integration,
       activityId,
       branding,
     }: {
-      connectToken: ConnectToken;
+      sessionToken: SessionToken;
       authSpec: OAuth2;
       integration: Integration;
       activityId: string | null;
@@ -494,10 +494,10 @@ class OAuthController {
     }
   ): Promise<void> {
     const { code } = req.query;
-    const connectMethod = connectToken.connect_method || undefined;
-    const wsClientId = connectToken.websocket_client_id || undefined;
-    const redirectUrl = connectToken.redirect_url || undefined;
-    const prefersDarkMode = connectToken.prefers_dark_mode || false;
+    const connectMethod = sessionToken.connect_method || undefined;
+    const wsClientId = sessionToken.websocket_client_id || undefined;
+    const redirectUrl = sessionToken.redirect_url || undefined;
+    const prefersDarkMode = sessionToken.prefers_dark_mode || false;
 
     try {
       if (!code || typeof code !== 'string') {
@@ -510,7 +510,7 @@ class OAuthController {
       const simpleOAuth2ClientConfig = getSimpleOAuth2ClientConfig(
         integration,
         authSpec,
-        connectToken.configuration as Record<string, string>
+        sessionToken.configuration as Record<string, string>
       );
 
       const authorizationCode = new SimpleOAuth2.AuthorizationCode(simpleOAuth2ClientConfig);
@@ -522,7 +522,7 @@ class OAuthController {
       }
 
       if (!authSpec.disable_pkce) {
-        tokenParams['code_verifier'] = connectToken.code_verifier!;
+        tokenParams['code_verifier'] = sessionToken.code_verifier!;
       }
 
       const headers: Record<string, string> = {};
@@ -542,17 +542,17 @@ class OAuthController {
       const parsedCredentials = parseRawCredentials(rawCredentials, AuthScheme.OAuth2);
       const tokenMetadata = this.getMetadataFromOAuthToken(rawCredentials, authSpec);
       const config =
-        typeof connectToken.configuration === 'object' ? connectToken.configuration : {};
+        typeof sessionToken.configuration === 'object' ? sessionToken.configuration : {};
 
-      const connectionType = await connectController.getConnectionTypeFromToken(
-        connectToken.type,
+      const connectionType = await sessionController.getConnectionTypeFromToken(
+        sessionToken.type,
         integration.provider_key
       );
 
       const response = await connectionService.upsertConnection({
-        environment_id: connectToken.environment_id,
-        id: connectToken.connection_id || generateId(Resource.Connection),
-        display_name: connectToken.display_name || null,
+        environment_id: sessionToken.environment_id,
+        id: sessionToken.connection_id || generateId(Resource.Connection),
+        display_name: sessionToken.display_name || null,
         type: connectionType,
         auth_scheme: integration.auth_scheme,
         integration_id: integration.id,
@@ -561,9 +561,9 @@ class OAuthController {
         credentials_iv: null,
         credentials_tag: null,
         configuration: { ...config, ...tokenMetadata, ...callbackMetadata },
-        inclusions: connectToken.inclusions || null,
-        exclusions: connectToken.exclusions || null,
-        metadata: connectToken.metadata || null,
+        inclusions: sessionToken.inclusions || null,
+        exclusions: sessionToken.exclusions || null,
+        metadata: sessionToken.metadata || null,
         created_at: now(),
         updated_at: now(),
         deleted_at: null,
@@ -583,7 +583,7 @@ class OAuthController {
         message: `Connection ${response.action} with OAuth2 credentials`,
       });
 
-      await connectTokenService.deleteConnectToken(connectToken.id);
+      await sessionTokenService.deleteSessionToken(sessionToken.id);
 
       if (response.action === 'created') {
         connectionHook.connectionCreated({ connection: response.connection, activityId });
@@ -624,14 +624,14 @@ class OAuthController {
     req: Request,
     res: Response,
     {
-      connectToken,
+      sessionToken,
       authSpec,
       scopes,
       integration,
       activityId,
       branding,
     }: {
-      connectToken: ConnectToken;
+      sessionToken: SessionToken;
       authSpec: OAuth1;
       scopes: string;
       integration: Integration;
@@ -640,10 +640,10 @@ class OAuthController {
     }
   ): Promise<void> {
     const { oauth_token, oauth_verifier } = req.query;
-    const connectMethod = connectToken.connect_method || undefined;
-    const wsClientId = connectToken.websocket_client_id || undefined;
-    const redirectUrl = connectToken.redirect_url || undefined;
-    const prefersDarkMode = connectToken.prefers_dark_mode || false;
+    const connectMethod = sessionToken.connect_method || undefined;
+    const wsClientId = sessionToken.websocket_client_id || undefined;
+    const redirectUrl = sessionToken.redirect_url || undefined;
+    const prefersDarkMode = sessionToken.prefers_dark_mode || false;
 
     try {
       const callbackMetadata = this.getMetadataFromOAuthCallback(req.query, authSpec);
@@ -656,7 +656,7 @@ class OAuthController {
         throw new Error('Invalid OAuth1 token/verifier');
       }
 
-      const oauthTokenSecret = connectToken.request_token_secret!;
+      const oauthTokenSecret = sessionToken.request_token_secret!;
       const oauth1Client = new OAuth1Client({
         integration,
         specification: authSpec,
@@ -672,17 +672,17 @@ class OAuthController {
 
       const parsedCredentials = parseRawCredentials(accessTokenResult, AuthScheme.OAuth1);
       const config =
-        typeof connectToken.configuration === 'object' ? connectToken.configuration : {};
+        typeof sessionToken.configuration === 'object' ? sessionToken.configuration : {};
 
-      const connectionType = await connectController.getConnectionTypeFromToken(
-        connectToken.type,
+      const connectionType = await sessionController.getConnectionTypeFromToken(
+        sessionToken.type,
         integration.provider_key
       );
 
       const response = await connectionService.upsertConnection({
-        environment_id: connectToken.environment_id,
-        id: connectToken.connection_id || generateId(Resource.Connection),
-        display_name: connectToken.display_name || null,
+        environment_id: sessionToken.environment_id,
+        id: sessionToken.connection_id || generateId(Resource.Connection),
+        display_name: sessionToken.display_name || null,
         type: connectionType,
         auth_scheme: integration.auth_scheme,
         integration_id: integration.id,
@@ -691,9 +691,9 @@ class OAuthController {
         credentials_iv: null,
         credentials_tag: null,
         configuration: { ...config, ...callbackMetadata },
-        inclusions: connectToken.inclusions || null,
-        exclusions: connectToken.exclusions || null,
-        metadata: connectToken.metadata || null,
+        inclusions: sessionToken.inclusions || null,
+        exclusions: sessionToken.exclusions || null,
+        metadata: sessionToken.metadata || null,
         created_at: now(),
         updated_at: now(),
         deleted_at: null,
@@ -713,7 +713,7 @@ class OAuthController {
         message: `Connection ${response.action} with OAuth1 credentials`,
       });
 
-      await connectTokenService.deleteConnectToken(connectToken.id);
+      await sessionTokenService.deleteSessionToken(sessionToken.id);
 
       if (response.action === 'created') {
         connectionHook.connectionCreated({ connection: response.connection, activityId });

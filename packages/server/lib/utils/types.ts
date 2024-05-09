@@ -30,7 +30,7 @@ export interface ErrorTemplateData extends DefaultTemplateData {
 
 export interface ConfigTemplateData extends DefaultTemplateData {
   server_url: string;
-  connect_token: string;
+  session_token: string;
   integration: {
     provider_key: string;
     name: string;
@@ -45,7 +45,7 @@ export interface ConfigTemplateData extends DefaultTemplateData {
 
 export interface ApiKeyTemplateData extends DefaultTemplateData {
   server_url: string;
-  connect_token: string;
+  session_token: string;
   integration: {
     provider_key: string;
     name: string;
@@ -56,7 +56,7 @@ export interface ApiKeyTemplateData extends DefaultTemplateData {
 
 export interface ServiceAccountTemplateData extends DefaultTemplateData {
   server_url: string;
-  connect_token: string;
+  session_token: string;
   integration: {
     provider_key: string;
     name: string;
@@ -67,7 +67,7 @@ export interface ServiceAccountTemplateData extends DefaultTemplateData {
 
 export interface BasicTemplateData extends DefaultTemplateData {
   server_url: string;
-  connect_token: string;
+  session_token: string;
   integration: {
     provider_key: string;
     name: string;
@@ -235,8 +235,8 @@ export interface ActionRunObject {
   updated_at: number;
 }
 
-export interface ConnectTokenObject {
-  object: 'connect_token';
+export interface SessionTokenObject {
+  object: 'session_token';
   token: string;
   url: string;
   integration_id: string;
@@ -250,13 +250,13 @@ export interface ConnectTokenObject {
   created_at: number;
 }
 
-export interface ConnectTokenDeletedObject {
-  object: 'connect_token.deleted';
+export interface SessionTokenDeletedObject {
+  object: 'session_token.deleted';
   token: string;
   deleted: true;
 }
 
-export const CreateConnectTokenRequestSchema = z.object({
+export const CreateSessionTokenRequestSchema = z.object({
   integration_id: z.string(),
   connection_id: z.string().optional().nullable(),
   expires_in_mins: z.number().optional().nullable(),
@@ -350,7 +350,7 @@ export interface ActivityObject {
   environment_id: string;
   integration_id: string | null;
   connection_id: string | null;
-  connect_token_id: string | null;
+  session_token_id: string | null;
   collection_key: string | null;
   action_key: string | null;
   level: LogLevel;

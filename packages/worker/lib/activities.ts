@@ -24,7 +24,7 @@ export async function triggerSync(args: SyncArgs): Promise<void> {
     environment_id: args.environmentId,
     integration_id: args.integrationId,
     connection_id: args.connectionId,
-    connect_token_id: null,
+    session_token_id: null,
     action_key: null,
     collection_key: args.collectionKey,
     level: LogLevel.Info,

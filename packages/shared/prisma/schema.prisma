@@ -60,7 +60,7 @@ model Environment {
 
   api_keys       ApiKey[]
   integrations   Integration[]
-  connect_tokens ConnectToken[]
+  session_tokens SessionToken[]
   connections    Connection[]
   webhooks       Webhook[]
   activities     Activity[]
@@ -83,7 +83,7 @@ model ApiKey {
   environment Environment @relation(fields: [environment_id], references: [id])
 }
 
-model ConnectToken {
+model SessionToken {
   id                   String  @id
   environment_id       String
   integration_id       String
@@ -329,7 +329,7 @@ model Activity {
   environment_id   String
   integration_id   String?
   connection_id    String?
-  connect_token_id String?
+  session_token_id String?
   collection_key   String?
   action_key       String?
   level            String

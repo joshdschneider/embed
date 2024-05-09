@@ -10,14 +10,14 @@ import path from 'path';
 import type { WebSocket } from 'ws';
 import { WebSocketServer } from 'ws';
 import publisher from './clients/publisher.client';
-import connectRouter from './routes/connect.router';
-import connectTokenRouter from './routes/connectToken.router';
 import connectionRouter from './routes/connection.router';
 import integrationRouter from './routes/integration.router';
 import oauthRouter from './routes/oauth.router';
 import previewRouter from './routes/preview.router';
 import providerRouter from './routes/provider.router';
 import proxyRouter from './routes/proxy.router';
+import sessionRouter from './routes/session.router';
+import sessionTokenRouter from './routes/sessionToken.router';
 import webRouter from './routes/web.router';
 import webhookRouter from './routes/webhook.router';
 import { corsOptions } from './utils/cors';
@@ -38,14 +38,14 @@ function setupExpressApp() {
   });
 
   app.use('/v1/integrations', integrationRouter);
-  app.use('/v1/connect-tokens', connectTokenRouter);
+  app.use('/v1/session-tokens', sessionTokenRouter);
   app.use('/v1/connections', connectionRouter);
   app.use('/v1/proxy', proxyRouter);
   app.use('/v1/webhooks', webhookRouter);
 
   app.use('/web', webRouter);
   app.use('/oauth', oauthRouter);
-  app.use('/connect', connectRouter);
+  app.use('/session', sessionRouter);
   app.use('/preview', previewRouter);
   app.use('/providers', providerRouter);
 
