@@ -16,20 +16,20 @@ import {
   providerService,
 } from '@embed/shared';
 import type { Request, Response } from 'express';
-import connectTokenService from '../services/connectToken.service';
+import sessionTokenService from '../services/sessionToken.service';
 import { zodError } from '../utils/helpers';
 import {
-  ConnectTokenDeletedObject,
-  ConnectTokenObject,
   ConnectionType,
-  CreateConnectTokenRequestSchema,
+  CreateSessionTokenRequestSchema,
+  SessionTokenDeletedObject,
+  SessionTokenObject,
 } from '../utils/types';
 
-class ConnectTokenController {
-  public async createConnectToken(req: Request, res: Response) {
+class SessionTokenController {
+  public async createSessionToken(req: Request, res: Response) {
     try {
       const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
-      const parsedBody = CreateConnectTokenRequestSchema.safeParse(req.body);
+      const parsedBody = CreateSessionTokenRequestSchema.safeParse(req.body);
 
       if (!parsedBody.success) {
         return errorService.errorResponse(res, {
@@ -129,8 +129,8 @@ class ConnectTokenController {
         }
       }
 
-      const connectToken = await connectTokenService.createConnectToken({
-        id: generateId(Resource.ConnectToken),
+      const sessionToken = await sessionTokenService.createSessionToken({
+        id: generateId(Resource.SessionToken),
         environment_id: environmentId,
         integration_id: integrationId,
         connection_id: connectionId || null,
@@ -153,7 +153,7 @@ class ConnectTokenController {
         deleted_at: null,
       });
 
-      if (!connectToken) {
+      if (!sessionToken) {
         return errorService.errorResponse(res, {
           code: ErrorCode.InternalServerError,
           message: DEFAULT_ERROR_MESSAGE,
@@ -162,10 +162,10 @@ class ConnectTokenController {
 
       const activityId = await activityService.createActivity({
         id: generateId(Resource.Activity),
-        environment_id: connectToken.environment_id,
-        integration_id: connectToken.integration_id,
+        environment_id: sessionToken.environment_id,
+        integration_id: sessionToken.integration_id,
         connection_id: connectionId || null,
-        connect_token_id: connectToken.id,
+        session_token_id: sessionToken.id,
         action_key: null,
         collection_key: null,
         level: LogLevel.Info,
@@ -175,36 +175,36 @@ class ConnectTokenController {
 
       await activityService.createActivityLog(activityId, {
         level: LogLevel.Info,
-        message: 'Connect token created',
+        message: 'Session token created',
         timestamp: now(),
         payload: {
-          token: connectToken.id,
-          url: this.buildConnectTokenUrl(connectToken.id),
-          expires_in_mins: this.expiresInMinutes(connectToken.expires_at),
-          integration_id: connectToken.integration_id,
-          redirect_url: connectToken.redirect_url,
-          language: connectToken.language,
-          metadata: connectToken.metadata,
-          configuration: connectToken.configuration,
+          token: sessionToken.id,
+          url: this.buildSessionTokenUrl(sessionToken.id),
+          expires_in_mins: this.expiresInMinutes(sessionToken.expires_at),
+          integration_id: sessionToken.integration_id,
+          redirect_url: sessionToken.redirect_url,
+          language: sessionToken.language,
+          metadata: sessionToken.metadata,
+          configuration: sessionToken.configuration,
         },
       });
 
-      const connectTokenObject: ConnectTokenObject = {
-        object: 'connect_token',
-        token: connectToken.id,
-        url: this.buildConnectTokenUrl(connectToken.id),
-        expires_in_mins: this.expiresInMinutes(connectToken.expires_at),
-        integration_id: connectToken.integration_id,
-        connection_id: connectToken.connection_id,
-        redirect_url: connectToken.redirect_url,
-        type: connectToken.type as ConnectionType | null,
-        language: connectToken.language,
-        metadata: connectToken.metadata as Record<string, any> | null,
-        configuration: connectToken.configuration as Record<string, any> | null,
-        created_at: connectToken.created_at,
+      const sessionTokenObject: SessionTokenObject = {
+        object: 'session_token',
+        token: sessionToken.id,
+        url: this.buildSessionTokenUrl(sessionToken.id),
+        expires_in_mins: this.expiresInMinutes(sessionToken.expires_at),
+        integration_id: sessionToken.integration_id,
+        connection_id: sessionToken.connection_id,
+        redirect_url: sessionToken.redirect_url,
+        type: sessionToken.type as ConnectionType | null,
+        language: sessionToken.language,
+        metadata: sessionToken.metadata as Record<string, any> | null,
+        configuration: sessionToken.configuration as Record<string, any> | null,
+        created_at: sessionToken.created_at,
       };
 
-      res.status(201).send(connectTokenObject);
+      res.status(201).send(sessionTokenObject);
     } catch (err) {
       await errorService.reportError(err);
 
@@ -215,36 +215,36 @@ class ConnectTokenController {
     }
   }
 
-  public async listConnectTokens(req: Request, res: Response) {
+  public async listSessionTokens(req: Request, res: Response) {
     try {
       const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
-      const connectTokens = await connectTokenService.listConnectTokens(environmentId);
+      const sessionTokens = await sessionTokenService.listSessionTokens(environmentId);
 
-      if (!connectTokens) {
+      if (!sessionTokens) {
         return errorService.errorResponse(res, {
           code: ErrorCode.InternalServerError,
           message: DEFAULT_ERROR_MESSAGE,
         });
       }
 
-      const connectTokenObjects: ConnectTokenObject[] = connectTokens.map((connectToken) => {
+      const sessionTokenObjects: SessionTokenObject[] = sessionTokens.map((sessionToken) => {
         return {
-          object: 'connect_token',
-          token: connectToken.id,
-          url: this.buildConnectTokenUrl(connectToken.id),
-          expires_in_mins: this.expiresInMinutes(connectToken.expires_at),
-          integration_id: connectToken.integration_id,
-          connection_id: connectToken.connection_id,
-          redirect_url: connectToken.redirect_url,
-          type: connectToken.type as ConnectionType | null,
-          language: connectToken.language,
-          metadata: connectToken.metadata as Record<string, any> | null,
-          configuration: connectToken.configuration as Record<string, any> | null,
-          created_at: connectToken.created_at,
+          object: 'session_token',
+          token: sessionToken.id,
+          url: this.buildSessionTokenUrl(sessionToken.id),
+          expires_in_mins: this.expiresInMinutes(sessionToken.expires_at),
+          integration_id: sessionToken.integration_id,
+          connection_id: sessionToken.connection_id,
+          redirect_url: sessionToken.redirect_url,
+          type: sessionToken.type as ConnectionType | null,
+          language: sessionToken.language,
+          metadata: sessionToken.metadata as Record<string, any> | null,
+          configuration: sessionToken.configuration as Record<string, any> | null,
+          created_at: sessionToken.created_at,
         };
       });
 
-      res.status(200).json({ object: 'list', data: connectTokenObjects });
+      res.status(200).json({ object: 'list', data: sessionTokenObjects });
     } catch (err) {
       await errorService.reportError(err);
 
@@ -255,40 +255,40 @@ class ConnectTokenController {
     }
   }
 
-  public async retrieveConnectToken(req: Request, res: Response) {
+  public async retrieveSessionToken(req: Request, res: Response) {
     try {
-      const connectTokenId = req.params['connect_token_id'];
-      if (!connectTokenId) {
+      const sessionTokenId = req.params['session_token_id'];
+      if (!sessionTokenId) {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
           message: 'Token missing',
         });
       }
 
-      const connectToken = await connectTokenService.getConnectTokenById(connectTokenId);
-      if (!connectToken) {
+      const sessionToken = await sessionTokenService.getSessionTokenById(sessionTokenId);
+      if (!sessionToken) {
         return errorService.errorResponse(res, {
           code: ErrorCode.NotFound,
-          message: 'Connect token not found',
+          message: 'Session token not found',
         });
       }
 
-      const connectTokenObject: ConnectTokenObject = {
-        object: 'connect_token',
-        token: connectToken.id,
-        url: this.buildConnectTokenUrl(connectToken.id),
-        expires_in_mins: this.expiresInMinutes(connectToken.expires_at),
-        integration_id: connectToken.integration_id,
-        connection_id: connectToken.connection_id,
-        redirect_url: connectToken.redirect_url,
-        type: connectToken.type as ConnectionType | null,
-        language: connectToken.language,
-        metadata: connectToken.metadata as Record<string, any> | null,
-        configuration: connectToken.configuration as Record<string, any> | null,
-        created_at: connectToken.created_at,
+      const sessionTokenObject: SessionTokenObject = {
+        object: 'session_token',
+        token: sessionToken.id,
+        url: this.buildSessionTokenUrl(sessionToken.id),
+        expires_in_mins: this.expiresInMinutes(sessionToken.expires_at),
+        integration_id: sessionToken.integration_id,
+        connection_id: sessionToken.connection_id,
+        redirect_url: sessionToken.redirect_url,
+        type: sessionToken.type as ConnectionType | null,
+        language: sessionToken.language,
+        metadata: sessionToken.metadata as Record<string, any> | null,
+        configuration: sessionToken.configuration as Record<string, any> | null,
+        created_at: sessionToken.created_at,
       };
 
-      res.status(200).send(connectTokenObject);
+      res.status(200).send(sessionTokenObject);
     } catch (err) {
       await errorService.reportError(err);
 
@@ -299,31 +299,31 @@ class ConnectTokenController {
     }
   }
 
-  public async deleteConnectToken(req: Request, res: Response) {
+  public async deleteSessionToken(req: Request, res: Response) {
     try {
-      const connectTokenId = req.params['connect_token_id'];
-      if (!connectTokenId) {
+      const sessionTokenId = req.params['session_token_id'];
+      if (!sessionTokenId) {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
-          message: 'Connect token missing',
+          message: 'Session token missing',
         });
       }
 
-      const deletedConnectToken = await connectTokenService.deleteConnectToken(connectTokenId);
-      if (!deletedConnectToken) {
+      const deletedSessionToken = await sessionTokenService.deleteSessionToken(sessionTokenId);
+      if (!deletedSessionToken) {
         return errorService.errorResponse(res, {
           code: ErrorCode.InternalServerError,
           message: DEFAULT_ERROR_MESSAGE,
         });
       }
 
-      const connectTokenDeletedObject: ConnectTokenDeletedObject = {
-        object: 'connect_token.deleted',
-        token: deletedConnectToken.id,
+      const sessionTokenDeletedObject: SessionTokenDeletedObject = {
+        object: 'session_token.deleted',
+        token: deletedSessionToken.id,
         deleted: true,
       };
 
-      res.status(200).send(connectTokenDeletedObject);
+      res.status(200).send(sessionTokenDeletedObject);
     } catch (err) {
       await errorService.reportError(err);
 
@@ -334,7 +334,7 @@ class ConnectTokenController {
     }
   }
 
-  private buildConnectTokenUrl(token: string) {
+  private buildSessionTokenUrl(token: string) {
     const serverUrl = getServerUrl();
     if (!serverUrl) {
       throw new Error('Server URL is not defined');
@@ -348,4 +348,4 @@ class ConnectTokenController {
   }
 }
 
-export default new ConnectTokenController();
+export default new SessionTokenController();

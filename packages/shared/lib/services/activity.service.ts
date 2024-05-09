@@ -39,7 +39,7 @@ class ActivityService {
           OR: [
             { integration_id: { contains: options.query } },
             { connection_id: { contains: options.query } },
-            { connect_token_id: { contains: options.query } },
+            { session_token_id: { contains: options.query } },
             { collection_key: { contains: options.query } },
             { action_key: { contains: options.query } },
             { level: { contains: options.query } },
@@ -103,10 +103,10 @@ class ActivityService {
     }
   }
 
-  public async findActivityIdByConnectToken(connectToken: string): Promise<string | null> {
+  public async findActivityIdBySessionToken(sessionToken: string): Promise<string | null> {
     try {
       const activity = await database.activity.findFirst({
-        where: { connect_token_id: connectToken },
+        where: { session_token_id: sessionToken },
         select: { id: true },
       });
 

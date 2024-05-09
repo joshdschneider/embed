@@ -2,7 +2,7 @@ export enum Resource {
   Account = 'acct',
   ApiKey = 'key',
   Environment = 'env',
-  ConnectToken = 'tok',
+  SessionToken = 'tok',
   Connection = 'conn',
   Sync = 'sync',
   SyncRun = 'sync_run',
