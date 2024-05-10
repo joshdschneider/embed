@@ -74,7 +74,7 @@ class IntegrationService {
       };
     }
   ): Promise<{
-    integrations: Integration[];
+    integrations: (Integration & { connection_count: number })[];
     hasMore: boolean;
     firstId: string | null;
     lastId: string | null;
@@ -116,6 +116,7 @@ class IntegrationService {
         orderBy,
         take,
         ...cursorCondition,
+        include: { _count: { select: { connections: true } } },
       });
 
       const hasMore = integrations.length > limit;
@@ -127,9 +128,11 @@ class IntegrationService {
         integrations.reverse();
       }
 
-      const decryptedIntegrations = integrations.map((i) => {
-        return encryptionService.decryptIntegration(i);
-      });
+      const decryptedIntegrations = integrations
+        .map((i) => ({ ...i, connection_count: i._count.connections }))
+        .map((i) => encryptionService.decryptIntegration(i)) as (Integration & {
+        connection_count: number;
+      })[];
 
       return {
         integrations: decryptedIntegrations,
