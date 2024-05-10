@@ -74,6 +74,7 @@ class IntegrationController {
           display_name: integration.display_name,
           is_enabled: integration.is_enabled,
           auth_scheme: integration.auth_scheme as AuthScheme,
+          connection_count: integration.connection_count,
           created_at: integration.created_at,
           updated_at: integration.updated_at,
         };
