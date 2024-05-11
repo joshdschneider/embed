@@ -22,6 +22,7 @@ export const ApiAuthSchema = z.object({
     z.literal(AuthScheme.ApiKey),
     z.literal(AuthScheme.ServiceAccount),
   ]),
+  help_link: z.string().optional(),
 });
 
 export type ApiAuth = z.infer<typeof ApiAuthSchema>;

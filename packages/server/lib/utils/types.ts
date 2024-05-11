@@ -41,6 +41,7 @@ export interface ConfigTemplateData extends DefaultTemplateData {
   configuration_fields: {
     name: string;
     label: string;
+    help_link: string | undefined;
   }[];
 }
 
@@ -52,6 +53,7 @@ export interface ApiKeyTemplateData extends DefaultTemplateData {
     name: string;
     logo_url: string | undefined;
     logo_url_dark_mode: string | undefined;
+    help_link: string | undefined;
   };
 }
 
@@ -63,6 +65,7 @@ export interface ServiceAccountTemplateData extends DefaultTemplateData {
     name: string;
     logo_url: string | undefined;
     logo_url_dark_mode: string | undefined;
+    help_link: string | undefined;
   };
 }
 
@@ -74,6 +77,7 @@ export interface BasicTemplateData extends DefaultTemplateData {
     name: string;
     logo_url: string | undefined;
     logo_url_dark_mode: string | undefined;
+    help_link: string | undefined;
   };
 }
 
@@ -83,6 +87,7 @@ export interface PreviewTemplateData extends DefaultTemplateData {
     name: string;
     logo_url: string | undefined;
     logo_url_dark_mode: string | undefined;
+    help_link: string | undefined;
   };
 }
 

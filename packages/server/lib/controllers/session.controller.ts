@@ -370,6 +370,7 @@ class SessionController {
           configuration_fields: keys.map((key) => ({
             name: key,
             label: formatKeyToReadableText(key),
+            help_link: undefined,
           })),
           branding,
           prefers_dark_mode: prefersDarkMode,
@@ -567,6 +568,11 @@ class SessionController {
         throw new Error(`Provider specification not found for ${integration.provider_key}`);
       }
 
+      const apiKeyAuth = providerSpec.auth.find((auth) => auth.scheme === AuthScheme.ApiKey) as {
+        scheme: AuthScheme.ApiKey;
+        help_link: string | undefined;
+      };
+
       await activityService.createActivityLog(activityId, {
         timestamp: now(),
         level: LogLevel.Info,
@@ -581,6 +587,7 @@ class SessionController {
           name: providerSpec.name,
           logo_url: providerSpec.logo_url,
           logo_url_dark_mode: providerSpec.logo_url_dark_mode,
+          help_link: apiKeyAuth.help_link,
         },
         branding,
         prefers_dark_mode: prefersDarkMode,
@@ -810,6 +817,11 @@ class SessionController {
         throw new Error(`Provider specification not found for ${integration.provider_key}`);
       }
 
+      const basicAuth = providerSpec.auth.find((auth) => auth.scheme === AuthScheme.Basic) as {
+        scheme: AuthScheme.Basic;
+        help_link: string | undefined;
+      };
+
       await activityService.createActivityLog(activityId, {
         timestamp: now(),
         level: LogLevel.Info,
@@ -824,6 +836,7 @@ class SessionController {
           name: providerSpec.name,
           logo_url: providerSpec.logo_url,
           logo_url_dark_mode: providerSpec.logo_url_dark_mode,
+          help_link: basicAuth.help_link,
         },
         branding,
         prefers_dark_mode: prefersDarkMode,
@@ -1072,6 +1085,13 @@ class SessionController {
         throw new Error(`Provider specification not found for ${integration.provider_key}`);
       }
 
+      const serviceAccountAuth = providerSpec.auth.find(
+        (auth) => auth.scheme === AuthScheme.ServiceAccount
+      ) as {
+        scheme: AuthScheme.ServiceAccount;
+        help_link: string | undefined;
+      };
+
       await activityService.createActivityLog(activityId, {
         timestamp: now(),
         level: LogLevel.Info,
@@ -1086,6 +1106,7 @@ class SessionController {
           name: providerSpec.name,
           logo_url: providerSpec.logo_url,
           logo_url_dark_mode: providerSpec.logo_url_dark_mode,
+          help_link: serviceAccountAuth.help_link,
         },
         branding,
         prefers_dark_mode: prefersDarkMode,
