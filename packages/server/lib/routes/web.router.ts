@@ -24,6 +24,13 @@ webRouter
   );
 
 webRouter
+  .route('/users/:user_id')
+  .post(
+    authMiddleware.webUserAuth.bind(authMiddleware),
+    userController.updateProfile.bind(userController)
+  );
+
+webRouter
   .route('/environments')
   .get(
     authMiddleware.webUserAuth.bind(authMiddleware),

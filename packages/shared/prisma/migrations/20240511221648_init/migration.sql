@@ -4,6 +4,7 @@ CREATE TABLE "User" (
     "email" TEXT NOT NULL,
     "first_name" TEXT,
     "last_name" TEXT,
+    "email_subscriptions" TEXT[],
     "created_at" INTEGER NOT NULL,
     "updated_at" INTEGER NOT NULL,
     "deleted_at" INTEGER,
@@ -71,7 +72,7 @@ CREATE TABLE "ApiKey" (
 );
 
 -- CreateTable
-CREATE TABLE "ConnectToken" (
+CREATE TABLE "SessionToken" (
     "id" TEXT NOT NULL,
     "environment_id" TEXT NOT NULL,
     "integration_id" TEXT NOT NULL,
@@ -94,7 +95,7 @@ CREATE TABLE "ConnectToken" (
     "updated_at" INTEGER NOT NULL,
     "deleted_at" INTEGER,
 
-    CONSTRAINT "ConnectToken_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "SessionToken_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -284,7 +285,7 @@ CREATE TABLE "Activity" (
     "environment_id" TEXT NOT NULL,
     "integration_id" TEXT,
     "connection_id" TEXT,
-    "connect_token_id" TEXT,
+    "session_token_id" TEXT,
     "collection_key" TEXT,
     "action_key" TEXT,
     "level" TEXT NOT NULL,
@@ -340,7 +341,7 @@ ALTER TABLE "Environment" ADD CONSTRAINT "Environment_organization_id_fkey" FORE
 ALTER TABLE "ApiKey" ADD CONSTRAINT "ApiKey_environment_id_fkey" FOREIGN KEY ("environment_id") REFERENCES "Environment"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "ConnectToken" ADD CONSTRAINT "ConnectToken_environment_id_fkey" FOREIGN KEY ("environment_id") REFERENCES "Environment"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "SessionToken" ADD CONSTRAINT "SessionToken_environment_id_fkey" FOREIGN KEY ("environment_id") REFERENCES "Environment"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Integration" ADD CONSTRAINT "Integration_environment_id_fkey" FOREIGN KEY ("environment_id") REFERENCES "Environment"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
