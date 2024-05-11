@@ -99,6 +99,12 @@ export type UserObject = {
   last_name: string | null;
 };
 
+export const UpdateUserRequestSchema = z.object({
+  first_name: z.string().optional().nullable(),
+  last_name: z.string().optional().nullable(),
+  email_subscriptions: z.array(z.string()).optional(),
+});
+
 export type InvitationObject = {
   object: 'invitation';
   id: string;

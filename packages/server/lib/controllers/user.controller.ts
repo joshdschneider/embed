@@ -21,9 +21,9 @@ import {
 import type { Request, Response } from 'express';
 import organizationService from '../services/organization.service';
 import userService from '../services/user.service';
-import { DEFAULT_ORGANIZATION_NAME } from '../utils/constants';
-import { generateSecretKey } from '../utils/helpers';
-import { EnvironmentType } from '../utils/types';
+import { DEFAULT_EMAIL_SUBSCRIPTIONS, DEFAULT_ORGANIZATION_NAME } from '../utils/constants';
+import { generateSecretKey, zodError } from '../utils/helpers';
+import { EnvironmentType, UpdateUserRequestSchema } from '../utils/types';
 
 class UserController {
   public async handleUserAuth(req: Request, res: Response) {
@@ -49,6 +49,7 @@ class UserController {
           email: user.email,
           first_name: user.first_name,
           last_name: user.last_name,
+          email_subscriptions: DEFAULT_EMAIL_SUBSCRIPTIONS,
           created_at: now(),
           updated_at: now(),
           deleted_at: null,
@@ -134,6 +135,7 @@ class UserController {
           email: existingUser.email,
           first_name: existingUser.first_name,
           last_name: existingUser.last_name,
+          email_subscriptions: existingUser.email_subscriptions,
           organization: {
             object: 'organization',
             id: existingOrg.id,
@@ -193,6 +195,7 @@ class UserController {
         email: _user.email,
         first_name: _user.first_name,
         last_name: _user.last_name,
+        email_subscriptions: _user.email_subscriptions,
         organization: {
           object: 'organization',
           id: _organization.id,
@@ -255,11 +258,61 @@ class UserController {
         email: user.email,
         first_name: user.first_name,
         last_name: user.last_name,
+        email_subscriptions: user.email_subscriptions,
         organization: {
           object: 'organization',
           id: organization.id,
           name: organization.name,
         },
+      });
+    } catch (err) {
+      await errorService.reportError(err);
+
+      return errorService.errorResponse(res, {
+        code: ErrorCode.InternalServerError,
+        message: DEFAULT_ERROR_MESSAGE,
+      });
+    }
+  }
+
+  public async updateProfile(req: Request, res: Response) {
+    try {
+      const { user_id } = req.params;
+      if (!user_id) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.BadRequest,
+          message: 'User ID missing',
+        });
+      }
+
+      const parsedBody = UpdateUserRequestSchema.safeParse(req.body);
+      if (!parsedBody.success) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.BadRequest,
+          message: zodError(parsedBody.error),
+        });
+      }
+
+      const user = await userService.updateUser(user_id, {
+        first_name: parsedBody.data.first_name,
+        last_name: parsedBody.data.last_name,
+        email_subscriptions: parsedBody.data.email_subscriptions,
+      });
+
+      if (!user) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.InternalServerError,
+          message: DEFAULT_ERROR_MESSAGE,
+        });
+      }
+
+      return res.status(200).json({
+        object: 'user',
+        id: user.id,
+        email: user.email,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        email_subscriptions: user.email_subscriptions,
       });
     } catch (err) {
       await errorService.reportError(err);
