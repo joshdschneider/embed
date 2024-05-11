@@ -22,21 +22,19 @@
         --border-radius-full: 18px;
         --border-radius: var(--border-radius-<%= branding.border_radius %>);
       }
-      .theme-light {
-        --background-color: <%= '#' + branding.light_mode.page_background %>;
-        --background-color-secondary: transparent;
-        --border-color: rgba(0, 0, 0, 0.1);
-        --text-color: rgba(28, 32, 36, 1);
-        --button-text-color: <%= '#' + branding.light_mode.button_text %>;
-        --button-background-color: <%= '#' + branding.light_mode.button_background %>;
+      .theme-light {       
+        --background-color: <%= "#" + branding.light_mode.page_background %>;
+        --border-color: <%= "#" + branding.light_mode.border %>;
+        --text-color: <%= "#" + branding.light_mode.text %>;
+        --button-text-color: <%= "#" + branding.light_mode.button_text %>;
+        --button-background-color: <%= "#" + branding.light_mode.button_background %>;
       }
-      .theme-dark {
-        --background-color: <%= '#' + branding.dark_mode.page_background %>;
-        --background-color-secondary: rgba(0, 0, 0, 0.1);
-        --border-color: rgba(255, 255, 255, 0.1);
-        --text-color: rgba(255, 255, 255, 1);
-        --button-text-color: <%= '#' + branding.dark_mode.button_text %>;
-        --button-background-color: <%= '#' + branding.dark_mode.button_background %>;
+      .theme-dark {       
+        --background-color: <%= "#" + branding.dark_mode.page_background %>;
+        --border-color: <%= "#" + branding.dark_mode.border %>;
+        --text-color: <%= "#" + branding.dark_mode.text %>;
+        --button-text-color: <%= "#" + branding.dark_mode.button_text %>;
+        --button-background-color: <%= "#" + branding.dark_mode.button_background %>;
       }
       main {
         display: flex;

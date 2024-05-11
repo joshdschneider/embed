@@ -177,7 +177,7 @@ export const DEFAULT_TEXT_EMBEDDING_MODEL = TextEmbeddingModel.OpenaiTextEmbeddi
 export const DEFAULT_MULTIMODAL_EMBEDDING_MODEL = MultimodalEmbeddingModel.AmazonTitanMultimodalG1;
 export const DEFAULT_AUTO_ENABLE_COLLECTIONS = true;
 export const DEFAULT_AUTO_ENABLE_ACTIONS = true;
-export const DEFAULT_AUTO_START_SYNCS = false;
+export const DEFAULT_AUTO_START_SYNCS = true;
 export const DEFAULT_SYNC_FREQUENCY = SyncFrequency.Daily;
 export const DEFAULT_MULTIMODAL_ENABLED = true;
 
@@ -194,16 +194,18 @@ export const DEFAULT_BRANDING = {
   appearance: 'system',
   border_radius: 'medium',
   light_mode: {
-    page_background: 'FCFCFC',
-    button_background: '000000',
+    text: '202020',
+    border: 'CFCFCA',
+    page_background: 'FFFFFF',
+    button_background: '3F7ADF',
     button_text: 'FFFFFF',
-    links: '5753C6',
   },
   dark_mode: {
-    page_background: '000000',
-    button_background: 'FFFFFF',
-    button_text: '000000',
-    links: 'B1A9FF',
+    text: 'FFFFFF',
+    border: '555451',
+    page_background: '191918',
+    button_background: '3F7ADF',
+    button_text: 'FFFFFF',
   },
 };
 

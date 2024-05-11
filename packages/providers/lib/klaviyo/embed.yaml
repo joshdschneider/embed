@@ -6,6 +6,7 @@ logo_url: https://embed-integrations.s3.amazonaws.com/klaviyo.svg
 
 auth:
   - scheme: api_key
+    help_link: https://developers.klaviyo.com/en/docs/retrieve_api_credentials
 
 headers:
   Authorization: Klaviyo-API-Key ${api_key}

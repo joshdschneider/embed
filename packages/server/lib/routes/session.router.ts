@@ -6,7 +6,7 @@ const sessionRouter = express.Router();
 sessionRouter.use((req, res, next) => {
   res.setHeader(
     'Content-Security-Policy',
-    "default-src 'self'; img-src https://*; style-src 'self' 'unsafe-inline';"
+    "default-src 'self'; img-src https://*; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';"
   );
   next();
 });

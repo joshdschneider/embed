@@ -42,9 +42,10 @@ class PreviewController {
       const data: PreviewTemplateData = {
         server_url: serverUrl,
         integration: {
-          name: 'Test',
-          logo_url: '',
-          logo_url_dark_mode: '',
+          name: 'Google',
+          logo_url: 'https://embed-integrations.s3.amazonaws.com/google.svg',
+          logo_url_dark_mode: undefined,
+          help_link: 'https://cloud.google.com/iam/docs/service-account-overview',
         },
         branding,
         prefers_dark_mode: prefersDarkMode,

@@ -27,16 +27,18 @@ export type Branding = {
   appearance: string;
   border_radius: string;
   light_mode: {
+    text: string;
+    border: string;
     page_background: string;
     button_background: string;
     button_text: string;
-    links: string;
   };
   dark_mode: {
+    text: string;
+    border: string;
     page_background: string;
     button_background: string;
     button_text: string;
-    links: string;
   };
 };
 
