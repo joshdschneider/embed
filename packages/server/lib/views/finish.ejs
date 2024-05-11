@@ -22,17 +22,15 @@
       }
       .theme-light {       
         --background-color: <%= "#" + branding.light_mode.page_background %>;
-        --background-color-secondary: transparent;
-        --border-color: rgba(0, 0, 0, .1);
-        --text-color: rgba(28, 32, 36, 1);
+        --border-color: <%= "#" + branding.light_mode.border %>;
+        --text-color: <%= "#" + branding.light_mode.text %>;
         --button-text-color: <%= "#" + branding.light_mode.button_text %>;
         --button-background-color: <%= "#" + branding.light_mode.button_background %>;
       }
       .theme-dark {       
         --background-color: <%= "#" + branding.dark_mode.page_background %>;
-        --background-color-secondary: rgba(0, 0, 0, .1);
-        --border-color: rgba(255, 255, 255, .1);
-        --text-color: rgba(255, 255, 255, 1);
+        --border-color: <%= "#" + branding.dark_mode.border %>;
+        --text-color: <%= "#" + branding.dark_mode.text %>;
         --button-text-color: <%= "#" + branding.dark_mode.button_text %>;
         --button-background-color: <%= "#" + branding.dark_mode.button_background %>;
       }
@@ -58,14 +56,14 @@
         display: flex;
         justify-content: center;
         margin-bottom: 15px;
-        border: 2px solid #00bf00;
+        border: 2px solid var(--button-background-color);
         border-radius: 50%;
         padding: 2px;
       }
       .icon svg {
         width: 32px;
         height: 32px;
-        color: #00bf00;
+        color: var(--button-background-color);
       }
       .success-message {
         display: flex;
@@ -90,6 +88,7 @@
         line-height: normal;
         margin: 12px 0 0 0;
         padding: 0;
+        line-height: 1.5;
         color: var(--text-color);
         opacity: 0.7;
       }
@@ -105,7 +104,7 @@
         </div>
         <div class="success-message">
           <h3>Success!</h3>
-          <p>You connected your account.<br />You can now close this page.</p>
+          <p>Your account is connected.<br />You can close this page.</p>
         </div>
       </div>
     </main>
