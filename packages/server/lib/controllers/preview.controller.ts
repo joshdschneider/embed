@@ -11,6 +11,7 @@ import type { ErrorTemplateData, PreviewTemplateData } from '../utils/types';
 
 class PreviewController {
   public async preview(req: Request, res: Response) {
+    const nonce = res.locals['nonce'];
     const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
     const prefersDarkMode = req.query['prefers_dark_mode'] === 'true';
     const override = req.query['branding'];
@@ -49,6 +50,7 @@ class PreviewController {
         },
         branding,
         prefers_dark_mode: prefersDarkMode,
+        nonce,
       };
 
       res.render('preview', data);

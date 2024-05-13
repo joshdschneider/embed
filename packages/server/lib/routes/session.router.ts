@@ -1,12 +1,15 @@
+import crypto from 'crypto';
 import express from 'express';
 import sessionController from '../controllers/session.controller';
 
 const sessionRouter = express.Router();
 
 sessionRouter.use((req, res, next) => {
+  const nonce = crypto.randomBytes(16).toString('base64');
+  res.locals['nonce'] = nonce;
   res.setHeader(
     'Content-Security-Policy',
-    "default-src 'self'; img-src https://*; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';"
+    `script-src 'self' 'nonce-${nonce}'; style-src 'self' 'unsafe-inline'; img-src https://*;`
   );
   next();
 });

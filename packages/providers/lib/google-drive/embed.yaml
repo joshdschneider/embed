@@ -14,6 +14,7 @@ auth:
       prompt: consent
 
 can_have_organization_account: false
+can_use_file_picker: true
 
 schemas:
   file: &file

@@ -101,6 +101,7 @@ model SessionToken {
   websocket_client_id  String?
   connect_method       String?
   prefers_dark_mode    Boolean @default(false)
+  use_file_picker      Boolean @default(false)
   code_verifier        String?
   request_token_secret String?
   created_at           Int

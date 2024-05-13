@@ -510,7 +510,9 @@ class SessionController {
   }
 
   public async apiKeyAuthView(req: Request, res: Response) {
+    const nonce = res.locals['nonce'];
     const token = req.params['token'];
+
     if (!token) {
       return await publisher.publishError(res, {
         error: 'Session token missing',
@@ -591,6 +593,7 @@ class SessionController {
         },
         branding,
         prefers_dark_mode: prefersDarkMode,
+        nonce,
       };
 
       res.render('api-key', data);
@@ -721,6 +724,19 @@ class SessionController {
         message: `Connection ${response.action} with API key credentials`,
       });
 
+      if (sessionToken.use_file_picker) {
+        const provider = await providerService.getProviderSpec(integration.provider_key);
+        const useFilePicker = provider?.can_use_file_picker;
+        const serverUrl = getServerUrl();
+
+        if (useFilePicker && serverUrl) {
+          const redirectUrl = `${serverUrl}/file-picker/${sessionToken.id}/files`;
+          return res.redirect(
+            `${redirectUrl}?connection_id=${response.connection.id}&action=${response.action}`
+          );
+        }
+      }
+
       await sessionTokenService.deleteSessionToken(sessionToken.id);
 
       if (response.action === 'created') {
@@ -759,6 +775,7 @@ class SessionController {
   }
 
   public async basicAuthView(req: Request, res: Response) {
+    const nonce = res.locals['nonce'];
     const token = req.params['token'];
     if (!token) {
       return await publisher.publishError(res, {
@@ -840,6 +857,7 @@ class SessionController {
         },
         branding,
         prefers_dark_mode: prefersDarkMode,
+        nonce,
       };
 
       res.render('basic', data);
@@ -989,6 +1007,19 @@ class SessionController {
         message: `Connection ${response.action} with basic credentials`,
       });
 
+      if (sessionToken.use_file_picker) {
+        const provider = await providerService.getProviderSpec(integration.provider_key);
+        const useFilePicker = provider?.can_use_file_picker;
+        const serverUrl = getServerUrl();
+
+        if (useFilePicker && serverUrl) {
+          const redirectUrl = `${serverUrl}/file-picker/${sessionToken.id}/files`;
+          return res.redirect(
+            `${redirectUrl}?connection_id=${response.connection.id}&action=${response.action}`
+          );
+        }
+      }
+
       await sessionTokenService.deleteSessionToken(sessionToken.id);
 
       if (response.action === 'created') {
@@ -1027,6 +1058,7 @@ class SessionController {
   }
 
   public async serviceAccountAuthView(req: Request, res: Response) {
+    const nonce = res.locals['nonce'];
     const token = req.params['token'];
     if (!token) {
       return await publisher.publishError(res, {
@@ -1110,6 +1142,7 @@ class SessionController {
         },
         branding,
         prefers_dark_mode: prefersDarkMode,
+        nonce,
       };
 
       res.render('service-account', data);
@@ -1239,6 +1272,19 @@ class SessionController {
         level: LogLevel.Info,
         message: `Connection ${response.action} with service account credentials`,
       });
+
+      if (sessionToken.use_file_picker) {
+        const provider = await providerService.getProviderSpec(integration.provider_key);
+        const useFilePicker = provider?.can_use_file_picker;
+        const serverUrl = getServerUrl();
+
+        if (useFilePicker && serverUrl) {
+          const redirectUrl = `${serverUrl}/file-picker/${sessionToken.id}/files`;
+          return res.redirect(
+            `${redirectUrl}?connection_id=${response.connection.id}&action=${response.action}`
+          );
+        }
+      }
 
       await sessionTokenService.deleteSessionToken(sessionToken.id);
 

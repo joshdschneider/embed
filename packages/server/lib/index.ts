@@ -11,6 +11,7 @@ import type { WebSocket } from 'ws';
 import { WebSocketServer } from 'ws';
 import publisher from './clients/publisher.client';
 import connectionRouter from './routes/connection.router';
+import filePickerRouter from './routes/filePicker.router';
 import integrationRouter from './routes/integration.router';
 import oauthRouter from './routes/oauth.router';
 import previewRouter from './routes/preview.router';
@@ -46,6 +47,7 @@ function setupExpressApp() {
   app.use('/web', webRouter);
   app.use('/oauth', oauthRouter);
   app.use('/session', sessionRouter);
+  app.use('/file-picker', filePickerRouter);
   app.use('/preview', previewRouter);
   app.use('/providers', providerRouter);
 

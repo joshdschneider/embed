@@ -13,6 +13,7 @@ import {
   environmentService,
   errorService,
   generateId,
+  getServerUrl,
   getSimpleOAuth2ClientConfig,
   integrationService,
   missesInterpolationParam,
@@ -583,6 +584,19 @@ class OAuthController {
         message: `Connection ${response.action} with OAuth2 credentials`,
       });
 
+      if (sessionToken.use_file_picker) {
+        const provider = await providerService.getProviderSpec(integration.provider_key);
+        const useFilePicker = provider?.can_use_file_picker;
+        const serverUrl = getServerUrl();
+
+        if (useFilePicker && serverUrl) {
+          const redirectUrl = `${serverUrl}/file-picker/${sessionToken.id}/files`;
+          return res.redirect(
+            `${redirectUrl}?connection_id=${response.connection.id}&action=${response.action}`
+          );
+        }
+      }
+
       await sessionTokenService.deleteSessionToken(sessionToken.id);
 
       if (response.action === 'created') {
@@ -712,6 +726,19 @@ class OAuthController {
         level: LogLevel.Info,
         message: `Connection ${response.action} with OAuth1 credentials`,
       });
+
+      if (sessionToken.use_file_picker) {
+        const provider = await providerService.getProviderSpec(integration.provider_key);
+        const useFilePicker = provider?.can_use_file_picker;
+        const serverUrl = getServerUrl();
+
+        if (useFilePicker && serverUrl) {
+          const redirectUrl = `${serverUrl}/file-picker/${sessionToken.id}/files`;
+          return res.redirect(
+            `${redirectUrl}?connection_id=${response.connection.id}&action=${response.action}`
+          );
+        }
+      }
 
       await sessionTokenService.deleteSessionToken(sessionToken.id);
 
