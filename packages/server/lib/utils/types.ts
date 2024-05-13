@@ -46,6 +46,7 @@ export interface ConfigTemplateData extends DefaultTemplateData {
 }
 
 export interface ApiKeyTemplateData extends DefaultTemplateData {
+  nonce: string;
   server_url: string;
   session_token: string;
   integration: {
@@ -58,6 +59,7 @@ export interface ApiKeyTemplateData extends DefaultTemplateData {
 }
 
 export interface ServiceAccountTemplateData extends DefaultTemplateData {
+  nonce: string;
   server_url: string;
   session_token: string;
   integration: {
@@ -70,6 +72,7 @@ export interface ServiceAccountTemplateData extends DefaultTemplateData {
 }
 
 export interface BasicTemplateData extends DefaultTemplateData {
+  nonce: string;
   server_url: string;
   session_token: string;
   integration: {
@@ -82,6 +85,7 @@ export interface BasicTemplateData extends DefaultTemplateData {
 }
 
 export interface PreviewTemplateData extends DefaultTemplateData {
+  nonce: string;
   server_url: string;
   integration: {
     name: string;
@@ -276,6 +280,7 @@ export const CreateSessionTokenRequestSchema = z.object({
   redirect_url: z.string().optional().nullable(),
   type: z.string().optional(),
   display_name: z.string().optional().nullable(),
+  use_file_picker: z.boolean().default(false),
   configuration: z.record(z.string(), z.any()).optional().nullable(),
   inclusions: z.record(z.string(), z.any()).optional().nullable(),
   exclusions: z.record(z.string(), z.any()).optional().nullable(),

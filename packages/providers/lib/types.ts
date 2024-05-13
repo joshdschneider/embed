@@ -199,6 +199,7 @@ export const ProviderSpecificationSchema = z.object({
   base_url: z.string(),
   auth: AuthSchema,
   can_have_organization_account: z.boolean().default(false),
+  can_use_file_picker: z.boolean().default(false),
   headers: z.record(z.string()).optional(),
   retry: RetrySchema.optional(),
   logo_url: z.string(),
