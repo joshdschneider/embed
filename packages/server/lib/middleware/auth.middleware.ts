@@ -30,21 +30,6 @@ class AuthMiddleware {
   public async webEnvironmentAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
     return authService.verifyToken(req, res, next, { verifyEnvironment: true });
   }
-
-  public async internalAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
-    const authHeader = req.get('authorization');
-    if (authHeader) {
-      const secretKey = authHeader.split('Bearer ').pop();
-      if (secretKey) {
-        return authService.verifyInternalApiKey(secretKey, req, res, next);
-      }
-    }
-
-    return errorService.errorResponse(res, {
-      code: ErrorCode.Unauthorized,
-      message: 'Internal authorization required',
-    });
-  }
 }
 
 export default new AuthMiddleware();

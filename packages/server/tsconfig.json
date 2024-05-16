@@ -3,6 +3,8 @@
   "compilerOptions": {
     "rootDir": "lib",
     "outDir": "dist",
+    "declaration": true,
+    "declarationMap": true
   },
-  "include": ["lib/**/*"],
+  "include": ["lib/**/*"]
 }

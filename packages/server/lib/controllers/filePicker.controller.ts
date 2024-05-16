@@ -107,13 +107,19 @@ class FilePickerController {
       const credentials = JSON.parse(connection.credentials);
       const oauthToken = credentials['access_token'];
 
-      res.render('file-picker', {
-        session_token: token,
-        oauth_token: oauthToken,
-        connection_id: connectionId,
-        action,
-        nonce,
-      });
+      switch (integration.provider_key) {
+        case 'google-drive':
+          return res.render('google-drive-file-picker', {
+            session_token: token,
+            oauth_token: oauthToken,
+            connection_id: connectionId,
+            action,
+            nonce,
+          });
+
+        default:
+          throw new Error(`File picker not supported for ${integration.provider_key}`);
+      }
     } catch (err) {
       await errorService.reportError(err);
       await activityService.createActivityLog(activityId, {
