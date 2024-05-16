@@ -1,13 +1,15 @@
 {
   "name": "embed",
+  "private": true,
   "workspaces": [
     "packages/providers",
     "packages/shared",
     "packages/server",
-    "packages/worker"
+    "packages/sync-runner",
+    "packages/action-runner"
   ],
   "scripts": {
-    "install:all": "npm i && cd docs && npm i",
+    "install:all": "npm i",
     "lint": "eslint . --ext .ts,.tsx",
     "lint:fix": "eslint . --ext .ts,.tsx --fix",
     "database:generate": "npm run database:generate -w @embed/shared",
@@ -16,10 +18,11 @@
     "build:providers": "npm run build -w @embed/providers",
     "build:server": "npm run build -w @embed/server",
     "build:shared": "npm run build -w @embed/shared",
-    "build:worker": "npm run build -w @embed/worker",
+    "build:sync-runner": "npm run build -w @embed/sync-runner",
+    "build:action-runner": "npm run build -w @embed/action-runner",
     "build:all": "npm run build --workspaces",
     "test:all": "npm run test --workspaces",
-    "dev": "concurrently \"npm run dev -w @embed/providers\" \"npm run dev -w @embed/shared\" \"npm run dev -w @embed/server\" \"npm run dev -w @embed/worker\""
+    "dev": "concurrently \"npm run dev -w @embed/providers\" \"npm run dev -w @embed/shared\" \"npm run dev -w @embed/server\" \"npm run dev -w @embed/sync-runner\" \"npm run dev -w @embed/action-runner\""
   },
   "devDependencies": {
     "@tsconfig/recommended": "^1.0.3",

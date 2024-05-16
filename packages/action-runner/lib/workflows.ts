@@ -1,33 +1,19 @@
 import { proxyActivities } from '@temporalio/workflow';
 import type * as activities from './activities.js';
-import { ActionArgs, SyncArgs } from './types.js';
+import { ActionArgs } from './types.js';
 
-const DEFAULT_TIMEOUT = '24 hours';
+const DEFAULT_TIMEOUT = '1 hour';
 const MAXIMUM_ATTEMPTS = 3;
 
-const { triggerSync, triggerAction, reportFailure } = proxyActivities<typeof activities>({
+const { triggerAction, reportFailure } = proxyActivities<typeof activities>({
   startToCloseTimeout: DEFAULT_TIMEOUT,
   scheduleToCloseTimeout: DEFAULT_TIMEOUT,
-  heartbeatTimeout: '30m',
+  heartbeatTimeout: '10m',
   retry: {
     initialInterval: '5m',
     maximumAttempts: MAXIMUM_ATTEMPTS,
   },
 });
-
-export async function sync(args: SyncArgs): Promise<void> {
-  try {
-    return await triggerSync(args);
-  } catch (err: any) {
-    return await reportFailure({
-      err,
-      type: 'sync',
-      args,
-      defaultTimeout: DEFAULT_TIMEOUT,
-      maxAttempts: MAXIMUM_ATTEMPTS,
-    });
-  }
-}
 
 export async function action(args: ActionArgs): Promise<void> {
   try {
@@ -35,7 +21,6 @@ export async function action(args: ActionArgs): Promise<void> {
   } catch (err: any) {
     return await reportFailure({
       err,
-      type: 'action',
       args,
       defaultTimeout: DEFAULT_TIMEOUT,
       maxAttempts: MAXIMUM_ATTEMPTS,

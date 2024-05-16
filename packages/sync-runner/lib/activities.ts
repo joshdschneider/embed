@@ -1,6 +1,5 @@
 import { Registry } from '@embed/providers';
 import {
-  ActionArgs,
   LogAction,
   LogLevel,
   Resource,
@@ -16,7 +15,7 @@ import {
 } from '@embed/shared';
 import { CancelledFailure, Context } from '@temporalio/activity';
 import { TerminatedFailure, TimeoutFailure } from '@temporalio/workflow';
-import { ActionFailureArgs, SyncFailureArgs } from './types';
+import { SyncFailureArgs } from './types';
 
 export async function triggerSync(args: SyncArgs): Promise<void> {
   const activityId = await activityService.createActivity({
@@ -140,20 +139,10 @@ export async function triggerSync(args: SyncArgs): Promise<void> {
   }
 }
 
-export async function triggerAction(args: ActionArgs): Promise<void> {
-  return;
-}
-
-export async function reportFailure(args: SyncFailureArgs | ActionFailureArgs): Promise<void> {
+export async function reportFailure(args: SyncFailureArgs): Promise<void> {
   await errorService.reportError(args.err);
 
-  let message: string = 'Activity failed';
-  if (args.type === 'sync') {
-    message = 'Sync failed';
-  } else if (args.type === 'action') {
-    message = 'Action failed';
-  }
-
+  let message: string = 'Sync failed';
   if (
     args.err instanceof CancelledFailure ||
     args.err.cause instanceof TerminatedFailure ||
@@ -171,12 +160,8 @@ export async function reportFailure(args: SyncFailureArgs | ActionFailureArgs): 
     }
   }
 
-  if (args.type === 'sync') {
-    const sync = await syncService.retrieveSync(args.args.connectionId, args.args.collectionKey);
-    if (sync) {
-      await syncService.handleSyncFailure({ sync, reason: message, activityId: null });
-    }
-  } else if (args.type === 'action') {
-    message = 'Action failed';
+  const sync = await syncService.retrieveSync(args.args.connectionId, args.args.collectionKey);
+  if (sync) {
+    await syncService.handleSyncFailure({ sync, reason: message, activityId: null });
   }
 }

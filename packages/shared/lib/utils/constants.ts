@@ -62,10 +62,6 @@ export function getEncryptonKey() {
   return process.env['ENCRYPTION_KEY'];
 }
 
-export function getInternalApiKey() {
-  return process.env['EMBED_INTERNAL_API_KEY'];
-}
-
 export function getLogLevel() {
   return process.env['LOG_LEVEL'] || 'info';
 }
@@ -75,7 +71,7 @@ export function isProd() {
 }
 
 export function getAuthTokenSecret() {
-  return process.env['EMBED_AUTH_TOKEN_SECRET'];
+  return process.env['AUTH_TOKEN_SECRET'];
 }
 
 export function getWorkOS(): WorkOS {
@@ -117,10 +113,7 @@ export function getBedrock(): BedrockRuntimeClient {
   }
 
   return new BedrockRuntimeClient({
-    credentials: {
-      accessKeyId: awsAccessKey,
-      secretAccessKey: awsSecretAccessKey,
-    },
+    credentials: { accessKeyId: awsAccessKey, secretAccessKey: awsSecretAccessKey },
     region: awsRegion,
   });
 }
@@ -171,7 +164,7 @@ export const MAX_LIMIT = 100;
 export const DEFAULT_LIMIT = 20;
 
 export const SYNC_TASK_QUEUE = 'syncs';
-export const ACTIONS_TASK_QUEUE = 'actions';
+export const ACTION_TASK_QUEUE = 'actions';
 
 export const DEFAULT_TEXT_EMBEDDING_MODEL = TextEmbeddingModel.OpenaiTextEmbedding3Small;
 export const DEFAULT_MULTIMODAL_EMBEDDING_MODEL = MultimodalEmbeddingModel.AmazonTitanMultimodalG1;

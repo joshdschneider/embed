@@ -8,7 +8,6 @@ import {
   environmentService,
   errorService,
   getAuthTokenSecret,
-  getInternalApiKey,
 } from '@embed/shared';
 import Cookies from 'cookies';
 import { NextFunction, Request, Response } from 'express';
@@ -108,37 +107,6 @@ class AuthService {
           message: DEFAULT_ERROR_MESSAGE,
         });
       }
-    }
-  }
-
-  public async verifyInternalApiKey(
-    apiKey: string,
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ) {
-    try {
-      const internalApiKey = getInternalApiKey();
-
-      if (!internalApiKey) {
-        throw new Error('Internal API key not set');
-      }
-
-      if (internalApiKey !== apiKey) {
-        return errorService.errorResponse(res, {
-          code: ErrorCode.Unauthorized,
-          message: 'Invalid internal API key',
-        });
-      } else {
-        next();
-      }
-    } catch (err) {
-      await errorService.reportError(err);
-
-      return errorService.errorResponse(res, {
-        code: ErrorCode.InternalServerError,
-        message: DEFAULT_ERROR_MESSAGE,
-      });
     }
   }
 }
