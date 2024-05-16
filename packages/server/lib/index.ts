@@ -1,5 +1,10 @@
-import dotenv from 'dotenv';
-dotenv.config();
+(function () {
+  if (process.env['NODE_ENV'] !== 'production') {
+    require('dotenv').config({
+      path: require('path').resolve(__dirname, '../../../.env'),
+    });
+  }
+})();
 
 import { getServerPort, getWebsocketsPath } from '@embed/shared';
 import cors from 'cors';

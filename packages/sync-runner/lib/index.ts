@@ -1,10 +1,18 @@
-import { SYNC_TASK_QUEUE, getTemporalNamespace } from '@embed/shared';
+(function () {
+  if (process.env['NODE_ENV'] !== 'production') {
+    require('dotenv').config({
+      path: require('path').resolve(__dirname, '../../../.env'),
+    });
+  }
+})();
+
+import { SYNC_TASK_QUEUE, getTemporalNamespace, getTemporalUrl } from '@embed/shared';
 import { NativeConnection, Worker } from '@temporalio/worker';
 import * as activities from './activities';
 
 async function run() {
   const connection = await NativeConnection.connect({
-    address: process.env['TEMPORAL_ADDRESS'] || 'localhost:7233',
+    address: getTemporalUrl(),
   });
 
   const worker = await Worker.create({

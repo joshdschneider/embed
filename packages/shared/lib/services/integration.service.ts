@@ -1,8 +1,12 @@
 import { Action, Integration } from '@prisma/client';
 import fs from 'fs';
 import yaml from 'js-yaml';
-import path from 'path';
-import { DEFAULT_LIMIT, MAX_LIMIT, MIN_LIMIT } from '../utils/constants';
+import {
+  DEFAULT_LIMIT,
+  MAX_LIMIT,
+  MIN_LIMIT,
+  getProviderCredentialsPath,
+} from '../utils/constants';
 import { database } from '../utils/database';
 import { QueryMode } from '../utils/enums';
 import { now } from '../utils/helpers';
@@ -230,7 +234,11 @@ class IntegrationService {
       };
     }
 
-    const filePath = path.join(__dirname, '../../credentials.yaml');
+    const filePath = getProviderCredentialsPath();
+    if (!filePath) {
+      throw new Error('Failed to load provider credentials');
+    }
+
     const fileContents = fs.readFileSync(filePath, 'utf8');
     const credentials = yaml.load(fileContents) as {
       [key: string]: {

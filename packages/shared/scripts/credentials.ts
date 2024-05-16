@@ -1,3 +1,3 @@
 import * as shell from 'shelljs';
 
-shell.cp('-R', ['credentials.yaml'], 'dist/');
+shell.cp('-R', ['../../secrets'], 'dist/');
