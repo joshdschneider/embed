@@ -13,7 +13,7 @@
     "lint": "eslint . --ext .ts,.tsx",
     "lint:fix": "eslint . --ext .ts,.tsx --fix",
     "database:generate": "npm run database:generate -w @embed/shared",
-    "database:migrate": "npm run database:migrate -w @embed/shared",
+    "database:migrate:dev": "npm run database:migrate:dev -w @embed/shared",
     "clean:all": "npm run clean --workspaces",
     "build:providers": "npm run build -w @embed/providers",
     "build:server": "npm run build -w @embed/server",

@@ -5,6 +5,7 @@ npm-debug.log
 .git
 .github/
 .vscode/
+.secrets/*
 docker-compose.yml
 **/dist
 **/tsconfig.tsbuildinfo

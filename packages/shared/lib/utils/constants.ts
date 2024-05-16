@@ -1,6 +1,3 @@
-import dotenv from 'dotenv';
-dotenv.config();
-
 import { BedrockRuntimeClient } from '@aws-sdk/client-bedrock-runtime';
 import WorkOS from '@workos-inc/node';
 import { CohereClient } from 'cohere-ai';
@@ -72,6 +69,10 @@ export function isProd() {
 
 export function getAuthTokenSecret() {
   return process.env['AUTH_TOKEN_SECRET'];
+}
+
+export function getProviderCredentialsPath() {
+  return process.env['PROVIDER_CREDENTIALS_PATH'];
 }
 
 export function getWorkOS(): WorkOS {

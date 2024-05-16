@@ -89,6 +89,7 @@ CREATE TABLE "SessionToken" (
     "websocket_client_id" TEXT,
     "connect_method" TEXT,
     "prefers_dark_mode" BOOLEAN NOT NULL DEFAULT false,
+    "use_file_picker" BOOLEAN NOT NULL DEFAULT false,
     "code_verifier" TEXT,
     "request_token_secret" TEXT,
     "created_at" INTEGER NOT NULL,
