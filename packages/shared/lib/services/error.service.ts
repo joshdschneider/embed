@@ -4,7 +4,7 @@ import { ErrorCode } from '../utils/enums';
 
 interface ErrorObject {
   code: ErrorCode;
-  message?: string;
+  message: string;
 }
 
 class ErrorService {
@@ -15,13 +15,13 @@ class ErrorService {
   public errorResponse(res: Response, err: ErrorObject) {
     res.status(err.code ?? 500).send({
       object: 'error',
-      error: this.getErrorFromCode(err.code),
+      type: this.getErrorTypeFromCode(err.code),
       code: err.code,
       message: err.message,
     });
   }
 
-  private getErrorFromCode(code: ErrorCode): string {
+  private getErrorTypeFromCode(code: ErrorCode): string {
     switch (code) {
       case ErrorCode.BadRequest:
         return 'Bad Request';
