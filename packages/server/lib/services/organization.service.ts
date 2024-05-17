@@ -1,10 +1,10 @@
 import type { Organization, OrganizationMembership, User, WorkOSInvitation } from '@embed/shared';
-import { database, errorService, now } from '@embed/shared';
-import { workos } from '../utils/constants';
+import { database, errorService, getWorkOS, now } from '@embed/shared';
 
 class OrganizationService {
   public async createOrganization(organizationName: string): Promise<Organization | null> {
     try {
+      const workos = getWorkOS();
       const workosOrg = await workos.organizations.createOrganization({ name: organizationName });
       return await database.organization.create({
         data: {
@@ -31,6 +31,7 @@ class OrganizationService {
     role?: string;
   }): Promise<OrganizationMembership | null> {
     try {
+      const workos = getWorkOS();
       const workosOrgMembership = await workos.userManagement.createOrganizationMembership({
         organizationId,
         userId,
@@ -72,6 +73,7 @@ class OrganizationService {
     role?: string;
   }): Promise<WorkOSInvitation | null> {
     try {
+      const workos = getWorkOS();
       const invitation = await workos.userManagement.sendInvitation({
         organizationId,
         email,
@@ -87,6 +89,7 @@ class OrganizationService {
 
   public async revokeOrganizationInvitation(invitationId: string): Promise<boolean> {
     try {
+      const workos = getWorkOS();
       await workos.userManagement.revokeInvitation(invitationId);
       return true;
     } catch (err) {
@@ -113,6 +116,7 @@ class OrganizationService {
     organizationId: string
   ): Promise<WorkOSInvitation[] | null> {
     try {
+      const workos = getWorkOS();
       const invitations = await workos.userManagement.listInvitations({
         organizationId: organizationId,
       });
@@ -128,6 +132,7 @@ class OrganizationService {
     organizationName: string
   ): Promise<Organization | null> {
     try {
+      const workos = getWorkOS();
       await workos.organizations.updateOrganization({
         organization: organizationId,
         name: organizationName,

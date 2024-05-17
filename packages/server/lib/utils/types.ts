@@ -171,16 +171,18 @@ export type IntegrationObjectWithCredentials = IntegrationObject & {
 
 export const CreateIntegrationRequestSchema = z.object({
   provider_key: z.string(),
-  auth_scheme: z.union([
-    z.literal(AuthScheme.OAuth2),
-    z.literal(AuthScheme.OAuth1),
-    z.literal(AuthScheme.Basic),
-    z.literal(AuthScheme.ApiKey),
-    z.literal(AuthScheme.ServiceAccount),
-    z.literal(AuthScheme.None),
-  ]),
+  auth_scheme: z
+    .union([
+      z.literal(AuthScheme.OAuth2),
+      z.literal(AuthScheme.OAuth1),
+      z.literal(AuthScheme.Basic),
+      z.literal(AuthScheme.ApiKey),
+      z.literal(AuthScheme.ServiceAccount),
+      z.literal(AuthScheme.None),
+    ])
+    .optional(),
   display_name: z.string().optional().nullable(),
-  is_using_test_credentials: z.boolean().optional(),
+  use_test_credentials: z.boolean().optional(),
   oauth_client_id: z.string().optional().nullable(),
   oauth_client_secret: z.string().optional().nullable(),
   oauth_scopes: z.array(z.string()).optional().nullable(),

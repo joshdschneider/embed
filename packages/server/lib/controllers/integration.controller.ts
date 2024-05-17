@@ -97,10 +97,6 @@ class IntegrationController {
     }
   }
 
-  public async listIntegrationConnections(req: Request, res: Response) {
-    //..
-  }
-
   public async retrieveIntegration(req: Request, res: Response) {
     try {
       const integrationId = req.params['integration_id'];
@@ -313,7 +309,7 @@ class IntegrationController {
         provider_key,
         auth_scheme,
         display_name,
-        is_using_test_credentials,
+        use_test_credentials,
         oauth_client_id,
         oauth_client_secret,
         oauth_scopes,
@@ -336,15 +332,22 @@ class IntegrationController {
       }
 
       const authSchemes = provider.auth.map((auth) => auth.scheme);
-      if (!authSchemes.includes(auth_scheme)) {
+      if (auth_scheme && !authSchemes.includes(auth_scheme)) {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
           message: `Auth scheme ${auth_scheme} not supported by provider ${provider_key}`,
         });
       }
 
+      const defaultAuthScheme =
+        authSchemes.length > 1
+          ? authSchemes.includes(AuthScheme.OAuth2)
+            ? AuthScheme.OAuth2
+            : authSchemes[0]!
+          : authSchemes[0]!;
+
       if (auth_scheme === AuthScheme.OAuth2) {
-        if (is_using_test_credentials) {
+        if (use_test_credentials) {
           if (environment.type === EnvironmentType.Production) {
             return errorService.errorResponse(res, {
               code: ErrorCode.BadRequest,
@@ -353,7 +356,7 @@ class IntegrationController {
           }
         }
 
-        if (!is_using_test_credentials && (!oauth_client_id || !oauth_client_secret)) {
+        if (!use_test_credentials && (!oauth_client_id || !oauth_client_secret)) {
           return errorService.errorResponse(res, {
             code: ErrorCode.BadRequest,
             message: 'OAuth credentials required',
@@ -366,9 +369,9 @@ class IntegrationController {
         environment_id: environmentId,
         is_enabled: true,
         provider_key,
-        auth_scheme,
+        auth_scheme: auth_scheme || defaultAuthScheme,
         display_name: display_name || null,
-        is_using_test_credentials: is_using_test_credentials || false,
+        is_using_test_credentials: use_test_credentials || false,
         oauth_client_id: oauth_client_id || null,
         oauth_client_secret: oauth_client_secret || null,
         oauth_client_secret_iv: null,

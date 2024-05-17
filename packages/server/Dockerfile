@@ -12,18 +12,18 @@ COPY packages/shared/ packages/shared/
 COPY packages/providers/ packages/providers/
 COPY packages/server/ packages/server/
 
-# Install dependencies for the entire monorepo
+# Clean install dependencies
 RUN npm ci
 
 # Generate the Prisma client
 RUN npm run database:generate
 
-# Build each package individually
+# Build necessary packages
 RUN npm run build -w @embed/providers
 RUN npm run build -w @embed/shared
 RUN npm run build -w @embed/server
 
-# Second stage: create the final image
+# Create the final image
 FROM node:20-bullseye
 
 # Set the working directory
@@ -36,6 +36,9 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/packages/shared ./packages/shared
 COPY --from=builder /app/packages/providers ./packages/providers
 COPY --from=builder /app/packages/server ./packages/server
+
+# Expose the port
+EXPOSE 5555
 
 # Command to run your application
 CMD ["node", "packages/server/dist/index.js"]

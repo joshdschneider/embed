@@ -37,10 +37,6 @@ integrationRouter
   .post(integrationController.disableIntegration.bind(integrationController));
 
 integrationRouter
-  .route('/:integration_id/connections')
-  .get(integrationController.listIntegrationConnections.bind(integrationController));
-
-integrationRouter
   .route('/:integration_id/collections')
   .get(collectionController.listCollections.bind(collectionController));
 

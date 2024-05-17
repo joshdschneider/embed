@@ -1,46 +1,18 @@
-version: '3.9'
 services:
-  postgres:
-    image: postgres:16.0-alpine
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-
-  redis:
-    image: redis:alpine
-
   server:
-    image: embed-server:latest
-    ports:
-      - '5555:5555'
-    environment:
-      - POSTGRES_DB=${POSTGRES_DB}
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_HOST=${POSTGRES_HOST}
-      - POSTGRES_PORT=${POSTGRES_PORT}
-      - REDIS_HOST=${REDIS_HOST}
-      - REDIS_PORT=${REDIS_PORT}
-    depends_on:
-      - postgres
+    build:
+      context: .
+      dockerfile: ./packages/server/Dockerfile
+    image: embed-server:dev
 
-  worker:
-    image: embed-worker:latest
-    ports:
-      - '5555:5555'
-    environment:
-      - POSTGRES_DB=${POSTGRES_DB}
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_HOST=${POSTGRES_HOST}
-      - POSTGRES_PORT=${POSTGRES_PORT}
-      - REDIS_HOST=${REDIS_HOST}
-      - REDIS_PORT=${REDIS_PORT}
-    depends_on:
-      - postgres
+  sync-runner:
+    build:
+      context: .
+      dockerfile: ./packages/sync-runner/Dockerfile
+    image: embed-sync-runner:dev
 
-volumes:
-  pgdata:
+  action-runner:
+    build:
+      context: .
+      dockerfile: ./packages/action-runner/Dockerfile
+    image: embed-action-runner:dev
