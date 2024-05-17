@@ -4,7 +4,7 @@ import { TerminatedFailure, TimeoutFailure } from '@temporalio/workflow';
 import { ActionArgs, ActionFailureArgs } from './types';
 
 export async function triggerAction(args: ActionArgs): Promise<void> {
-  // trigger action
+  // todo
 }
 
 export async function reportFailure(args: ActionFailureArgs): Promise<void> {
