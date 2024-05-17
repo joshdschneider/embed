@@ -70,6 +70,7 @@ jobs:
             echo "SERVICE_CHANGED=true" >> $GITHUB_ENV
           else
             echo "SERVICE_CHANGED=false" >> $GITHUB_ENV
+          fi
 
       - name: Build and push Docker image for ${{ matrix.service }}
         if: env.SERVICE_CHANGED == 'true'
