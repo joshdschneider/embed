@@ -23,6 +23,11 @@ const TEMPORAL_NAMESPACE = getTemporalNamespace();
 const TEMPORAL_CERT_PATH = getTemporalCertPath();
 const TEMPORAL_KEY_PATH = getTemporalKeyPath();
 
+console.log('TEMPORAL_URL:', TEMPORAL_URL);
+console.log('TEMPORAL_NAMESPACE:', TEMPORAL_NAMESPACE);
+console.log('TEMPORAL_CERT_PATH:', TEMPORAL_CERT_PATH);
+console.log('TEMPORAL_KEY_PATH:', TEMPORAL_KEY_PATH);
+
 async function run() {
   const connection = await NativeConnection.connect({
     address: TEMPORAL_URL,
