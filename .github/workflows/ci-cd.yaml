@@ -65,7 +65,7 @@ jobs:
       - name: Build and push Docker image for ${{ matrix.service.name }}
         uses: docker/build-push-action@v3
         with:
-          context: ./${{ matrix.service.path }}
+          context: .
           file: ./${{ matrix.service.path }}/Dockerfile
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/${{ matrix.service.image }}:${{ env.BRANCH_NAME }}
