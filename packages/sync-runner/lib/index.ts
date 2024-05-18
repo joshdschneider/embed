@@ -23,17 +23,6 @@ const TEMPORAL_NAMESPACE = getTemporalNamespace();
 const TEMPORAL_CERT_PATH = getTemporalCertPath();
 const TEMPORAL_KEY_PATH = getTemporalKeyPath();
 
-console.log('TEMPORAL_URL:', TEMPORAL_URL);
-console.log('TEMPORAL_NAMESPACE:', TEMPORAL_NAMESPACE);
-console.log('TEMPORAL_CERT_PATH:', TEMPORAL_CERT_PATH);
-console.log('TEMPORAL_KEY_PATH:', TEMPORAL_KEY_PATH);
-
-const cert = fs.readFileSync(TEMPORAL_CERT_PATH!);
-console.log('TEMPORAL_CERT:', cert);
-
-const key = fs.readFileSync(TEMPORAL_KEY_PATH!);
-console.log('TEMPORAL_KEY:', key);
-
 async function run() {
   const connection = await NativeConnection.connect({
     address: TEMPORAL_URL,
