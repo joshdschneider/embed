@@ -32,15 +32,14 @@ jobs:
 
     strategy:
       matrix:
-        service: [server, sync-runner, action-runner]
-        include:
-          - service: server
+        service:
+          - name: server
             path: packages/server
             image: embed-server
-          - service: sync-runner
+          - name: sync-runner
             path: packages/sync-runner
             image: embed-sync-runner
-          - service: action-runner
+          - name: action-runner
             path: packages/action-runner
             image: embed-action-runner
 
@@ -63,23 +62,14 @@ jobs:
           BRANCH_NAME=${GITHUB_REF#refs/heads/}
           echo "BRANCH_NAME=${BRANCH_NAME}" >> $GITHUB_ENV
 
-      - name: Check if service changed
-        id: check_changes
-        run: |
-          if git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -q "^${{ matrix.path }}/"; then
-            echo "SERVICE_CHANGED=true" >> $GITHUB_ENV
-          else
-            echo "SERVICE_CHANGED=false" >> $GITHUB_ENV
-
-      - name: Build and push Docker image for ${{ matrix.service }}
-        if: env.SERVICE_CHANGED == 'true'
+      - name: Build and push Docker image for ${{ matrix.service.name }}
         uses: docker/build-push-action@v3
         with:
-          context: ./${{ matrix.path }}
-          file: ./${{ matrix.path }}/Dockerfile
+          context: .
+          file: ./${{ matrix.service.path }}/Dockerfile
           push: true
-          tags: ${{ secrets.DOCKER_USERNAME }}/${{ matrix.image }}:${{ env.BRANCH_NAME }}
+          tags: ${{ secrets.DOCKER_USERNAME }}/${{ matrix.service.image }}:${{ env.BRANCH_NAME }}
 
       - name: Notify success
-        if: success() && env.SERVICE_CHANGED == 'true'
-        run: echo "Successfully built and pushed ${{ matrix.service }} for branch ${{ env.BRANCH_NAME }}"
+        if: success()
+        run: echo "Successfully built and pushed ${{ matrix.service.name }} for branch ${{ env.BRANCH_NAME }}"
