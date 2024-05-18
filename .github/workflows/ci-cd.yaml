@@ -13,18 +13,6 @@ on:
       - 'packages/server/**'
       - 'packages/sync-runner/**'
       - 'packages/action-runner/**'
-  pull_request:
-    branches:
-      - main
-      - develop
-      - 'feature/*'
-      - 'release/*'
-      - 'hotfix/*'
-      - 'customer/*'
-    paths:
-      - 'packages/server/**'
-      - 'packages/sync-runner/**'
-      - 'packages/action-runner/**'
 
 jobs:
   build-and-deploy:
