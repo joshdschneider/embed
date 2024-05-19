@@ -76,6 +76,11 @@ class OAuthController {
       const integration = await integrationService.getIntegrationById(sessionToken.integration_id);
       if (!integration) {
         throw new Error(`Failed to retrieve integration with ID ${sessionToken.integration_id}`);
+      } else if (
+        !integration.auth_schemes.includes(AuthScheme.OAuth2) &&
+        !integration.auth_schemes.includes(AuthScheme.OAuth1)
+      ) {
+        throw new Error(`Invalid auth scheme for integration ${integration.id}`);
       }
 
       if (!integration.is_enabled) {
@@ -102,7 +107,7 @@ class OAuthController {
       }
 
       const scopesArray = await this.getScopes(integration, provider);
-      const authSpec = provider.auth.find((auth) => auth.scheme === integration.auth_scheme);
+      const authSpec = provider.auth.find((auth) => auth.scheme === sessionToken.auth_scheme);
       if (!authSpec) {
         throw new Error('Provider auth configuration not found');
       }
@@ -123,7 +128,7 @@ class OAuthController {
         message: `Initiating OAuth authorization flow for ${provider.name}`,
       });
 
-      if (integration.auth_scheme === AuthScheme.OAuth2) {
+      if (sessionToken.auth_scheme === AuthScheme.OAuth2) {
         return this.oauth2Request(res, {
           authSpec: authSpec as OAuth2,
           scopes,
@@ -132,7 +137,7 @@ class OAuthController {
           activityId,
           branding,
         });
-      } else if (integration.auth_scheme === AuthScheme.OAuth1) {
+      } else if (sessionToken.auth_scheme === AuthScheme.OAuth1) {
         return this.oauth1Request(res, {
           authSpec: authSpec as OAuth1,
           scopes,
@@ -142,7 +147,7 @@ class OAuthController {
           branding,
         });
       } else {
-        throw new Error(`Unsupported auth scheme: ${integration.auth_scheme}`);
+        throw new Error(`Unsupported auth scheme: ${sessionToken.auth_scheme}`);
       }
     } catch (err) {
       await errorService.reportError(err);
@@ -426,7 +431,7 @@ class OAuthController {
       }
 
       const scopesArray = await this.getScopes(integration, provider);
-      const authSpec = provider.auth.find((auth) => auth.scheme === integration.auth_scheme);
+      const authSpec = provider.auth.find((auth) => auth.scheme === sessionToken.auth_scheme);
       if (!authSpec) {
         throw new Error('Provider auth configuration not found');
       }
@@ -545,17 +550,11 @@ class OAuthController {
       const config =
         typeof sessionToken.configuration === 'object' ? sessionToken.configuration : {};
 
-      const connectionType = await sessionController.getConnectionTypeFromToken(
-        sessionToken.type,
-        integration.provider_key
-      );
-
       const response = await connectionService.upsertConnection({
         environment_id: sessionToken.environment_id,
         id: sessionToken.connection_id || generateId(Resource.Connection),
         display_name: sessionToken.display_name || null,
-        type: connectionType,
-        auth_scheme: integration.auth_scheme,
+        auth_scheme: sessionToken.auth_scheme,
         integration_id: integration.id,
         credentials: JSON.stringify(parsedCredentials),
         credentials_hash: null,
@@ -584,12 +583,14 @@ class OAuthController {
         message: `Connection ${response.action} with OAuth2 credentials`,
       });
 
-      if (sessionToken.use_file_picker) {
-        const provider = await providerService.getProviderSpec(integration.provider_key);
-        const useFilePicker = provider?.can_use_file_picker;
-        const serverUrl = getServerUrl();
+      const shouldUseFilePicker = await sessionController.shouldUseFilePicker(
+        integration.id,
+        integration.provider_key
+      );
 
-        if (useFilePicker && serverUrl) {
+      if (shouldUseFilePicker) {
+        const serverUrl = getServerUrl();
+        if (serverUrl) {
           const redirectUrl = `${serverUrl}/file-picker/${sessionToken.id}/files`;
           return res.redirect(
             `${redirectUrl}?connection_id=${response.connection.id}&action=${response.action}`
@@ -688,17 +689,11 @@ class OAuthController {
       const config =
         typeof sessionToken.configuration === 'object' ? sessionToken.configuration : {};
 
-      const connectionType = await sessionController.getConnectionTypeFromToken(
-        sessionToken.type,
-        integration.provider_key
-      );
-
       const response = await connectionService.upsertConnection({
         environment_id: sessionToken.environment_id,
         id: sessionToken.connection_id || generateId(Resource.Connection),
         display_name: sessionToken.display_name || null,
-        type: connectionType,
-        auth_scheme: integration.auth_scheme,
+        auth_scheme: sessionToken.auth_scheme,
         integration_id: integration.id,
         credentials: JSON.stringify(parsedCredentials),
         credentials_hash: null,
@@ -727,12 +722,14 @@ class OAuthController {
         message: `Connection ${response.action} with OAuth1 credentials`,
       });
 
-      if (sessionToken.use_file_picker) {
-        const provider = await providerService.getProviderSpec(integration.provider_key);
-        const useFilePicker = provider?.can_use_file_picker;
-        const serverUrl = getServerUrl();
+      const shouldUseFilePicker = await sessionController.shouldUseFilePicker(
+        integration.id,
+        integration.provider_key
+      );
 
-        if (useFilePicker && serverUrl) {
+      if (shouldUseFilePicker) {
+        const serverUrl = getServerUrl();
+        if (serverUrl) {
           const redirectUrl = `${serverUrl}/file-picker/${sessionToken.id}/files`;
           return res.redirect(
             `${redirectUrl}?connection_id=${response.connection.id}&action=${response.action}`
@@ -858,14 +855,11 @@ class OAuthController {
       });
     }
 
-    const authConfig = providerSpec.auth.find((auth) => auth.scheme === integration.auth_scheme);
-    if (
-      authConfig &&
-      (authConfig.scheme === AuthScheme.OAuth2 || authConfig.scheme === AuthScheme.OAuth1) &&
-      authConfig.default_scopes
-    ) {
-      authConfig.default_scopes.forEach((scope) => scopes.add(scope));
-    }
+    providerSpec.auth.forEach((auth) => {
+      if (auth.scheme === AuthScheme.OAuth2 || auth.scheme === AuthScheme.OAuth1) {
+        auth.default_scopes?.forEach((scope) => scopes.add(scope));
+      }
+    });
 
     return Array.from(scopes);
   }

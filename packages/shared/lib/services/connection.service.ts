@@ -37,7 +37,6 @@ class ConnectionService {
         const existingConnection = await database.connection.update({
           where: { id: duplicate.id },
           data: {
-            type: encryptedConnection.type,
             display_name: encryptedConnection.display_name,
             credentials: encryptedConnection.credentials,
             credentials_iv: encryptedConnection.credentials_iv,

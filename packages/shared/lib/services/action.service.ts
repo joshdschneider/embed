@@ -44,6 +44,7 @@ class ActionService {
       return await database.action.create({
         data: {
           ...action,
+          configuration: action.configuration || undefined,
           created_at: now(),
           updated_at: now(),
           deleted_at: null,
@@ -69,7 +70,11 @@ class ActionService {
           },
           deleted_at: null,
         },
-        data: { ...data, updated_at: now() },
+        data: {
+          ...data,
+          configuration: data.configuration || undefined,
+          updated_at: now(),
+        },
       });
     } catch (err) {
       await errorService.reportError(err);

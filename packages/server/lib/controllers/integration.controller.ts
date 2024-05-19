@@ -73,7 +73,7 @@ class IntegrationController {
           logo_url_dark_mode: provider?.logo_url_dark_mode || null,
           display_name: integration.display_name,
           is_enabled: integration.is_enabled,
-          auth_scheme: integration.auth_scheme as AuthScheme,
+          auth_schemes: integration.auth_schemes as AuthScheme[],
           connection_count: integration.connection_count,
           created_at: integration.created_at,
           updated_at: integration.updated_at,
@@ -134,7 +134,7 @@ class IntegrationController {
           logo_url_dark_mode: provider.logo_url_dark_mode || null,
           display_name: integration.display_name,
           is_enabled: integration.is_enabled,
-          auth_scheme: integration.auth_scheme as AuthScheme,
+          auth_schemes: integration.auth_schemes as AuthScheme[],
           is_using_test_credentials: integration.is_using_test_credentials,
           oauth_client_id: integration.oauth_client_id,
           oauth_client_secret: integration.oauth_client_secret,
@@ -153,7 +153,7 @@ class IntegrationController {
           logo_url_dark_mode: provider.logo_url_dark_mode || null,
           display_name: integration.display_name,
           is_enabled: integration.is_enabled,
-          auth_scheme: integration.auth_scheme as AuthScheme,
+          auth_schemes: integration.auth_schemes as AuthScheme[],
           created_at: integration.created_at,
           updated_at: integration.updated_at,
         };
@@ -215,7 +215,7 @@ class IntegrationController {
         logo_url: provider.logo_url,
         logo_url_dark_mode: provider.logo_url_dark_mode || null,
         is_enabled: updatedIntegration.is_enabled,
-        auth_scheme: updatedIntegration.auth_scheme as AuthScheme,
+        auth_schemes: integration.auth_schemes as AuthScheme[],
         created_at: updatedIntegration.created_at,
         updated_at: updatedIntegration.updated_at,
       };
@@ -278,7 +278,7 @@ class IntegrationController {
         is_enabled: updatedIntegration.is_enabled,
         logo_url: provider.logo_url,
         logo_url_dark_mode: provider.logo_url_dark_mode || null,
-        auth_scheme: updatedIntegration.auth_scheme as AuthScheme,
+        auth_schemes: integration.auth_schemes as AuthScheme[],
         created_at: updatedIntegration.created_at,
         updated_at: updatedIntegration.updated_at,
       };
@@ -307,7 +307,7 @@ class IntegrationController {
 
       const {
         provider_key,
-        auth_scheme,
+        auth_schemes,
         display_name,
         use_test_credentials,
         oauth_client_id,
@@ -332,21 +332,14 @@ class IntegrationController {
       }
 
       const authSchemes = provider.auth.map((auth) => auth.scheme);
-      if (auth_scheme && !authSchemes.includes(auth_scheme)) {
+      if (auth_schemes && auth_schemes.some((auth) => !authSchemes.includes(auth as AuthScheme))) {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
-          message: `Auth scheme ${auth_scheme} not supported by provider ${provider_key}`,
+          message: `Auth scheme(s) not supported by provider: ${auth_schemes.join(', ')}`,
         });
       }
 
-      const defaultAuthScheme =
-        authSchemes.length > 1
-          ? authSchemes.includes(AuthScheme.OAuth2)
-            ? AuthScheme.OAuth2
-            : authSchemes[0]!
-          : authSchemes[0]!;
-
-      if (auth_scheme === AuthScheme.OAuth2) {
+      if (auth_schemes?.includes(AuthScheme.OAuth2)) {
         if (use_test_credentials) {
           if (environment.type === EnvironmentType.Production) {
             return errorService.errorResponse(res, {
@@ -369,7 +362,7 @@ class IntegrationController {
         environment_id: environmentId,
         is_enabled: true,
         provider_key,
-        auth_scheme: auth_scheme || defaultAuthScheme,
+        auth_schemes: auth_schemes || authSchemes,
         display_name: display_name || null,
         is_using_test_credentials: use_test_credentials || false,
         oauth_client_id: oauth_client_id || null,
@@ -403,6 +396,7 @@ class IntegrationController {
             multimodal_embedding_model: environment.default_multimodal_embedding_model,
             text_embedding_model: environment.default_text_embedding_model,
             multimodal_enabled: environment.multimodal_enabled_by_default,
+            configuration: null,
             created_at: now(),
             updated_at: now(),
             deleted_at: null,
@@ -418,6 +412,7 @@ class IntegrationController {
             environment_id: createdIntegration.environment_id,
             integration_id: createdIntegration.id,
             is_enabled: environment.auto_enable_actions,
+            configuration: null,
             created_at: now(),
             updated_at: now(),
             deleted_at: null,
@@ -433,7 +428,7 @@ class IntegrationController {
         is_enabled: createdIntegration.is_enabled,
         logo_url: provider.logo_url,
         logo_url_dark_mode: provider.logo_url_dark_mode || null,
-        auth_scheme: createdIntegration.auth_scheme as AuthScheme,
+        auth_schemes: createdIntegration.auth_schemes as AuthScheme[],
         is_using_test_credentials: createdIntegration.is_using_test_credentials,
         oauth_client_id: createdIntegration.oauth_client_id,
         oauth_client_secret: createdIntegration.oauth_client_secret,
@@ -502,7 +497,7 @@ class IntegrationController {
         oauth_scopes,
       } = parsedBody.data;
 
-      if (integration.auth_scheme === AuthScheme.OAuth2) {
+      if (integration.auth_schemes.includes(AuthScheme.OAuth2)) {
         if (is_using_test_credentials) {
           const environment = await environmentService.getEnvironmentById(environmentId);
           if (!environment) {
@@ -535,23 +530,29 @@ class IntegrationController {
 
       if (
         typeof is_using_test_credentials === 'boolean' &&
-        integration.auth_scheme === AuthScheme.OAuth2
+        integration.auth_schemes.includes(AuthScheme.OAuth2)
       ) {
         data.is_using_test_credentials = is_using_test_credentials;
       }
 
-      if (typeof oauth_client_id !== 'undefined' && integration.auth_scheme === AuthScheme.OAuth2) {
+      if (
+        typeof oauth_client_id !== 'undefined' &&
+        integration.auth_schemes.includes(AuthScheme.OAuth2)
+      ) {
         data.oauth_client_id = oauth_client_id;
       }
 
       if (
         typeof oauth_client_secret !== 'undefined' &&
-        integration.auth_scheme === AuthScheme.OAuth2
+        integration.auth_schemes.includes(AuthScheme.OAuth2)
       ) {
         data.oauth_client_secret = oauth_client_secret;
       }
 
-      if (typeof oauth_scopes !== 'undefined' && integration.auth_scheme === AuthScheme.OAuth2) {
+      if (
+        typeof oauth_scopes !== 'undefined' &&
+        integration.auth_schemes.includes(AuthScheme.OAuth2)
+      ) {
         data.oauth_scopes = oauth_scopes === null ? null : oauth_scopes.join(',');
       }
 
@@ -574,7 +575,7 @@ class IntegrationController {
         is_enabled: updatedIntegration.is_enabled,
         logo_url: provider.logo_url,
         logo_url_dark_mode: provider.logo_url_dark_mode || null,
-        auth_scheme: updatedIntegration.auth_scheme as AuthScheme,
+        auth_schemes: updatedIntegration.auth_schemes as AuthScheme[],
         is_using_test_credentials: updatedIntegration.is_using_test_credentials,
         oauth_client_id: updatedIntegration.oauth_client_id,
         oauth_client_secret: updatedIntegration.oauth_client_secret,

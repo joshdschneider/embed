@@ -13,9 +13,6 @@ auth:
       access_type: offline
       prompt: consent
 
-can_have_organization_account: false
-can_use_file_picker: true
-
 schemas:
   file: &file
     name: File
@@ -93,3 +90,8 @@ collections:
   - unique_key: files
     schema: *file
     required_scopes: [https://www.googleapis.com/auth/drive.readonly]
+    configuration:
+      use_file_picker:
+        description: Whether to use the file picker for selecting files.
+        type: boolean
+        default: true
