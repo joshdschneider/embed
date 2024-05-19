@@ -331,16 +331,26 @@ class IntegrationController {
         });
       }
 
-      const authSchemes = provider.auth.map((auth) => auth.scheme);
-      if (auth_schemes && auth_schemes.some((auth) => !authSchemes.includes(auth as AuthScheme))) {
+      const providerAuthSchemes = provider.auth.map((auth) => auth.scheme);
+      const integrationAuthSchemes = auth_schemes || providerAuthSchemes;
+
+      if (integrationAuthSchemes.length === 0) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.BadRequest,
+          message: 'Auth schemes required',
+        });
+      } else if (
+        auth_schemes &&
+        auth_schemes.some((auth) => !providerAuthSchemes.includes(auth as AuthScheme))
+      ) {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
           message: `Auth scheme(s) not supported by provider: ${auth_schemes.join(', ')}`,
         });
       }
 
-      let useTestCredentials = use_test_credentials || false;
-      if (auth_schemes?.includes(AuthScheme.OAuth2)) {
+      let useTestCredentials = use_test_credentials ?? false;
+      if (integrationAuthSchemes.includes(AuthScheme.OAuth2)) {
         if (useTestCredentials && environment.type === EnvironmentType.Production) {
           return errorService.errorResponse(res, {
             code: ErrorCode.BadRequest,
@@ -361,7 +371,7 @@ class IntegrationController {
         environment_id: environmentId,
         is_enabled: true,
         provider_key,
-        auth_schemes: auth_schemes || authSchemes,
+        auth_schemes: integrationAuthSchemes,
         display_name: display_name || null,
         is_using_test_credentials: useTestCredentials,
         oauth_client_id: oauth_client_id || null,
