@@ -1,5 +1,7 @@
+import { AuthScheme } from '@embed/providers';
 import {
   DEFAULT_ERROR_MESSAGE,
+  DEFAULT_LANGUAGE,
   ENVIRONMENT_ID_LOCALS_KEY,
   ErrorCode,
   LogAction,
@@ -13,13 +15,11 @@ import {
   getServerUrl,
   integrationService,
   now,
-  providerService,
 } from '@embed/shared';
 import type { Request, Response } from 'express';
 import sessionTokenService from '../services/sessionToken.service';
 import { zodError } from '../utils/helpers';
 import {
-  ConnectionType,
   CreateSessionTokenRequestSchema,
   SessionTokenDeletedObject,
   SessionTokenObject,
@@ -44,9 +44,8 @@ class SessionTokenController {
         expires_in_mins: expiresInMins,
         language,
         redirect_url: redirectUrl,
-        type,
+        auth_scheme: authScheme,
         display_name: displayName,
-        use_file_picker,
         configuration,
         inclusions,
         exclusions,
@@ -61,24 +60,7 @@ class SessionTokenController {
         });
       }
 
-      if (type && type === ConnectionType.Organization) {
-        const providerSpec = await providerService.getProviderSpec(integration.provider_key);
-        if (!providerSpec) {
-          throw new Error(`Failed to get provider specifcation for ${integration.provider_key}`);
-        }
-
-        if (!providerSpec.can_have_organization_account) {
-          return errorService.errorResponse(res, {
-            code: ErrorCode.BadRequest,
-            message: `Integration ${integration.provider_key} does not support organization connections`,
-          });
-        }
-      } else if (type && type !== ConnectionType.Individual) {
-        return errorService.errorResponse(res, {
-          code: ErrorCode.BadRequest,
-          message: `Invalid connection type ${type}`,
-        });
-      }
+      let selectedAuthScheme: string | null = null;
 
       if (connectionId) {
         const connection = await connectionService.getConnectionById(connectionId);
@@ -94,6 +76,32 @@ class SessionTokenController {
             code: ErrorCode.BadRequest,
             message: `Connection ${connectionId} must reconnect to integration ${connection.integration_id}`,
           });
+        }
+
+        if (authScheme && connection.auth_scheme && authScheme !== connection.auth_scheme) {
+          return errorService.errorResponse(res, {
+            code: ErrorCode.BadRequest,
+            message: `Auth scheme must match the connection's existing auth scheme: ${connection.auth_scheme}`,
+          });
+        } else {
+          selectedAuthScheme = connection.auth_scheme;
+        }
+      }
+
+      if (!selectedAuthScheme) {
+        if (authScheme) {
+          if (!integration.auth_schemes.includes(authScheme)) {
+            return errorService.errorResponse(res, {
+              code: ErrorCode.BadRequest,
+              message: `Invalid auth scheme ${authScheme}`,
+            });
+          } else {
+            selectedAuthScheme = authScheme;
+          }
+        } else {
+          selectedAuthScheme = integration.auth_schemes.includes(AuthScheme.OAuth2)
+            ? AuthScheme.OAuth2
+            : integration.auth_schemes[0]!;
         }
       }
 
@@ -136,11 +144,10 @@ class SessionTokenController {
         integration_id: integrationId,
         connection_id: connectionId || null,
         expires_at: expiresAt,
-        language: language || 'en',
+        auth_scheme: selectedAuthScheme,
+        language: language || DEFAULT_LANGUAGE,
         redirect_url: redirectUrl || null,
-        type: type || null,
         display_name: displayName || null,
-        use_file_picker: use_file_picker,
         configuration: configuration || null,
         inclusions: inclusions || null,
         exclusions: exclusions || null,
@@ -184,10 +191,12 @@ class SessionTokenController {
           url: this.buildSessionTokenUrl(sessionToken.id),
           expires_in_mins: this.expiresInMinutes(sessionToken.expires_at),
           integration_id: sessionToken.integration_id,
+          connection_id: sessionToken.connection_id,
           redirect_url: sessionToken.redirect_url,
-          language: sessionToken.language,
+          language: sessionToken.language || DEFAULT_LANGUAGE,
           metadata: sessionToken.metadata,
           configuration: sessionToken.configuration,
+          created_at: sessionToken.created_at,
         },
       });
 
@@ -199,8 +208,7 @@ class SessionTokenController {
         integration_id: sessionToken.integration_id,
         connection_id: sessionToken.connection_id,
         redirect_url: sessionToken.redirect_url,
-        type: sessionToken.type as ConnectionType | null,
-        language: sessionToken.language,
+        language: sessionToken.language || DEFAULT_LANGUAGE,
         metadata: sessionToken.metadata as Record<string, any> | null,
         configuration: sessionToken.configuration as Record<string, any> | null,
         created_at: sessionToken.created_at,
@@ -238,8 +246,7 @@ class SessionTokenController {
           integration_id: sessionToken.integration_id,
           connection_id: sessionToken.connection_id,
           redirect_url: sessionToken.redirect_url,
-          type: sessionToken.type as ConnectionType | null,
-          language: sessionToken.language,
+          language: sessionToken.language || DEFAULT_LANGUAGE,
           metadata: sessionToken.metadata as Record<string, any> | null,
           configuration: sessionToken.configuration as Record<string, any> | null,
           created_at: sessionToken.created_at,
@@ -283,8 +290,7 @@ class SessionTokenController {
         integration_id: sessionToken.integration_id,
         connection_id: sessionToken.connection_id,
         redirect_url: sessionToken.redirect_url,
-        type: sessionToken.type as ConnectionType | null,
-        language: sessionToken.language,
+        language: sessionToken.language || DEFAULT_LANGUAGE,
         metadata: sessionToken.metadata as Record<string, any> | null,
         configuration: sessionToken.configuration as Record<string, any> | null,
         created_at: sessionToken.created_at,

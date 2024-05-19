@@ -32,12 +32,4 @@ sessionRouter.route('/:token/basic').get(sessionController.basicAuthView.bind(se
 
 sessionRouter.route('/:token/basic').post(sessionController.upsertBasic.bind(sessionController));
 
-sessionRouter
-  .route('/:token/service-account')
-  .get(sessionController.serviceAccountAuthView.bind(sessionController));
-
-sessionRouter
-  .route('/:token/service-account')
-  .post(sessionController.upsertServiceAccount.bind(sessionController));
-
 export default sessionRouter;

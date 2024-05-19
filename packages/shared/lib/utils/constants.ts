@@ -183,6 +183,7 @@ export const DEFAULT_PROXY_ATTEMPTS = 3;
 export const DEFAULT_PROXY_RESPONSE_TYPE = 'json';
 
 export const SUPPORTED_LANGUAGES = ['en'];
+export const DEFAULT_LANGUAGE = 'en';
 
 export const DEFAULT_BRANDING = {
   appearance: 'system',
