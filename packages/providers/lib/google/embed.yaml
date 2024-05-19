@@ -1,0 +1,14 @@
+unique_key: google
+name: Google
+base_url: https://www.googleapis.com
+logo_url: https://embed-integrations.s3.amazonaws.com/google.svg
+docs_url: https://developers.google.com/
+
+auth:
+  - scheme: oauth2
+    authorization_url: https://accounts.google.com/o/oauth2/v2/auth
+    token_url: https://oauth2.googleapis.com/token
+    authorization_params:
+      response_type: code
+      access_type: offline
+      prompt: consent

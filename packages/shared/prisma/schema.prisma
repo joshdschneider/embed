@@ -90,9 +90,9 @@ model SessionToken {
   integration_id       String
   connection_id        String?
   expires_at           Int
-  language             String
+  auth_scheme          String
+  language             String?
   redirect_url         String?
-  type                 String?
   display_name         String?
   configuration        Json?
   inclusions           Json?
@@ -101,7 +101,6 @@ model SessionToken {
   websocket_client_id  String?
   connect_method       String?
   prefers_dark_mode    Boolean @default(false)
-  use_file_picker      Boolean @default(false)
   code_verifier        String?
   request_token_secret String?
   created_at           Int
@@ -112,12 +111,12 @@ model SessionToken {
 }
 
 model Integration {
-  id                        String  @id
+  id                        String   @id
   provider_key              String
   environment_id            String
-  auth_scheme               String
-  display_name              String?
   is_enabled                Boolean
+  auth_schemes              String[]
+  display_name              String?
   is_using_test_credentials Boolean
   oauth_client_id           String?
   oauth_client_secret       String?
@@ -140,9 +139,8 @@ model Connection {
   id               String  @id
   environment_id   String
   integration_id   String
-  type             String
-  display_name     String?
   auth_scheme      String
+  display_name     String?
   credentials      String
   credentials_hash String?
   credentials_iv   String?
@@ -177,6 +175,7 @@ model Collection {
   text_embedding_model          String
   multimodal_embedding_model    String
   multimodal_enabled            Boolean
+  configuration                 Json?
   created_at                    Int
   updated_at                    Int
   deleted_at                    Int?
@@ -195,6 +194,7 @@ model Action {
   provider_key   String
   environment_id String
   is_enabled     Boolean
+  configuration  Json?
   created_at     Int
   updated_at     Int
   deleted_at     Int?
