@@ -15,11 +15,6 @@ export enum EnvironmentType {
   Production = 'production',
 }
 
-export enum ConnectionType {
-  Individual = 'individual',
-  Organization = 'organization',
-}
-
 export interface DefaultTemplateData {
   branding: Branding;
   prefers_dark_mode: boolean;
@@ -46,19 +41,6 @@ export interface ConfigTemplateData extends DefaultTemplateData {
 }
 
 export interface ApiKeyTemplateData extends DefaultTemplateData {
-  nonce: string;
-  server_url: string;
-  session_token: string;
-  integration: {
-    provider_key: string;
-    name: string;
-    logo_url: string | undefined;
-    logo_url_dark_mode: string | undefined;
-    help_link: string | undefined;
-  };
-}
-
-export interface ServiceAccountTemplateData extends DefaultTemplateData {
   nonce: string;
   server_url: string;
   session_token: string;
@@ -156,7 +138,7 @@ export interface IntegrationObject {
   logo_url: string | null;
   logo_url_dark_mode: string | null;
   display_name: string | null;
-  auth_scheme: AuthScheme;
+  auth_schemes: AuthScheme[];
   is_enabled: boolean;
   created_at: number;
   updated_at: number;
@@ -171,16 +153,7 @@ export type IntegrationObjectWithCredentials = IntegrationObject & {
 
 export const CreateIntegrationRequestSchema = z.object({
   provider_key: z.string(),
-  auth_scheme: z
-    .union([
-      z.literal(AuthScheme.OAuth2),
-      z.literal(AuthScheme.OAuth1),
-      z.literal(AuthScheme.Basic),
-      z.literal(AuthScheme.ApiKey),
-      z.literal(AuthScheme.ServiceAccount),
-      z.literal(AuthScheme.None),
-    ])
-    .optional(),
+  auth_schemes: z.array(z.string()).optional(),
   display_name: z.string().optional().nullable(),
   use_test_credentials: z.boolean().optional(),
   oauth_client_id: z.string().optional().nullable(),
@@ -260,7 +233,6 @@ export interface SessionTokenObject {
   integration_id: string;
   connection_id: string | null;
   expires_in_mins: number;
-  type: ConnectionType | null;
   language: string;
   redirect_url: string | null;
   metadata: Record<string, any> | null;
@@ -280,9 +252,8 @@ export const CreateSessionTokenRequestSchema = z.object({
   expires_in_mins: z.number().optional().nullable(),
   language: z.string().optional().nullable(),
   redirect_url: z.string().optional().nullable(),
-  type: z.string().optional(),
+  auth_scheme: z.string().optional(),
   display_name: z.string().optional().nullable(),
-  use_file_picker: z.boolean().default(false),
   configuration: z.record(z.string(), z.any()).optional().nullable(),
   inclusions: z.record(z.string(), z.any()).optional().nullable(),
   exclusions: z.record(z.string(), z.any()).optional().nullable(),
@@ -294,7 +265,6 @@ export interface ConnectionObject {
   id: string;
   integration_id: string;
   display_name: string | null;
-  type: string;
   auth_scheme: AuthScheme;
   configuration: Record<string, any> | null;
   inclusions: Record<string, any> | null;

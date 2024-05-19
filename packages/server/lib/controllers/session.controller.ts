@@ -4,6 +4,7 @@ import {
   LogLevel,
   Resource,
   activityService,
+  collectionService,
   connectionService,
   environmentService,
   errorService,
@@ -17,18 +18,13 @@ import type { Request, Response } from 'express';
 import publisher from '../clients/publisher.client';
 import connectionHook from '../hooks/connection.hook';
 import sessionTokenService from '../services/sessionToken.service';
+import { PROVIDERS_THAT_SUPPORT_FILE_PICKER } from '../utils/constants';
 import {
   appendParamsToUrl,
   extractConfigurationKeys,
   formatKeyToReadableText,
 } from '../utils/helpers';
-import {
-  ApiKeyTemplateData,
-  BasicTemplateData,
-  ConfigTemplateData,
-  ConnectionType,
-  ServiceAccountTemplateData,
-} from '../utils/types';
+import { ApiKeyTemplateData, BasicTemplateData, ConfigTemplateData } from '../utils/types';
 
 class SessionController {
   public async routeView(req: Request, res: Response) {
@@ -126,7 +122,7 @@ class SessionController {
         throw new Error('SERVER_URL is undefined');
       }
 
-      const authScheme = integration.auth_scheme;
+      const authScheme = sessionToken.auth_scheme;
       const baseUrl = `${serverUrl}/session/${token}`;
 
       switch (authScheme) {
@@ -158,16 +154,6 @@ class SessionController {
           });
 
           return res.redirect(basicUrl);
-        case AuthScheme.ServiceAccount:
-          const serviceAccountUrl = `${baseUrl}/service-account`;
-          await activityService.createActivityLog(activityId, {
-            timestamp: now(),
-            level: LogLevel.Info,
-            message: `Redirecting to service account auth`,
-          });
-
-          return res.redirect(serviceAccountUrl);
-
         case AuthScheme.None:
           await activityService.createActivityLog(activityId, {
             timestamp: now(),
@@ -175,17 +161,11 @@ class SessionController {
             message: `Upserting connection without credentials`,
           });
 
-          const connectionType = await this.getConnectionTypeFromToken(
-            sessionToken.type,
-            integration.provider_key
-          );
-
           const response = await connectionService.upsertConnection({
             environment_id: sessionToken.environment_id,
             id: sessionToken.connection_id || generateId(Resource.Connection),
             display_name: sessionToken.display_name || null,
-            type: connectionType,
-            auth_scheme: integration.auth_scheme,
+            auth_scheme: AuthScheme.None,
             integration_id: integration.id,
             credentials: JSON.stringify({ type: AuthScheme.None }),
             credentials_hash: null,
@@ -256,26 +236,6 @@ class SessionController {
     }
   }
 
-  public async getConnectionTypeFromToken(
-    connectionType: string | null,
-    providerKey: string
-  ): Promise<ConnectionType> {
-    if (connectionType && connectionType === ConnectionType.Organization) {
-      const providerSpec = await providerService.getProviderSpec(providerKey);
-      if (!providerSpec) {
-        throw new Error(`Failed to get provider specifcation for ${providerKey}`);
-      } else if (!providerSpec.can_have_organization_account) {
-        throw new Error(`Integration ${providerKey} does not support organization connections`);
-      }
-
-      return ConnectionType.Organization;
-    } else if (connectionType && connectionType !== ConnectionType.Individual) {
-      throw new Error(`Invalid connection type ${connectionType}`);
-    } else {
-      return ConnectionType.Individual;
-    }
-  }
-
   public async oauthView(req: Request, res: Response) {
     const token = req.params['token'];
     if (!token) {
@@ -326,11 +286,13 @@ class SessionController {
       const integration = await integrationService.getIntegrationById(sessionToken.integration_id);
       if (!integration) {
         throw new Error(`Failed to retrieve integration with ID ${sessionToken.integration_id}`);
-      } else if (
-        integration.auth_scheme !== AuthScheme.OAuth2 &&
-        integration.auth_scheme !== AuthScheme.OAuth1
+      }
+
+      if (
+        !integration.auth_schemes.includes(AuthScheme.OAuth2) &&
+        !integration.auth_schemes.includes(AuthScheme.OAuth1)
       ) {
-        throw new Error(`Invalid auth scheme ${integration.auth_scheme} for ${integration.id}`);
+        throw new Error(`Invalid auth scheme for integration ${integration.id}`);
       }
 
       const providerSpec = await providerService.getProviderSpec(integration.provider_key);
@@ -338,10 +300,10 @@ class SessionController {
         throw new Error(`Provider specification not found for ${integration.provider_key}`);
       }
 
-      const authSpec = providerSpec.auth.find((auth) => auth.scheme === integration.auth_scheme);
+      const authSpec = providerSpec.auth.find((auth) => auth.scheme === sessionToken.auth_scheme);
       if (!authSpec) {
         throw new Error(
-          `Auth scheme ${integration.auth_scheme} not found in provider specification`
+          `Auth scheme ${sessionToken.auth_scheme} not found in provider specification`
         );
       }
 
@@ -561,8 +523,8 @@ class SessionController {
       const integration = await integrationService.getIntegrationById(sessionToken.integration_id);
       if (!integration) {
         throw new Error(`Failed to retrieve integration with ID ${sessionToken.integration_id}`);
-      } else if (integration.auth_scheme !== AuthScheme.ApiKey) {
-        throw new Error(`Invalid auth scheme ${integration.auth_scheme} for ${integration.id}`);
+      } else if (!integration.auth_schemes.includes(AuthScheme.ApiKey)) {
+        throw new Error(`Invalid auth scheme for integration ${integration.id}`);
       }
 
       const providerSpec = await providerService.getProviderSpec(integration.provider_key);
@@ -681,21 +643,15 @@ class SessionController {
       const integration = await integrationService.getIntegrationById(sessionToken.integration_id);
       if (!integration) {
         throw new Error(`Failed to retrieve integration with ID ${sessionToken.integration_id}`);
-      } else if (integration.auth_scheme !== AuthScheme.ApiKey) {
-        throw new Error(`Invalid auth scheme ${integration.auth_scheme} for ${integration.id}`);
+      } else if (!integration.auth_schemes.includes(AuthScheme.ApiKey)) {
+        throw new Error(`Invalid auth scheme for integration ${integration.id}`);
       }
-
-      const connectionType = await this.getConnectionTypeFromToken(
-        sessionToken.type,
-        integration.provider_key
-      );
 
       const response = await connectionService.upsertConnection({
         environment_id: sessionToken.environment_id,
         id: sessionToken.connection_id || generateId(Resource.Connection),
         display_name: sessionToken.display_name || null,
-        type: connectionType,
-        auth_scheme: integration.auth_scheme,
+        auth_scheme: sessionToken.auth_scheme,
         integration_id: integration.id,
         credentials: JSON.stringify({ type: AuthScheme.ApiKey, apiKey }),
         credentials_hash: null,
@@ -724,12 +680,14 @@ class SessionController {
         message: `Connection ${response.action} with API key credentials`,
       });
 
-      if (sessionToken.use_file_picker) {
-        const provider = await providerService.getProviderSpec(integration.provider_key);
-        const useFilePicker = provider?.can_use_file_picker;
-        const serverUrl = getServerUrl();
+      const shouldUseFilePicker = await this.shouldUseFilePicker(
+        integration.id,
+        integration.provider_key
+      );
 
-        if (useFilePicker && serverUrl) {
+      if (shouldUseFilePicker) {
+        const serverUrl = getServerUrl();
+        if (serverUrl) {
           const redirectUrl = `${serverUrl}/file-picker/${sessionToken.id}/files`;
           return res.redirect(
             `${redirectUrl}?connection_id=${response.connection.id}&action=${response.action}`
@@ -825,8 +783,8 @@ class SessionController {
       const integration = await integrationService.getIntegrationById(sessionToken.integration_id);
       if (!integration) {
         throw new Error(`Failed to retrieve integration with ID ${sessionToken.integration_id}`);
-      } else if (integration.auth_scheme !== AuthScheme.Basic) {
-        throw new Error(`Invalid auth scheme ${integration.auth_scheme} for ${integration.id}`);
+      } else if (!integration.auth_schemes.includes(AuthScheme.Basic)) {
+        throw new Error(`Invalid auth scheme for integration ${integration.id}`);
       }
 
       const providerSpec = await providerService.getProviderSpec(integration.provider_key);
@@ -964,21 +922,15 @@ class SessionController {
       const integration = await integrationService.getIntegrationById(sessionToken.integration_id);
       if (!integration) {
         throw new Error(`Failed to retrieve integration with ID ${sessionToken.integration_id}`);
-      } else if (integration.auth_scheme !== AuthScheme.Basic) {
-        throw new Error(`Invalid auth scheme ${integration.auth_scheme} for ${integration.id}`);
+      } else if (!integration.auth_schemes.includes(AuthScheme.Basic)) {
+        throw new Error(`Invalid auth scheme for integration ${integration.id}`);
       }
-
-      const connectionType = await this.getConnectionTypeFromToken(
-        sessionToken.type,
-        integration.provider_key
-      );
 
       const response = await connectionService.upsertConnection({
         environment_id: sessionToken.environment_id,
         id: sessionToken.connection_id || generateId(Resource.Connection),
         display_name: sessionToken.display_name || null,
-        type: connectionType,
-        auth_scheme: integration.auth_scheme,
+        auth_scheme: sessionToken.auth_scheme,
         integration_id: integration.id,
         credentials: JSON.stringify({ type: AuthScheme.Basic, username, password }),
         credentials_hash: null,
@@ -1007,278 +959,14 @@ class SessionController {
         message: `Connection ${response.action} with basic credentials`,
       });
 
-      if (sessionToken.use_file_picker) {
-        const provider = await providerService.getProviderSpec(integration.provider_key);
-        const useFilePicker = provider?.can_use_file_picker;
-        const serverUrl = getServerUrl();
-
-        if (useFilePicker && serverUrl) {
-          const redirectUrl = `${serverUrl}/file-picker/${sessionToken.id}/files`;
-          return res.redirect(
-            `${redirectUrl}?connection_id=${response.connection.id}&action=${response.action}`
-          );
-        }
-      }
-
-      await sessionTokenService.deleteSessionToken(sessionToken.id);
-
-      if (response.action === 'created') {
-        connectionHook.connectionCreated({ connection: response.connection, activityId });
-      } else if (response.action === 'updated') {
-        connectionHook.connectionUpdated({ connection: response.connection, activityId });
-      } else {
-        throw new Error('Invalid action returned from connection upsert');
-      }
-
-      return await publisher.publishSuccess(res, {
-        connectionId: response.connection.id,
-        wsClientId,
-        connectMethod,
-        redirectUrl,
-        branding,
-        prefersDarkMode,
-      });
-    } catch (err) {
-      await errorService.reportError(err);
-      await activityService.createActivityLog(activityId, {
-        timestamp: now(),
-        level: LogLevel.Error,
-        message: 'Internal server error',
-      });
-
-      return await publisher.publishError(res, {
-        error: DEFAULT_ERROR_MESSAGE,
-        wsClientId,
-        connectMethod,
-        redirectUrl,
-        branding,
-        prefersDarkMode,
-      });
-    }
-  }
-
-  public async serviceAccountAuthView(req: Request, res: Response) {
-    const nonce = res.locals['nonce'];
-    const token = req.params['token'];
-    if (!token) {
-      return await publisher.publishError(res, {
-        error: 'Session token missing',
-      });
-    }
-
-    const sessionToken = await sessionTokenService.getSessionTokenById(token);
-    if (!sessionToken) {
-      return await publisher.publishError(res, {
-        error: 'Invalid session token',
-      });
-    }
-
-    const connectMethod = sessionToken.connect_method || undefined;
-    const wsClientId = sessionToken.websocket_client_id || undefined;
-    const redirectUrl = sessionToken.redirect_url || undefined;
-    const prefersDarkMode = sessionToken.prefers_dark_mode || false;
-
-    const activityId = await activityService.findActivityIdBySessionToken(sessionToken.id);
-    const branding = await environmentService.getEnvironmentBranding(sessionToken.environment_id);
-
-    try {
-      if (sessionToken.expires_at < now()) {
-        const errorMessage = 'Session token expired';
-        await activityService.createActivityLog(activityId, {
-          timestamp: now(),
-          level: LogLevel.Error,
-          message: errorMessage,
-        });
-
-        return await publisher.publishError(res, {
-          error: errorMessage,
-          wsClientId,
-          connectMethod,
-          redirectUrl,
-          branding,
-          prefersDarkMode,
-        });
-      }
-
-      const serverUrl = getServerUrl();
-      if (!serverUrl) {
-        throw new Error('SERVER_URL is undefined');
-      }
-
-      const integration = await integrationService.getIntegrationById(sessionToken.integration_id);
-      if (!integration) {
-        throw new Error(`Failed to retrieve integration with ID ${sessionToken.integration_id}`);
-      } else if (integration.auth_scheme !== AuthScheme.ServiceAccount) {
-        throw new Error(`Invalid auth scheme ${integration.auth_scheme} for ${integration.id}`);
-      }
-
-      const providerSpec = await providerService.getProviderSpec(integration.provider_key);
-      if (!providerSpec) {
-        throw new Error(`Provider specification not found for ${integration.provider_key}`);
-      }
-
-      const serviceAccountAuth = providerSpec.auth.find(
-        (auth) => auth.scheme === AuthScheme.ServiceAccount
-      ) as {
-        scheme: AuthScheme.ServiceAccount;
-        help_link: string | undefined;
-      };
-
-      await activityService.createActivityLog(activityId, {
-        timestamp: now(),
-        level: LogLevel.Info,
-        message: `User viewed service account input screen`,
-      });
-
-      const data: ServiceAccountTemplateData = {
-        server_url: serverUrl,
-        session_token: token,
-        integration: {
-          provider_key: integration.provider_key,
-          name: providerSpec.name,
-          logo_url: providerSpec.logo_url,
-          logo_url_dark_mode: providerSpec.logo_url_dark_mode,
-          help_link: serviceAccountAuth.help_link,
-        },
-        branding,
-        prefers_dark_mode: prefersDarkMode,
-        nonce,
-      };
-
-      res.render('service-account', data);
-    } catch (err) {
-      await errorService.reportError(err);
-      await activityService.createActivityLog(activityId, {
-        timestamp: now(),
-        level: LogLevel.Error,
-        message: 'Internal server error',
-      });
-
-      return await publisher.publishError(res, {
-        error: DEFAULT_ERROR_MESSAGE,
-        wsClientId,
-        connectMethod,
-        redirectUrl,
-        branding,
-        prefersDarkMode,
-      });
-    }
-  }
-
-  public async upsertServiceAccount(req: Request, res: Response) {
-    const token = req.params['token'];
-    const serviceAccountKey = req.body['key'];
-
-    if (!token) {
-      return await publisher.publishError(res, {
-        error: 'Session token missing',
-      });
-    }
-
-    const sessionToken = await sessionTokenService.getSessionTokenById(token);
-    if (!sessionToken) {
-      return await publisher.publishError(res, {
-        error: 'Invalid session token',
-      });
-    }
-
-    const connectMethod = sessionToken.connect_method || undefined;
-    const wsClientId = sessionToken.websocket_client_id || undefined;
-    const redirectUrl = sessionToken.redirect_url || undefined;
-    const prefersDarkMode = sessionToken.prefers_dark_mode || false;
-
-    const activityId = await activityService.findActivityIdBySessionToken(sessionToken.id);
-    const branding = await environmentService.getEnvironmentBranding(sessionToken.environment_id);
-
-    try {
-      if (!serviceAccountKey || typeof serviceAccountKey !== 'string') {
-        const errorMessage = 'Service account key missing or invalid';
-        await activityService.createActivityLog(activityId, {
-          timestamp: now(),
-          level: LogLevel.Error,
-          message: errorMessage,
-        });
-
-        return await publisher.publishError(res, {
-          error: errorMessage,
-          wsClientId,
-          connectMethod,
-          redirectUrl,
-          branding,
-          prefersDarkMode,
-        });
-      }
-
-      if (sessionToken.expires_at < now()) {
-        const errorMessage = 'Session token expired';
-        await activityService.createActivityLog(activityId, {
-          timestamp: now(),
-          level: LogLevel.Error,
-          message: errorMessage,
-        });
-
-        return await publisher.publishError(res, {
-          error: errorMessage,
-          wsClientId,
-          connectMethod,
-          redirectUrl,
-          branding,
-          prefersDarkMode,
-        });
-      }
-
-      const integration = await integrationService.getIntegrationById(sessionToken.integration_id);
-      if (!integration) {
-        throw new Error(`Failed to retrieve integration with ID ${sessionToken.integration_id}`);
-      } else if (integration.auth_scheme !== AuthScheme.ServiceAccount) {
-        throw new Error(`Invalid auth scheme ${integration.auth_scheme} for ${integration.id}`);
-      }
-
-      const connectionType = await this.getConnectionTypeFromToken(
-        sessionToken.type,
+      const shouldUseFilePicker = await this.shouldUseFilePicker(
+        integration.id,
         integration.provider_key
       );
 
-      const response = await connectionService.upsertConnection({
-        environment_id: sessionToken.environment_id,
-        id: sessionToken.connection_id || generateId(Resource.Connection),
-        display_name: sessionToken.display_name || null,
-        type: connectionType,
-        auth_scheme: integration.auth_scheme,
-        integration_id: integration.id,
-        credentials: JSON.stringify({ type: AuthScheme.ServiceAccount, key: serviceAccountKey }),
-        credentials_hash: null,
-        credentials_iv: null,
-        credentials_tag: null,
-        configuration: sessionToken.configuration || null,
-        inclusions: sessionToken.inclusions || null,
-        exclusions: sessionToken.exclusions || null,
-        metadata: sessionToken.metadata || null,
-        created_at: now(),
-        updated_at: now(),
-        deleted_at: null,
-      });
-
-      if (!response) {
-        throw new Error(`Failed to upsert connection`);
-      }
-
-      await activityService.updateActivity(activityId, {
-        connection_id: response.connection.id,
-      });
-
-      await activityService.createActivityLog(activityId, {
-        timestamp: now(),
-        level: LogLevel.Info,
-        message: `Connection ${response.action} with service account credentials`,
-      });
-
-      if (sessionToken.use_file_picker) {
-        const provider = await providerService.getProviderSpec(integration.provider_key);
-        const useFilePicker = provider?.can_use_file_picker;
+      if (shouldUseFilePicker) {
         const serverUrl = getServerUrl();
-
-        if (useFilePicker && serverUrl) {
+        if (serverUrl) {
           const redirectUrl = `${serverUrl}/file-picker/${sessionToken.id}/files`;
           return res.redirect(
             `${redirectUrl}?connection_id=${response.connection.id}&action=${response.action}`
@@ -1320,6 +1008,23 @@ class SessionController {
         branding,
         prefersDarkMode,
       });
+    }
+  }
+
+  public async shouldUseFilePicker(integrationId: string, providerKey: string): Promise<boolean> {
+    try {
+      if (PROVIDERS_THAT_SUPPORT_FILE_PICKER.includes(providerKey)) {
+        const filesCollection = await collectionService.retrieveCollection('files', integrationId);
+        const filesConfig = filesCollection?.configuration as
+          | { use_file_picker: boolean }
+          | undefined;
+        return filesConfig?.use_file_picker || false;
+      } else {
+        return false;
+      }
+    } catch (err) {
+      await errorService.reportError(err);
+      return false;
     }
   }
 }

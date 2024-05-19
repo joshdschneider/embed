@@ -61,7 +61,11 @@ class CollectionService {
           },
           deleted_at: null,
         },
-        data: { ...data, updated_at: now() },
+        data: {
+          ...data,
+          configuration: data.configuration || undefined,
+          updated_at: now(),
+        },
       });
     } catch (err) {
       await errorService.reportError(err);
@@ -124,6 +128,7 @@ class CollectionService {
       const newCollection = await database.collection.create({
         data: {
           ...collection,
+          configuration: collection.configuration || undefined,
           created_at: now(),
           updated_at: now(),
         },

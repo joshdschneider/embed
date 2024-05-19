@@ -48,7 +48,8 @@ jobs:
         id: extract_branch
         run: |
           BRANCH_NAME=${GITHUB_REF#refs/heads/}
-          echo "BRANCH_NAME=${BRANCH_NAME}" >> $GITHUB_ENV
+          SANITIZED_BRANCH_NAME=$(echo "$BRANCH_NAME" | tr '/' '-')
+          echo "SANITIZED_BRANCH_NAME=${SANITIZED_BRANCH_NAME}" >> $GITHUB_ENV
 
       - name: Build and push Docker image for ${{ matrix.service.name }}
         uses: docker/build-push-action@v3
@@ -56,8 +57,8 @@ jobs:
           context: .
           file: ./${{ matrix.service.path }}/Dockerfile
           push: true
-          tags: ${{ secrets.DOCKER_USERNAME }}/${{ matrix.service.image }}:${{ env.BRANCH_NAME }}
+          tags: ${{ secrets.DOCKER_USERNAME }}/${{ matrix.service.image }}:${{ env.SANITIZED_BRANCH_NAME }}
 
       - name: Notify success
         if: success()
-        run: echo "Successfully built and pushed ${{ matrix.service.name }} for branch ${{ env.BRANCH_NAME }}"
+        run: echo "Successfully built and pushed ${{ matrix.service.name }} for branch ${{ env.SANITIZED_BRANCH_NAME }}"

@@ -6,7 +6,6 @@ export enum AuthScheme {
   OAuth1 = 'oauth1',
   Basic = 'basic',
   ApiKey = 'api_key',
-  ServiceAccount = 'service_account',
   None = 'none',
 }
 
@@ -17,11 +16,7 @@ export const NoAuthSchema = z.object({
 export type NoAuth = z.infer<typeof NoAuthSchema>;
 
 export const ApiAuthSchema = z.object({
-  scheme: z.union([
-    z.literal(AuthScheme.Basic),
-    z.literal(AuthScheme.ApiKey),
-    z.literal(AuthScheme.ServiceAccount),
-  ]),
+  scheme: z.union([z.literal(AuthScheme.Basic), z.literal(AuthScheme.ApiKey)]),
   help_link: z.string().optional(),
 });
 
@@ -89,7 +84,7 @@ export const RetrySchema = z.object({
 
 export type Retry = z.infer<typeof RetrySchema>;
 
-export const CollectionPropertyTypeSchema = z.union([
+export const PropertyTypeSchema = z.union([
   z.literal('string'),
   z.literal('number'),
   z.literal('integer'),
@@ -100,9 +95,9 @@ export const CollectionPropertyTypeSchema = z.union([
   z.literal('nested'),
 ]);
 
-export type CollectionPropertyType = z.infer<typeof CollectionPropertyTypeSchema>;
+export type PropertyType = z.infer<typeof PropertyTypeSchema>;
 
-export const CollectionPropertyItemsSchema = z.object({
+export const PropertyItemsSchema = z.object({
   type: z.union([
     z.literal('string'),
     z.literal('number'),
@@ -112,11 +107,11 @@ export const CollectionPropertyItemsSchema = z.object({
   ]),
 });
 
-export type CollectionPropertyItems = z.infer<typeof CollectionPropertyItemsSchema>;
+export type PropertyItems = z.infer<typeof PropertyItemsSchema>;
 
 export interface CollectionProperty {
-  type: CollectionPropertyType;
-  items?: CollectionPropertyItems;
+  type: PropertyType;
+  items?: PropertyItems;
   description?: string;
   properties?: Record<string, CollectionProperty>;
   filterable?: boolean;
@@ -129,8 +124,8 @@ export interface CollectionProperty {
 }
 
 export const CollectionPropertySchema: z.ZodType<CollectionProperty> = z.object({
-  type: CollectionPropertyTypeSchema,
-  items: CollectionPropertyItemsSchema.optional(),
+  type: PropertyTypeSchema,
+  items: PropertyItemsSchema.optional(),
   description: z.string().optional(),
   properties: z.record(z.lazy(() => CollectionPropertySchema)).optional(),
   filterable: z.boolean().default(true),
@@ -142,6 +137,14 @@ export const CollectionPropertySchema: z.ZodType<CollectionProperty> = z.object(
   hidden: z.boolean().default(false),
 });
 
+export const CollectionConfigurationSchema = z.object({
+  type: PropertyTypeSchema,
+  items: PropertyItemsSchema.optional(),
+  description: z.string().optional(),
+});
+
+export type CollectionConfiguration = z.infer<typeof CollectionConfigurationSchema>;
+
 export const CollectionSchemaSchema = z.object({
   name: z.string(),
   description: z.string(),
@@ -151,16 +154,14 @@ export const CollectionSchemaSchema = z.object({
 
 export type CollectionSchema = z.infer<typeof CollectionSchemaSchema>;
 
-export const CollectionsSchema = z.array(
-  z.object({
-    unique_key: z.string(),
-    schema: CollectionSchemaSchema,
-    required_scopes: z.array(z.string()).optional(),
-    required_for_organization_accounts: z.boolean().default(false),
-  })
-);
+export const CollectionSchema = z.object({
+  unique_key: z.string(),
+  schema: CollectionSchemaSchema,
+  required_scopes: z.array(z.string()).optional(),
+  configuration: z.record(CollectionConfigurationSchema).optional(),
+});
 
-export type Collections = z.infer<typeof CollectionsSchema>;
+export type Collection = z.infer<typeof CollectionSchema>;
 
 export const ActionPropertySchema = z.object({
   type: z.string(),
@@ -183,30 +184,35 @@ export const ActionSchemaSchema = z.object({
 
 export type ActionSchema = z.infer<typeof ActionSchemaSchema>;
 
-export const ActionsSchema = z.array(
-  z.object({
-    unique_key: z.string(),
-    required_scopes: z.array(z.string()).optional(),
-    schema: ActionSchemaSchema,
-  })
-);
+export const ActionConfigurationSchema = z.object({
+  type: PropertyTypeSchema,
+  items: PropertyItemsSchema.optional(),
+  description: z.string().optional(),
+});
 
-export type Actions = z.infer<typeof ActionsSchema>;
+export type ActionConfiguration = z.infer<typeof ActionConfigurationSchema>;
+
+export const ActionSchema = z.object({
+  unique_key: z.string(),
+  required_scopes: z.array(z.string()).optional(),
+  schema: ActionSchemaSchema,
+  configuration: z.record(ActionConfigurationSchema).optional(),
+});
+
+export type Action = z.infer<typeof ActionSchema>;
 
 export const ProviderSpecificationSchema = z.object({
   unique_key: z.string(),
   name: z.string(),
   base_url: z.string(),
   auth: AuthSchema,
-  can_have_organization_account: z.boolean().default(false),
-  can_use_file_picker: z.boolean().default(false),
   headers: z.record(z.string()).optional(),
   retry: RetrySchema.optional(),
   logo_url: z.string(),
   logo_url_dark_mode: z.string().optional(),
   docs_url: z.string().optional(),
-  collections: CollectionsSchema.optional(),
-  actions: ActionsSchema.optional(),
+  collections: z.array(CollectionSchema).optional(),
+  actions: z.array(ActionSchema).optional(),
 });
 
 export type ProviderSpecification = z.infer<typeof ProviderSpecificationSchema>;
