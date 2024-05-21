@@ -253,7 +253,7 @@ export const CreateSessionTokenRequestSchema = z.object({
   language: z.string().optional().nullable(),
   redirect_url: z.string().optional().nullable(),
   auth_scheme: z.string().optional(),
-  display_name: z.string().optional().nullable(),
+  connection_name: z.string().optional().nullable(),
   configuration: z.record(z.string(), z.any()).optional().nullable(),
   inclusions: z.record(z.string(), z.any()).optional().nullable(),
   exclusions: z.record(z.string(), z.any()).optional().nullable(),

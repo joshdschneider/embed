@@ -176,14 +176,14 @@ export class Publisher {
     {
       error,
       wsClientId,
-      connectMethod,
+      flow,
       redirectUrl,
       branding,
       prefersDarkMode,
     }: {
       error: string;
       wsClientId?: string;
-      connectMethod?: string;
+      flow?: string;
       redirectUrl?: string;
       branding?: Branding;
       prefersDarkMode?: boolean;
@@ -197,9 +197,9 @@ export class Publisher {
       }
     }
 
-    if (connectMethod === 'popup') {
+    if (flow === 'popup') {
       this.closePopup(res);
-    } else if (connectMethod === 'redirect' && redirectUrl) {
+    } else if (flow === 'redirect' && redirectUrl) {
       const errorRedirectUrl = appendParamsToUrl(redirectUrl, { error });
       res.redirect(errorRedirectUrl);
     } else {
@@ -218,14 +218,14 @@ export class Publisher {
     {
       connectionId,
       wsClientId,
-      connectMethod,
+      flow,
       redirectUrl,
       branding,
       prefersDarkMode,
     }: {
       connectionId: string;
       wsClientId?: string;
-      connectMethod?: string;
+      flow?: string;
       redirectUrl?: string;
       branding?: Branding;
       prefersDarkMode?: boolean;
@@ -243,9 +243,9 @@ export class Publisher {
       }
     }
 
-    if (connectMethod === 'popup') {
+    if (flow === 'popup') {
       this.closePopup(res);
-    } else if (connectMethod === 'redirect' && redirectUrl) {
+    } else if (flow === 'redirect' && redirectUrl) {
       const successRedirectUrl = appendParamsToUrl(redirectUrl, {
         connection_id: connectionId,
       });

@@ -46,7 +46,7 @@ class OAuthController {
       });
     }
 
-    const connectMethod = sessionToken.connect_method || undefined;
+    const flow = sessionToken.flow || undefined;
     const wsClientId = sessionToken.websocket_client_id || undefined;
     const redirectUrl = sessionToken.redirect_url || undefined;
     const prefersDarkMode = sessionToken.prefers_dark_mode || false;
@@ -66,7 +66,7 @@ class OAuthController {
         return await publisher.publishError(res, {
           error: errorMessage,
           wsClientId,
-          connectMethod,
+          flow,
           redirectUrl,
           branding,
           prefersDarkMode,
@@ -94,7 +94,7 @@ class OAuthController {
         return await publisher.publishError(res, {
           error: errorMessage,
           wsClientId,
-          connectMethod,
+          flow,
           redirectUrl,
           branding,
           prefersDarkMode,
@@ -160,7 +160,7 @@ class OAuthController {
       return await publisher.publishError(res, {
         error: DEFAULT_ERROR_MESSAGE,
         wsClientId,
-        connectMethod,
+        flow,
         redirectUrl,
         branding,
         prefersDarkMode,
@@ -186,7 +186,7 @@ class OAuthController {
       branding: Branding;
     }
   ) {
-    const connectMethod = sessionToken.connect_method || undefined;
+    const flow = sessionToken.flow || undefined;
     const wsClientId = sessionToken.websocket_client_id || undefined;
     const redirectUrl = sessionToken.redirect_url || undefined;
     const prefersDarkMode = sessionToken.prefers_dark_mode || false;
@@ -204,7 +204,7 @@ class OAuthController {
           return await publisher.publishError(res, {
             error: errorMessage,
             wsClientId,
-            connectMethod,
+            flow,
             redirectUrl,
             branding,
             prefersDarkMode,
@@ -241,7 +241,7 @@ class OAuthController {
           return await publisher.publishError(res, {
             error: errorMessage,
             wsClientId,
-            connectMethod,
+            flow,
             redirectUrl,
             branding,
             prefersDarkMode,
@@ -309,7 +309,7 @@ class OAuthController {
       return await publisher.publishError(res, {
         error: DEFAULT_ERROR_MESSAGE,
         wsClientId,
-        connectMethod,
+        flow,
         redirectUrl,
         branding,
         prefersDarkMode,
@@ -335,7 +335,7 @@ class OAuthController {
       branding: Branding;
     }
   ) {
-    const connectMethod = sessionToken.connect_method || undefined;
+    const flow = sessionToken.flow || undefined;
     const wsClientId = sessionToken.websocket_client_id || undefined;
     const redirectUrl = sessionToken.redirect_url || undefined;
     const prefersDarkMode = sessionToken.prefers_dark_mode || false;
@@ -382,7 +382,7 @@ class OAuthController {
       return await publisher.publishError(res, {
         error: DEFAULT_ERROR_MESSAGE,
         wsClientId,
-        connectMethod,
+        flow,
         redirectUrl,
         branding,
         prefersDarkMode,
@@ -411,7 +411,7 @@ class OAuthController {
       });
     }
 
-    const connectMethod = sessionToken.connect_method || undefined;
+    const flow = sessionToken.flow || undefined;
     const wsClientId = sessionToken.websocket_client_id || undefined;
     const redirectUrl = sessionToken.redirect_url || undefined;
     const prefersDarkMode = sessionToken.prefers_dark_mode || false;
@@ -474,7 +474,7 @@ class OAuthController {
       return await publisher.publishError(res, {
         error: DEFAULT_ERROR_MESSAGE,
         wsClientId,
-        connectMethod,
+        flow,
         redirectUrl,
         branding,
         prefersDarkMode,
@@ -500,7 +500,7 @@ class OAuthController {
     }
   ): Promise<void> {
     const { code } = req.query;
-    const connectMethod = sessionToken.connect_method || undefined;
+    const flow = sessionToken.flow || undefined;
     const wsClientId = sessionToken.websocket_client_id || undefined;
     const redirectUrl = sessionToken.redirect_url || undefined;
     const prefersDarkMode = sessionToken.prefers_dark_mode || false;
@@ -611,7 +611,7 @@ class OAuthController {
       return await publisher.publishSuccess(res, {
         connectionId: response.connection.id,
         wsClientId,
-        connectMethod,
+        flow,
         redirectUrl,
         branding,
         prefersDarkMode,
@@ -627,7 +627,7 @@ class OAuthController {
       return await publisher.publishError(res, {
         error: DEFAULT_ERROR_MESSAGE,
         wsClientId,
-        connectMethod,
+        flow,
         redirectUrl,
         branding,
         prefersDarkMode,
@@ -655,7 +655,7 @@ class OAuthController {
     }
   ): Promise<void> {
     const { oauth_token, oauth_verifier } = req.query;
-    const connectMethod = sessionToken.connect_method || undefined;
+    const flow = sessionToken.flow || undefined;
     const wsClientId = sessionToken.websocket_client_id || undefined;
     const redirectUrl = sessionToken.redirect_url || undefined;
     const prefersDarkMode = sessionToken.prefers_dark_mode || false;
@@ -750,7 +750,7 @@ class OAuthController {
       return await publisher.publishSuccess(res, {
         connectionId: response.connection.id,
         wsClientId,
-        connectMethod,
+        flow,
         redirectUrl,
         branding,
         prefersDarkMode,
@@ -766,7 +766,7 @@ class OAuthController {
       return await publisher.publishError(res, {
         error: DEFAULT_ERROR_MESSAGE,
         wsClientId,
-        connectMethod,
+        flow,
         redirectUrl,
         branding,
         prefersDarkMode,
