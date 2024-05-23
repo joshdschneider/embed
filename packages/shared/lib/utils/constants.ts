@@ -75,10 +75,6 @@ export function getProviderCredentialsPath() {
   return process.env['PROVIDER_CREDENTIALS_PATH'];
 }
 
-export function getSentryDsn() {
-  return process.env['SENTRY_DSN'];
-}
-
 export function getWorkOS(): WorkOS {
   const apiKey = process.env['WORKOS_API_KEY'];
   if (!apiKey) {

@@ -1,8 +1,14 @@
+import * as Sentry from '@sentry/node';
+
 (function () {
   if (process.env['NODE_ENV'] !== 'production') {
     require('dotenv').config({
       path: require('path').resolve(__dirname, '../../../.env'),
     });
+  }
+
+  if (process.env['NODE_ENV'] === 'production' && process.env['SENTRY_DSN']) {
+    Sentry.init({ dsn: process.env['SENTRY_DSN'] });
   }
 })();
 
@@ -12,11 +18,8 @@ import {
   getTemporalKeyPath,
   getTemporalNamespace,
   getTemporalUrl,
-  initSentry,
   isProd,
 } from '@embed/shared';
-
-initSentry();
 
 import { NativeConnection, Worker } from '@temporalio/worker';
 import fs from 'fs';
@@ -52,6 +55,7 @@ async function run() {
 }
 
 run().catch((err) => {
+  Sentry.captureException(err);
   console.error(err);
   process.exit(1);
 });

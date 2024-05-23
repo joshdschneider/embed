@@ -1,14 +1,18 @@
+import * as Sentry from '@sentry/node';
+
 (function () {
   if (process.env['NODE_ENV'] !== 'production') {
     require('dotenv').config({
       path: require('path').resolve(__dirname, '../../../.env'),
     });
   }
+
+  if (process.env['NODE_ENV'] === 'production' && process.env['SENTRY_DSN']) {
+    Sentry.init({ dsn: process.env['SENTRY_DSN'] });
+  }
 })();
 
-import { getServerPort, getWebsocketsPath, initSentry } from '@embed/shared';
-initSentry();
-
+import { getServerPort, getWebsocketsPath } from '@embed/shared';
 import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
@@ -58,6 +62,8 @@ function setupExpressApp() {
   app.use('/preview', previewRouter);
   app.use('/providers', providerRouter);
 
+  Sentry.setupExpressErrorHandler(app);
+
   return app;
 }
 
@@ -85,5 +91,6 @@ async function start() {
 }
 
 start().catch((err) => {
+  Sentry.captureException(err);
   console.error('Failed to start the server:', err);
 });

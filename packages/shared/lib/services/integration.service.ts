@@ -42,7 +42,6 @@ class IntegrationService {
 
       return encryptionService.decryptIntegration(integration);
     } catch (err) {
-      console.error(err);
       await errorService.reportError(err);
       return null;
     }

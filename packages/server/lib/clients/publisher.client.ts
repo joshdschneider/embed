@@ -1,5 +1,5 @@
 import type { Branding } from '@embed/shared';
-import { DEFAULT_BRANDING, getRedisUrl } from '@embed/shared';
+import { DEFAULT_BRANDING, errorService, getRedisUrl } from '@embed/shared';
 import crypto from 'crypto';
 import type { Response } from 'express';
 import type { RedisClientType } from 'redis';
@@ -61,7 +61,7 @@ class RedisPublisher {
       await this.redis.publish(channel, message);
       return true;
     } catch (err) {
-      console.error(err);
+      await errorService.reportError(err);
       return false;
     }
   }
@@ -78,7 +78,7 @@ class RedisPublisher {
         onMessage(message, wsClientId);
       });
     } catch (err) {
-      console.error(err);
+      await errorService.reportError(err);
     }
   }
 
@@ -88,7 +88,7 @@ class RedisPublisher {
     try {
       await this.redis.unsubscribe(channel);
     } catch (err) {
-      console.error(err);
+      await errorService.reportError(err);
     }
   }
 }
