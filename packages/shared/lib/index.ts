@@ -23,7 +23,6 @@ import proxyService from './services/proxy.service';
 import syncService from './services/sync.service';
 import webhookService from './services/webhook.service';
 import { MultimodalEmbeddingModel, TextEmbeddingModel } from './utils/enums';
-import { initSentry } from './utils/sentry';
 
 export * from './utils/constants';
 export * from './utils/database';
@@ -72,7 +71,6 @@ export {
   errorService,
   getFreshOAuth2Credentials,
   getSimpleOAuth2ClientConfig,
-  initSentry,
   integrationService,
   parseRawCredentials,
   providerService,
