@@ -1,11 +1,15 @@
-import { getLocalhostUrl, getServerUrl } from '@embed/shared';
+import { getServerUrl } from '@embed/shared';
 import crypto from 'crypto';
 import { ZodError } from 'zod';
 import { EnvironmentType } from './types';
 
 export function getOauthCallbackUrl() {
-  const baseUrl = getServerUrl() || getLocalhostUrl();
-  return baseUrl + '/oauth/callback';
+  const serverUrl = getServerUrl();
+  if (!serverUrl) {
+    throw new Error('Server URL is not set');
+  }
+
+  return serverUrl + '/oauth/callback';
 }
 
 export function extractConfigurationKeys(url: string): string[] {

@@ -50,11 +50,6 @@ export function getTemporalCertPath() {
   return process.env['TEMPORAL_CERT_PATH'];
 }
 
-export function getLocalhostUrl() {
-  const serverPort = getServerPort();
-  return `http://localhost:${serverPort}`;
-}
-
 export function getEncryptonKey() {
   return process.env['ENCRYPTION_KEY'];
 }
