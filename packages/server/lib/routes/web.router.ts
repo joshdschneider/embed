@@ -1,6 +1,7 @@
 import express from 'express';
 import activityController from '../controllers/activity.controller';
 import apiKeyController from '../controllers/apiKey.controller';
+import connectionController from '../controllers/connection.controller';
 import environmentController from '../controllers/environment.controller';
 import organizationController from '../controllers/organization.controller';
 import previewController from '../controllers/preview.controller';
@@ -45,6 +46,10 @@ webRouter
   );
 
 webRouter.use(authMiddleware.webEnvironmentAuth.bind(authMiddleware));
+
+webRouter
+  .route('/connection-count')
+  .get(connectionController.getConnectionCount.bind(connectionController));
 
 webRouter
   .route('/environments/:environment_id')

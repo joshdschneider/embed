@@ -286,6 +286,11 @@ export interface ConnectionDeletedObject {
   deleted: true;
 }
 
+export interface ConnectionCountObject {
+  object: 'connection_count';
+  connection_count: number;
+}
+
 export interface SyncObject {
   object: 'sync';
   collection_key: string;

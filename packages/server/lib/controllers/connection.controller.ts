@@ -9,6 +9,7 @@ import {
 import type { Request, Response } from 'express';
 import { zodError } from '../utils/helpers';
 import {
+  ConnectionCountObject,
   ConnectionDeletedObject,
   ConnectionObject,
   PaginationParametersSchema,
@@ -216,6 +217,34 @@ class ConnectionController {
       };
 
       res.status(200).json(connectionDeletedObject);
+    } catch (err) {
+      await errorService.reportError(err);
+
+      return errorService.errorResponse(res, {
+        code: ErrorCode.InternalServerError,
+        message: DEFAULT_ERROR_MESSAGE,
+      });
+    }
+  }
+
+  public async getConnectionCount(req: Request, res: Response) {
+    try {
+      const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
+
+      const connectionCount = await connectionService.getConnectionCount(environmentId);
+      if (connectionCount == null) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.InternalServerError,
+          message: DEFAULT_ERROR_MESSAGE,
+        });
+      }
+
+      const connectionCountObject: ConnectionCountObject = {
+        object: 'connection_count',
+        connection_count: connectionCount,
+      };
+
+      res.status(200).json(connectionCountObject);
     } catch (err) {
       await errorService.reportError(err);
 

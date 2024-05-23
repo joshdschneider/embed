@@ -6,7 +6,9 @@
   }
 })();
 
-import { getServerPort, getWebsocketsPath } from '@embed/shared';
+import { getServerPort, getWebsocketsPath, initSentry } from '@embed/shared';
+initSentry();
+
 import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
