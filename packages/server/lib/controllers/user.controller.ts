@@ -1,3 +1,4 @@
+import { AuthScheme } from '@embed/providers';
 import {
   DEFAULT_AUTO_ENABLE_ACTIONS,
   DEFAULT_AUTO_ENABLE_COLLECTIONS,
@@ -16,6 +17,7 @@ import {
   environmentService,
   errorService,
   generateId,
+  integrationService,
   now,
 } from '@embed/shared';
 import type { Request, Response } from 'express';
@@ -24,6 +26,7 @@ import userService from '../services/user.service';
 import { DEFAULT_EMAIL_SUBSCRIPTIONS, DEFAULT_ORGANIZATION_NAME } from '../utils/constants';
 import { generateSecretKey, zodError } from '../utils/helpers';
 import { EnvironmentType, UpdateUserRequestSchema } from '../utils/types';
+import integrationController from './integration.controller';
 
 class UserController {
   public async handleUserAuth(req: Request, res: Response) {
@@ -188,6 +191,24 @@ class UserController {
           message: DEFAULT_ERROR_MESSAGE,
         });
       }
+
+      await integrationService.createIntegration({
+        id: integrationController.generateId('github'),
+        environment_id: stagingEnvironment.id,
+        is_enabled: true,
+        provider_key: 'github',
+        auth_schemes: [AuthScheme.OAuth2],
+        display_name: 'GitHub Test Integration',
+        is_using_test_credentials: true,
+        oauth_client_id: null,
+        oauth_client_secret: null,
+        oauth_client_secret_iv: null,
+        oauth_client_secret_tag: null,
+        oauth_scopes: null,
+        created_at: now(),
+        updated_at: now(),
+        deleted_at: null,
+      });
 
       return res.status(200).json({
         object: 'user',

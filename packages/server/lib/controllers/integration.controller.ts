@@ -367,7 +367,7 @@ class IntegrationController {
       }
 
       const createdIntegration = await integrationService.createIntegration({
-        id: IntegrationController.generateId(provider_key),
+        id: this.generateId(provider_key),
         environment_id: environmentId,
         is_enabled: true,
         provider_key,
@@ -459,7 +459,7 @@ class IntegrationController {
     }
   }
 
-  private static generateId(providerKey: string, byteLength: number = 8) {
+  public generateId(providerKey: string, byteLength: number = 8) {
     return `${providerKey.replace('-', '_')}_${crypto.randomBytes(byteLength).toString('hex')}`;
   }
 

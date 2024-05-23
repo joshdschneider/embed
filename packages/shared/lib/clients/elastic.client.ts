@@ -9,7 +9,7 @@ import { Connection } from '@prisma/client';
 import collectionService from '../services/collection.service';
 import errorService from '../services/error.service';
 import providerService from '../services/provider.service';
-import { getElasticApiKey, getElasticApiKeyId, getElasticUrl } from '../utils/constants';
+import { getElasticApiKey, getElasticApiKeyId, getElasticEndpoint } from '../utils/constants';
 import { MultimodalEmbeddingModel, TextEmbeddingModel } from '../utils/enums';
 import { deconstructObject, reconstructObject } from '../utils/helpers';
 import { ImageSearchOptions, QueryOptions, SourceObjectWithHash } from '../utils/types';
@@ -38,11 +38,11 @@ class ElasticClient {
   }
 
   private static create(): ElasticClient {
-    const elasticUrl = getElasticUrl();
+    const elasticEndpoint = getElasticEndpoint();
     const elasticApiKeyId = getElasticApiKeyId();
     const elasticApiKey = getElasticApiKey();
 
-    if (!elasticUrl) {
+    if (!elasticEndpoint) {
       throw new Error('Elastic URL not set');
     } else if (!elasticApiKeyId) {
       throw new Error('Elastic API key ID not set');
@@ -51,18 +51,12 @@ class ElasticClient {
     }
 
     const elastic = new Elastic({
-      node: elasticUrl,
-      auth: {
-        apiKey: {
-          id: elasticApiKeyId,
-          api_key: elasticApiKey,
-        },
-      },
+      node: elasticEndpoint,
+      auth: { apiKey: { id: elasticApiKeyId, api_key: elasticApiKey } },
     });
 
     const embeddings = new EmbeddingClient();
     const queries = new QueryClient(elastic, embeddings);
-
     return new ElasticClient(elastic, embeddings, queries);
   }
 

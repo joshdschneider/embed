@@ -22,8 +22,8 @@ export function getRedisUrl() {
   return process.env['REDIS_URL'];
 }
 
-export function getElasticUrl() {
-  return process.env['ELASTIC_URL'];
+export function getElasticEndpoint() {
+  return process.env['ELASTIC_ENDPOINT'];
 }
 
 export function getElasticApiKeyId() {
@@ -171,7 +171,7 @@ export const DEFAULT_TEXT_EMBEDDING_MODEL = TextEmbeddingModel.OpenaiTextEmbeddi
 export const DEFAULT_MULTIMODAL_EMBEDDING_MODEL = MultimodalEmbeddingModel.AmazonTitanMultimodalG1;
 export const DEFAULT_AUTO_ENABLE_COLLECTIONS = true;
 export const DEFAULT_AUTO_ENABLE_ACTIONS = true;
-export const DEFAULT_AUTO_START_SYNCS = true;
+export const DEFAULT_AUTO_START_SYNCS = false;
 export const DEFAULT_SYNC_FREQUENCY = SyncFrequency.Daily;
 export const DEFAULT_MULTIMODAL_ENABLED = true;
 

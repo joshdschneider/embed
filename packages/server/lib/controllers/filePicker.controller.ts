@@ -38,7 +38,7 @@ class FilePickerController {
       });
     }
 
-    const connectMethod = sessionToken.connect_method || undefined;
+    const flow = sessionToken.flow || undefined;
     const wsClientId = sessionToken.websocket_client_id || undefined;
     const redirectUrl = sessionToken.redirect_url || undefined;
     const prefersDarkMode = sessionToken.prefers_dark_mode || false;
@@ -58,7 +58,7 @@ class FilePickerController {
         return await publisher.publishError(res, {
           error: errorMessage,
           wsClientId,
-          connectMethod,
+          flow,
           redirectUrl,
           branding,
           prefersDarkMode,
@@ -81,7 +81,7 @@ class FilePickerController {
         return await publisher.publishError(res, {
           error: errorMessage,
           wsClientId,
-          connectMethod,
+          flow,
           redirectUrl,
           branding,
           prefersDarkMode,
@@ -131,7 +131,7 @@ class FilePickerController {
       return await publisher.publishError(res, {
         error: DEFAULT_ERROR_MESSAGE,
         wsClientId,
-        connectMethod,
+        flow,
         redirectUrl,
         branding,
         prefersDarkMode,
@@ -170,7 +170,7 @@ class FilePickerController {
       });
     }
 
-    const connectMethod = sessionToken.connect_method || undefined;
+    const flow = sessionToken.flow || undefined;
     const wsClientId = sessionToken.websocket_client_id || undefined;
     const redirectUrl = sessionToken.redirect_url || undefined;
     const prefersDarkMode = sessionToken.prefers_dark_mode || false;
@@ -190,7 +190,7 @@ class FilePickerController {
         return await publisher.publishError(res, {
           error: errorMessage,
           wsClientId,
-          connectMethod,
+          flow,
           redirectUrl,
           branding,
           prefersDarkMode,
@@ -213,7 +213,7 @@ class FilePickerController {
         return await publisher.publishError(res, {
           error: errorMessage,
           wsClientId,
-          connectMethod,
+          flow,
           redirectUrl,
           branding,
           prefersDarkMode,
@@ -257,7 +257,7 @@ class FilePickerController {
       return await publisher.publishSuccess(res, {
         connectionId: updatedConnection.id,
         wsClientId,
-        connectMethod,
+        flow,
         redirectUrl,
         branding,
         prefersDarkMode,
@@ -273,7 +273,7 @@ class FilePickerController {
       return await publisher.publishError(res, {
         error: DEFAULT_ERROR_MESSAGE,
         wsClientId,
-        connectMethod,
+        flow,
         redirectUrl,
         branding,
         prefersDarkMode,

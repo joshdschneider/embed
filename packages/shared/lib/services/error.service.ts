@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/node';
 import type { Response } from 'express';
 import logger from '../clients/logger.client';
 import { ErrorCode } from '../utils/enums';
@@ -9,6 +10,7 @@ interface ErrorObject {
 
 class ErrorService {
   public async reportError(err: unknown) {
+    Sentry.captureException(err);
     logger.error(`Exception caught: ${JSON.stringify(err, Object.getOwnPropertyNames(err))}`);
   }
 
