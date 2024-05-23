@@ -12,8 +12,12 @@ import {
   getTemporalKeyPath,
   getTemporalNamespace,
   getTemporalUrl,
+  initSentry,
   isProd,
 } from '@embed/shared';
+
+initSentry();
+
 import { NativeConnection, Worker } from '@temporalio/worker';
 import fs from 'fs';
 import * as activities from './activities';

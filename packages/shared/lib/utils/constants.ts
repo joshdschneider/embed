@@ -22,8 +22,8 @@ export function getRedisUrl() {
   return process.env['REDIS_URL'];
 }
 
-export function getElasticUrl() {
-  return process.env['ELASTIC_URL'];
+export function getElasticEndpoint() {
+  return process.env['ELASTIC_ENDPOINT'];
 }
 
 export function getElasticApiKeyId() {
@@ -73,6 +73,10 @@ export function getAuthTokenSecret() {
 
 export function getProviderCredentialsPath() {
   return process.env['PROVIDER_CREDENTIALS_PATH'];
+}
+
+export function getSentryDsn() {
+  return process.env['SENTRY_DSN'];
 }
 
 export function getWorkOS(): WorkOS {
