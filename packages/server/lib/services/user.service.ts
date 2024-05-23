@@ -27,7 +27,6 @@ class UserService {
 
   public async updateUser(userId: string, payload: Partial<User>): Promise<User | null> {
     try {
-      console.log(payload);
       return await database.user.update({
         where: { id: userId, deleted_at: null },
         data: {
