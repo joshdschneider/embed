@@ -1,5 +1,5 @@
 import type { Branding } from '@embed/shared';
-import { DEFAULT_BRANDING, getRedisUrl } from '@embed/shared';
+import { DEFAULT_BRANDING, errorService, getRedisUrl } from '@embed/shared';
 import crypto from 'crypto';
 import type { Response } from 'express';
 import type { RedisClientType } from 'redis';
@@ -61,7 +61,7 @@ class RedisPublisher {
       await this.redis.publish(channel, message);
       return true;
     } catch (err) {
-      console.error(err);
+      await errorService.reportError(err);
       return false;
     }
   }
@@ -78,7 +78,7 @@ class RedisPublisher {
         onMessage(message, wsClientId);
       });
     } catch (err) {
-      console.error(err);
+      await errorService.reportError(err);
     }
   }
 
@@ -88,7 +88,7 @@ class RedisPublisher {
     try {
       await this.redis.unsubscribe(channel);
     } catch (err) {
-      console.error(err);
+      await errorService.reportError(err);
     }
   }
 }
@@ -176,14 +176,14 @@ export class Publisher {
     {
       error,
       wsClientId,
-      connectMethod,
+      flow,
       redirectUrl,
       branding,
       prefersDarkMode,
     }: {
       error: string;
       wsClientId?: string;
-      connectMethod?: string;
+      flow?: string;
       redirectUrl?: string;
       branding?: Branding;
       prefersDarkMode?: boolean;
@@ -197,9 +197,9 @@ export class Publisher {
       }
     }
 
-    if (connectMethod === 'popup') {
+    if (flow === 'popup') {
       this.closePopup(res);
-    } else if (connectMethod === 'redirect' && redirectUrl) {
+    } else if (flow === 'redirect' && redirectUrl) {
       const errorRedirectUrl = appendParamsToUrl(redirectUrl, { error });
       res.redirect(errorRedirectUrl);
     } else {
@@ -218,14 +218,14 @@ export class Publisher {
     {
       connectionId,
       wsClientId,
-      connectMethod,
+      flow,
       redirectUrl,
       branding,
       prefersDarkMode,
     }: {
       connectionId: string;
       wsClientId?: string;
-      connectMethod?: string;
+      flow?: string;
       redirectUrl?: string;
       branding?: Branding;
       prefersDarkMode?: boolean;
@@ -243,9 +243,9 @@ export class Publisher {
       }
     }
 
-    if (connectMethod === 'popup') {
+    if (flow === 'popup') {
       this.closePopup(res);
-    } else if (connectMethod === 'redirect' && redirectUrl) {
+    } else if (flow === 'redirect' && redirectUrl) {
       const successRedirectUrl = appendParamsToUrl(redirectUrl, {
         connection_id: connectionId,
       });

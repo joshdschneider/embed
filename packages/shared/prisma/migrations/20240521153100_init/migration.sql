@@ -87,7 +87,7 @@ CREATE TABLE "SessionToken" (
     "exclusions" JSONB,
     "metadata" JSONB,
     "websocket_client_id" TEXT,
-    "connect_method" TEXT,
+    "flow" TEXT,
     "prefers_dark_mode" BOOLEAN NOT NULL DEFAULT false,
     "code_verifier" TEXT,
     "request_token_secret" TEXT,

@@ -256,6 +256,17 @@ class ConnectionService {
     }
   }
 
+  public async getConnectionCount(environmentId: string): Promise<number | null> {
+    try {
+      return await database.connection.count({
+        where: { environment_id: environmentId, deleted_at: null },
+      });
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
+    }
+  }
+
   public async attemptTokenRefresh(
     connection: Connection,
     providerSpec: ProviderSpecification
