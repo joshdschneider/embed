@@ -107,7 +107,7 @@ class ApiKeyController {
     try {
       const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
       const apiKeyId = req.params['api_key_id'];
-      const name = req.body['name'];
+      const displayName = req.body['display_name'];
 
       if (!apiKeyId) {
         return errorService.errorResponse(res, {
@@ -116,14 +116,14 @@ class ApiKeyController {
         });
       }
 
-      if (name == undefined) {
+      if (displayName == undefined) {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
           message: 'Name missing',
         });
       }
 
-      const apiKey = await apiKeyService.updateApiKey(apiKeyId, environmentId, name);
+      const apiKey = await apiKeyService.updateApiKey(apiKeyId, environmentId, displayName);
 
       if (!apiKey) {
         return errorService.errorResponse(res, {
