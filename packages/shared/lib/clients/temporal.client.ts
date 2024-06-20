@@ -121,8 +121,16 @@ class TemporalClient {
     }
   }
 
-  public static generateSyncScheduleId(connectionId: string, collectionKey: string): string {
-    return `${connectionId}-${collectionKey}`;
+  public static generateSyncScheduleId({
+    integrationId,
+    connectionId,
+    collectionKey,
+  }: {
+    integrationId: string;
+    connectionId: string;
+    collectionKey: string;
+  }): string {
+    return `${integrationId}-${connectionId}-${collectionKey}`;
   }
 
   public async triggerSyncSchedule(scheduleId: string): Promise<boolean> {

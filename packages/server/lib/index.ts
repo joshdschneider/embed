@@ -21,6 +21,8 @@ import path from 'path';
 import type { WebSocket } from 'ws';
 import { WebSocketServer } from 'ws';
 import publisher from './clients/publisher.client';
+import actionRouter from './routes/actions.router';
+import collectionRouter from './routes/collection.router';
 import connectionRouter from './routes/connection.router';
 import filePickerRouter from './routes/filePicker.router';
 import integrationRouter from './routes/integration.router';
@@ -30,6 +32,7 @@ import providerRouter from './routes/provider.router';
 import proxyRouter from './routes/proxy.router';
 import sessionRouter from './routes/session.router';
 import sessionTokenRouter from './routes/sessionToken.router';
+import syncRouter from './routes/syncs.router';
 import webRouter from './routes/web.router';
 import webhookRouter from './routes/webhook.router';
 import { corsOptions } from './utils/cors';
@@ -50,17 +53,20 @@ function setupExpressApp() {
   });
 
   app.use('/v1/integrations', integrationRouter);
-  app.use('/v1/session-tokens', sessionTokenRouter);
   app.use('/v1/connections', connectionRouter);
+  app.use('/v1/session-tokens', sessionTokenRouter);
+  app.use('/v1/collections', collectionRouter);
+  app.use('/v1/syncs', syncRouter);
+  app.use('/v1/actions', actionRouter);
   app.use('/v1/proxy', proxyRouter);
   app.use('/v1/webhooks', webhookRouter);
+  app.use('/v1/providers', providerRouter);
 
   app.use('/web', webRouter);
   app.use('/oauth', oauthRouter);
   app.use('/session', sessionRouter);
   app.use('/file-picker', filePickerRouter);
   app.use('/preview', previewRouter);
-  app.use('/providers', providerRouter);
 
   Sentry.setupExpressErrorHandler(app);
 

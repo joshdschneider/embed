@@ -8,8 +8,15 @@ import { PassThrough } from 'stream';
 class ProxyController {
   public async routeRequest(req: Request, res: Response): Promise<void> {
     try {
-      const connectionId = req.get('Embed-Connection-Id');
-      if (!connectionId) {
+      const integrationId = req.get('Integration-Id');
+      const connectionId = req.get('Connection-Id');
+
+      if (!integrationId) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.BadRequest,
+          message: 'Integration ID is missing',
+        });
+      } else if (!connectionId) {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
           message: 'Connection ID is missing',
@@ -26,6 +33,7 @@ class ProxyController {
       const data = req.body;
 
       const options: ProxyOptions = {
+        integrationId,
         connectionId,
         endpoint,
         baseUrlOverride,

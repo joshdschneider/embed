@@ -1,5 +1,6 @@
 import { AuthScheme } from '@embed/providers';
 import {
+  ActionRunStatus,
   Branding,
   DEFAULT_LIMIT,
   LogAction,
@@ -77,6 +78,14 @@ export interface PreviewTemplateData extends DefaultTemplateData {
   };
 }
 
+export const idSchema = z
+  .string()
+  .min(3, { message: 'ID cannot be empty' })
+  .max(48, { message: 'ID cannot be longer than 48 characters' })
+  .regex(/^[a-zA-Z0-9-_]+$/, {
+    message: 'ID can only contain alphanumeric characters, dashes, and underscores',
+  });
+
 export type UserObject = {
   object: 'user';
   id: string;
@@ -135,26 +144,22 @@ export interface IntegrationObject {
   object: 'integration';
   id: string;
   provider_key: string;
-  logo_url: string | null;
-  logo_url_dark_mode: string | null;
-  display_name: string | null;
   auth_schemes: AuthScheme[];
   is_enabled: boolean;
-  created_at: number;
-  updated_at: number;
-}
-
-export type IntegrationObjectWithCredentials = IntegrationObject & {
+  logo_url: string;
+  logo_url_dark_mode: string | null;
   is_using_test_credentials: boolean;
   oauth_client_id: string | null;
   oauth_client_secret: string | null;
   oauth_scopes: string[];
-};
+  created_at: number;
+  updated_at: number;
+}
 
 export const CreateIntegrationRequestSchema = z.object({
+  id: idSchema.optional(),
   provider_key: z.string(),
   auth_schemes: z.array(z.string()).optional(),
-  display_name: z.string().optional().nullable(),
   use_test_credentials: z.boolean().optional(),
   oauth_client_id: z.string().optional().nullable(),
   oauth_client_secret: z.string().optional().nullable(),
@@ -164,7 +169,6 @@ export const CreateIntegrationRequestSchema = z.object({
 export type CreateIntegrationRequest = z.infer<typeof CreateIntegrationRequestSchema>;
 
 export const UpdateIntegrationRequestSchema = z.object({
-  display_name: z.string().optional().nullable(),
   is_using_test_credentials: z.boolean().optional(),
   oauth_client_id: z.string().optional().nullable(),
   oauth_client_secret: z.string().optional().nullable(),
@@ -174,7 +178,7 @@ export const UpdateIntegrationRequestSchema = z.object({
 export type UpdateIntegrationRequest = z.infer<typeof UpdateIntegrationRequestSchema>;
 
 export interface IntegrationDeletedObject {
-  object: 'integration.deleted';
+  object: 'integration';
   id: string;
   deleted: true;
 }
@@ -188,21 +192,16 @@ export interface CollectionObject {
   default_sync_frequency: string;
   auto_start_syncs: boolean;
   exclude_properties_from_syncs: string[];
-  text_embedding_model: string;
-  multimodal_embedding_model: string;
-  multimodal_enabled: boolean;
+  configuration: Record<string, any> | null;
   created_at: number;
   updated_at: number;
 }
 
 export const UpdateCollectionRequestSchema = z.object({
-  is_enabled: z.boolean().optional(),
   default_sync_frequency: z.string().optional(),
   auto_start_syncs: z.boolean().optional(),
   exclude_properties_from_syncs: z.array(z.string()).optional(),
-  text_embedding_model: z.string().optional(),
-  multimodal_embedding_model: z.string().optional(),
-  multimodal_enabled: z.boolean().optional(),
+  configuration: z.record(z.string(), z.any()).optional().nullable(),
 });
 
 export type UpdateCollectionRequest = z.infer<typeof UpdateCollectionRequestSchema>;
@@ -213,17 +212,28 @@ export interface ActionObject {
   integration_id: string;
   provider_key: string;
   is_enabled: boolean;
+  configuration: Record<string, any> | null;
   created_at: number;
   updated_at: number;
 }
 
+export const UpdateActionRequestSchema = z.object({
+  configuration: z.record(z.string(), z.any()).optional().nullable(),
+});
+
+export type UpdateActionRequest = z.infer<typeof UpdateActionRequestSchema>;
+
 export interface ActionRunObject {
   object: 'action_run';
+  id: string;
   action_key: string;
   integration_id: string;
   connection_id: string;
-  created_at: number;
-  updated_at: number;
+  status: ActionRunStatus;
+  input: Record<string, any>;
+  output: Record<string, any>;
+  timestamp: number;
+  duration: number;
 }
 
 export interface SessionTokenObject {
@@ -232,28 +242,28 @@ export interface SessionTokenObject {
   url: string;
   integration_id: string;
   connection_id: string | null;
-  expires_in_mins: number;
-  language: string;
+  expires_at: number;
   redirect_url: string | null;
-  metadata: Record<string, any> | null;
+  auth_scheme: string;
   configuration: Record<string, any> | null;
+  inclusions: Record<string, any> | null;
+  exclusions: Record<string, any> | null;
+  metadata: Record<string, any> | null;
   created_at: number;
 }
 
 export interface SessionTokenDeletedObject {
-  object: 'session_token.deleted';
+  object: 'session_token';
   token: string;
   deleted: true;
 }
 
 export const CreateSessionTokenRequestSchema = z.object({
   integration_id: z.string(),
-  connection_id: z.string().optional().nullable(),
-  expires_in_mins: z.number().optional().nullable(),
-  language: z.string().optional().nullable(),
+  connection_id: z.string().optional(),
+  expires_in_mins: z.number().optional(),
   redirect_url: z.string().optional().nullable(),
   auth_scheme: z.string().optional(),
-  connection_name: z.string().optional().nullable(),
   configuration: z.record(z.string(), z.any()).optional().nullable(),
   inclusions: z.record(z.string(), z.any()).optional().nullable(),
   exclusions: z.record(z.string(), z.any()).optional().nullable(),
@@ -264,7 +274,6 @@ export interface ConnectionObject {
   object: 'connection';
   id: string;
   integration_id: string;
-  display_name: string | null;
   auth_scheme: AuthScheme;
   configuration: Record<string, any> | null;
   inclusions: Record<string, any> | null;
@@ -274,14 +283,51 @@ export interface ConnectionObject {
   updated_at: number;
 }
 
-export const UpdateConnectionRequestSchema = z.object({
-  display_name: z.string().optional().nullable(),
+export const ApiKeyCredentialsSchema = z.object({
+  api_key: z.string(),
+});
+
+export const OAuth2CredentialsSchema = z.object({
+  access_token: z.string(),
+  refresh_token: z.string(),
+  expires_at: z.number().optional(),
+});
+
+export const OAuth1CredentialsSchema = z.object({
+  oauth_token: z.string(),
+  oauth_token_secret: z.string(),
+});
+
+export const BasicCredentialsSchema = z.object({
+  username: z.string(),
+  password: z.string(),
+});
+
+export const UpsertConnectionRequestSchema = z.object({
+  id: idSchema.optional(),
+  integration_id: z.string(),
+  auth_scheme: z.string(),
+  credentials: z.union([
+    ApiKeyCredentialsSchema,
+    OAuth2CredentialsSchema,
+    OAuth1CredentialsSchema,
+    BasicCredentialsSchema,
+  ]),
   configuration: z.record(z.string(), z.any()).optional().nullable(),
+  inclusions: z.record(z.string(), z.any()).optional().nullable(),
+  exclusions: z.record(z.string(), z.any()).optional().nullable(),
+  metadata: z.record(z.string(), z.any()).optional().nullable(),
+});
+
+export const UpdateConnectionRequestSchema = z.object({
+  configuration: z.record(z.string(), z.any()).optional().nullable(),
+  inclusions: z.record(z.string(), z.any()).optional().nullable(),
+  exclusions: z.record(z.string(), z.any()).optional().nullable(),
   metadata: z.record(z.string(), z.any()).optional().nullable(),
 });
 
 export interface ConnectionDeletedObject {
-  object: 'connection.deleted';
+  object: 'connection';
   id: string;
   deleted: true;
 }
@@ -316,6 +362,7 @@ export const UpdateSyncRequestSchema = z.object({
 
 export interface SyncRunObject {
   object: 'sync_run';
+  id: string;
   collection_key: string;
   integration_id: string;
   connection_id: string;
@@ -323,8 +370,8 @@ export interface SyncRunObject {
   records_added: number | null;
   records_updated: number | null;
   records_deleted: number | null;
-  created_at: number;
-  updated_at: number;
+  timestamp: number;
+  duration: number | null;
 }
 
 export interface WebhookObject {
@@ -406,18 +453,10 @@ export const QueryCollectionRequestSchema = z.object({
   type: z.enum(['vector', 'hybrid', 'keyword']).optional(),
   query: z.string().optional(),
   filter: z.any().optional(),
-  returnProperties: z.array(z.string()).optional(),
+  return_properties: z.array(z.string()).optional(),
+  image: z.string().optional(),
   limit: z.number().optional(),
   alpha: z.number().min(0).max(1).optional(),
 });
 
 export type QueryCollectionRequest = z.infer<typeof QueryCollectionRequestSchema>;
-
-export const ImageSearchCollectionRequestSchema = z.object({
-  image: z.string(),
-  filter: z.any().optional(),
-  returnProperties: z.array(z.string()).optional(),
-  limit: z.number().optional(),
-});
-
-export type ImageSearchCollectionRequest = z.infer<typeof ImageSearchCollectionRequestSchema>;

@@ -4,7 +4,7 @@ import authMiddleware from '../middleware/auth.middleware';
 
 const providerRouter = express.Router();
 
-providerRouter.use(authMiddleware.webEnvironmentAuth.bind(authMiddleware));
+providerRouter.use(authMiddleware.apiKeyAuth.bind(authMiddleware));
 
 providerRouter.route('/').get(providerController.listProviders.bind(providerController));
 

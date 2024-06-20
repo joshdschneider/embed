@@ -73,7 +73,11 @@ class OAuthController {
         });
       }
 
-      const integration = await integrationService.getIntegrationById(sessionToken.integration_id);
+      const integration = await integrationService.getIntegrationById(
+        sessionToken.integration_id,
+        sessionToken.environment_id
+      );
+
       if (!integration) {
         throw new Error(`Failed to retrieve integration with ID ${sessionToken.integration_id}`);
       } else if (
@@ -420,7 +424,11 @@ class OAuthController {
     const branding = await environmentService.getEnvironmentBranding(sessionToken.environment_id);
 
     try {
-      const integration = await integrationService.getIntegrationById(sessionToken.integration_id);
+      const integration = await integrationService.getIntegrationById(
+        sessionToken.integration_id,
+        sessionToken.environment_id
+      );
+
       if (!integration) {
         throw new Error('Failed to retrieve integration');
       }
@@ -553,11 +561,9 @@ class OAuthController {
       const response = await connectionService.upsertConnection({
         environment_id: sessionToken.environment_id,
         id: sessionToken.connection_id || generateId(Resource.Connection),
-        display_name: sessionToken.display_name || null,
         auth_scheme: sessionToken.auth_scheme,
         integration_id: integration.id,
         credentials: JSON.stringify(parsedCredentials),
-        credentials_hash: null,
         credentials_iv: null,
         credentials_tag: null,
         configuration: { ...config, ...tokenMetadata, ...callbackMetadata },
@@ -583,10 +589,11 @@ class OAuthController {
         message: `Connection ${response.action} with OAuth2 credentials`,
       });
 
-      const shouldUseFilePicker = await sessionController.shouldUseFilePicker(
-        integration.id,
-        integration.provider_key
-      );
+      const shouldUseFilePicker = await sessionController.shouldUseFilePicker({
+        integrationId: integration.id,
+        providerKey: integration.provider_key,
+        environmentId: integration.environment_id,
+      });
 
       if (shouldUseFilePicker) {
         const serverUrl = getServerUrl();
@@ -692,11 +699,9 @@ class OAuthController {
       const response = await connectionService.upsertConnection({
         environment_id: sessionToken.environment_id,
         id: sessionToken.connection_id || generateId(Resource.Connection),
-        display_name: sessionToken.display_name || null,
         auth_scheme: sessionToken.auth_scheme,
         integration_id: integration.id,
         credentials: JSON.stringify(parsedCredentials),
-        credentials_hash: null,
         credentials_iv: null,
         credentials_tag: null,
         configuration: { ...config, ...callbackMetadata },
@@ -722,10 +727,11 @@ class OAuthController {
         message: `Connection ${response.action} with OAuth1 credentials`,
       });
 
-      const shouldUseFilePicker = await sessionController.shouldUseFilePicker(
-        integration.id,
-        integration.provider_key
-      );
+      const shouldUseFilePicker = await sessionController.shouldUseFilePicker({
+        integrationId: integration.id,
+        providerKey: integration.provider_key,
+        environmentId: integration.environment_id,
+      });
 
       if (shouldUseFilePicker) {
         const serverUrl = getServerUrl();
@@ -832,7 +838,11 @@ class OAuthController {
     }
 
     if (providerSpec.collections) {
-      const collections = await collectionService.listCollections(integration.id);
+      const collections = await collectionService.listCollections({
+        integrationId: integration.id,
+        environmentId: integration.environment_id,
+      });
+
       const enabledKeys = collections?.filter((c) => c.is_enabled).map((c) => c.unique_key) || [];
       const allEnabledCollections = providerSpec.collections
         .filter((c) => enabledKeys.includes(c.unique_key))
@@ -844,7 +854,11 @@ class OAuthController {
     }
 
     if (providerSpec.actions) {
-      const actions = await actionService.listActions(integration.id);
+      const actions = await actionService.listActions({
+        integrationId: integration.id,
+        environmentId: integration.environment_id,
+      });
+
       const enabledKeys = actions?.filter((a) => a.is_enabled).map((a) => a.unique_key) || [];
       const allEnabledActions = providerSpec.actions
         .filter((a) => enabledKeys.includes(a.unique_key))

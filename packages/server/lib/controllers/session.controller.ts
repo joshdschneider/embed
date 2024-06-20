@@ -94,7 +94,11 @@ class SessionController {
         });
       }
 
-      const integration = await integrationService.getIntegrationById(sessionToken.integration_id);
+      const integration = await integrationService.getIntegrationById(
+        sessionToken.integration_id,
+        sessionToken.environment_id
+      );
+
       if (!integration) {
         throw new Error(`Failed to retrieve integration with ID ${sessionToken.integration_id}`);
       }
@@ -164,11 +168,9 @@ class SessionController {
           const response = await connectionService.upsertConnection({
             environment_id: sessionToken.environment_id,
             id: sessionToken.connection_id || generateId(Resource.Connection),
-            display_name: sessionToken.display_name || null,
             auth_scheme: AuthScheme.None,
             integration_id: integration.id,
             credentials: JSON.stringify({ type: AuthScheme.None }),
-            credentials_hash: null,
             credentials_iv: null,
             credentials_tag: null,
             configuration: sessionToken.configuration || null,
@@ -283,7 +285,11 @@ class SessionController {
         throw new Error('SERVER_URL is undefined');
       }
 
-      const integration = await integrationService.getIntegrationById(sessionToken.integration_id);
+      const integration = await integrationService.getIntegrationById(
+        sessionToken.integration_id,
+        sessionToken.environment_id
+      );
+
       if (!integration) {
         throw new Error(`Failed to retrieve integration with ID ${sessionToken.integration_id}`);
       }
@@ -520,7 +526,11 @@ class SessionController {
         throw new Error('SERVER_URL is undefined');
       }
 
-      const integration = await integrationService.getIntegrationById(sessionToken.integration_id);
+      const integration = await integrationService.getIntegrationById(
+        sessionToken.integration_id,
+        sessionToken.environment_id
+      );
+
       if (!integration) {
         throw new Error(`Failed to retrieve integration with ID ${sessionToken.integration_id}`);
       } else if (!integration.auth_schemes.includes(AuthScheme.ApiKey)) {
@@ -640,7 +650,11 @@ class SessionController {
         });
       }
 
-      const integration = await integrationService.getIntegrationById(sessionToken.integration_id);
+      const integration = await integrationService.getIntegrationById(
+        sessionToken.integration_id,
+        sessionToken.environment_id
+      );
+
       if (!integration) {
         throw new Error(`Failed to retrieve integration with ID ${sessionToken.integration_id}`);
       } else if (!integration.auth_schemes.includes(AuthScheme.ApiKey)) {
@@ -650,11 +664,9 @@ class SessionController {
       const response = await connectionService.upsertConnection({
         environment_id: sessionToken.environment_id,
         id: sessionToken.connection_id || generateId(Resource.Connection),
-        display_name: sessionToken.display_name || null,
         auth_scheme: sessionToken.auth_scheme,
         integration_id: integration.id,
         credentials: JSON.stringify({ type: AuthScheme.ApiKey, apiKey }),
-        credentials_hash: null,
         credentials_iv: null,
         credentials_tag: null,
         configuration: sessionToken.configuration || null,
@@ -680,10 +692,11 @@ class SessionController {
         message: `Connection ${response.action} with API key credentials`,
       });
 
-      const shouldUseFilePicker = await this.shouldUseFilePicker(
-        integration.id,
-        integration.provider_key
-      );
+      const shouldUseFilePicker = await this.shouldUseFilePicker({
+        integrationId: integration.id,
+        providerKey: integration.provider_key,
+        environmentId: integration.environment_id,
+      });
 
       if (shouldUseFilePicker) {
         const serverUrl = getServerUrl();
@@ -780,7 +793,11 @@ class SessionController {
         throw new Error('SERVER_URL is undefined');
       }
 
-      const integration = await integrationService.getIntegrationById(sessionToken.integration_id);
+      const integration = await integrationService.getIntegrationById(
+        sessionToken.integration_id,
+        sessionToken.environment_id
+      );
+
       if (!integration) {
         throw new Error(`Failed to retrieve integration with ID ${sessionToken.integration_id}`);
       } else if (!integration.auth_schemes.includes(AuthScheme.Basic)) {
@@ -919,7 +936,11 @@ class SessionController {
         });
       }
 
-      const integration = await integrationService.getIntegrationById(sessionToken.integration_id);
+      const integration = await integrationService.getIntegrationById(
+        sessionToken.integration_id,
+        sessionToken.environment_id
+      );
+
       if (!integration) {
         throw new Error(`Failed to retrieve integration with ID ${sessionToken.integration_id}`);
       } else if (!integration.auth_schemes.includes(AuthScheme.Basic)) {
@@ -929,11 +950,9 @@ class SessionController {
       const response = await connectionService.upsertConnection({
         environment_id: sessionToken.environment_id,
         id: sessionToken.connection_id || generateId(Resource.Connection),
-        display_name: sessionToken.display_name || null,
         auth_scheme: sessionToken.auth_scheme,
         integration_id: integration.id,
         credentials: JSON.stringify({ type: AuthScheme.Basic, username, password }),
-        credentials_hash: null,
         credentials_iv: null,
         credentials_tag: null,
         configuration: sessionToken.configuration || null,
@@ -959,10 +978,11 @@ class SessionController {
         message: `Connection ${response.action} with basic credentials`,
       });
 
-      const shouldUseFilePicker = await this.shouldUseFilePicker(
-        integration.id,
-        integration.provider_key
-      );
+      const shouldUseFilePicker = await this.shouldUseFilePicker({
+        integrationId: integration.id,
+        providerKey: integration.provider_key,
+        environmentId: integration.environment_id,
+      });
 
       if (shouldUseFilePicker) {
         const serverUrl = getServerUrl();
@@ -1011,10 +1031,22 @@ class SessionController {
     }
   }
 
-  public async shouldUseFilePicker(integrationId: string, providerKey: string): Promise<boolean> {
+  public async shouldUseFilePicker({
+    integrationId,
+    providerKey,
+    environmentId,
+  }: {
+    integrationId: string;
+    providerKey: string;
+    environmentId: string;
+  }): Promise<boolean> {
     try {
       if (PROVIDERS_THAT_SUPPORT_FILE_PICKER.includes(providerKey)) {
-        const filesCollection = await collectionService.retrieveCollection('files', integrationId);
+        const filesCollection = await collectionService.retrieveCollection({
+          collectionKey: 'files',
+          integrationId,
+          environmentId,
+        });
         const filesConfig = filesCollection?.configuration as
           | { use_file_picker: boolean }
           | undefined;
