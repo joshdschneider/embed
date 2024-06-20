@@ -9,10 +9,22 @@ import recordService from './record.service';
 import syncService from './sync.service';
 
 class CollectionService {
-  public async listCollections(integrationId: string): Promise<Collection[] | null> {
+  public async listCollections({
+    integrationId,
+    environmentId,
+  }: {
+    integrationId: string;
+    environmentId: string;
+  }): Promise<Collection[] | null> {
     try {
       const integration = await database.integration.findUnique({
-        where: { id: integrationId, deleted_at: null },
+        where: {
+          id_environment_id: {
+            id: integrationId,
+            environment_id: environmentId,
+          },
+          deleted_at: null,
+        },
         select: { collections: true },
       });
 
@@ -27,16 +39,22 @@ class CollectionService {
     }
   }
 
-  public async retrieveCollection(
-    collectionKey: string,
-    integrationId: string
-  ): Promise<Collection | null> {
+  public async retrieveCollection({
+    collectionKey,
+    integrationId,
+    environmentId,
+  }: {
+    collectionKey: string;
+    integrationId: string;
+    environmentId: string;
+  }): Promise<Collection | null> {
     try {
       return await database.collection.findUnique({
         where: {
-          unique_key_integration_id: {
+          unique_key_integration_id_environment_id: {
             unique_key: collectionKey,
             integration_id: integrationId,
+            environment_id: environmentId,
           },
           deleted_at: null,
         },
@@ -47,17 +65,24 @@ class CollectionService {
     }
   }
 
-  public async updateCollection(
-    collectionKey: string,
-    integrationId: string,
-    data: Partial<Collection>
-  ): Promise<Collection | null> {
+  public async updateCollection({
+    collectionKey,
+    integrationId,
+    environmentId,
+    data,
+  }: {
+    collectionKey: string;
+    integrationId: string;
+    environmentId: string;
+    data: Partial<Collection>;
+  }): Promise<Collection | null> {
     try {
       return await database.collection.update({
         where: {
-          unique_key_integration_id: {
+          unique_key_integration_id_environment_id: {
             unique_key: collectionKey,
             integration_id: integrationId,
+            environment_id: environmentId,
           },
           deleted_at: null,
         },
@@ -177,10 +202,15 @@ class CollectionService {
     }
   }
 
-  public async getCollectionModelSettings(
-    integrationId: string,
-    collectionKey: string
-  ): Promise<{
+  public async getCollectionModelSettings({
+    integrationId,
+    collectionKey,
+    environmentId,
+  }: {
+    integrationId: string;
+    collectionKey: string;
+    environmentId: string;
+  }): Promise<{
     textEmbeddingModel: TextEmbeddingModel;
     multimodalEmbeddingModel: MultimodalEmbeddingModel;
     multimodalEnabled: boolean;
@@ -188,7 +218,11 @@ class CollectionService {
     try {
       const collection = await database.collection.findUnique({
         where: {
-          unique_key_integration_id: { unique_key: collectionKey, integration_id: integrationId },
+          unique_key_integration_id_environment_id: {
+            unique_key: collectionKey,
+            integration_id: integrationId,
+            environment_id: environmentId,
+          },
           deleted_at: null,
         },
       });
@@ -286,6 +320,7 @@ class CollectionService {
       const recordsDeleted = await recordService.deleteRecordsForCollection({
         integrationId,
         collectionKey,
+        environmentId,
       });
 
       if (!recordsDeleted) {
@@ -316,9 +351,10 @@ class CollectionService {
         syncs.map((sync) => {
           return database.sync.update({
             where: {
-              collection_key_connection_id: {
+              collection_key_connection_id_integration_id: {
                 collection_key: collectionKey,
                 connection_id: sync.connection_id,
+                integration_id: integrationId,
               },
             },
             data: { last_synced_at: null },
@@ -355,9 +391,10 @@ class CollectionService {
 
       await database.collection.update({
         where: {
-          unique_key_integration_id: {
+          unique_key_integration_id_environment_id: {
             unique_key: collectionKey,
             integration_id: integrationId,
+            environment_id: environmentId,
           },
         },
         data: { deleted_at: now() },

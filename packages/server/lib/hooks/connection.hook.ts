@@ -23,7 +23,11 @@ class ConnectionHook {
       action: 'created',
     });
 
-    const collections = await collectionService.listCollections(connection.integration_id);
+    const collections = await collectionService.listCollections({
+      integrationId: connection.integration_id,
+      environmentId: connection.environment_id,
+    });
+
     if (!collections) {
       await activityService.createActivityLog(activityId, {
         level: LogLevel.Error,
@@ -54,7 +58,11 @@ class ConnectionHook {
       action: 'updated',
     });
 
-    const collections = await collectionService.listCollections(connection.integration_id);
+    const collections = await collectionService.listCollections({
+      integrationId: connection.integration_id,
+      environmentId: connection.environment_id,
+    });
+
     if (!collections) {
       await activityService.createActivityLog(activityId, {
         level: LogLevel.Error,

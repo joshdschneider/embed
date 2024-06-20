@@ -2,6 +2,7 @@ import { CollectionProperty } from '@embed/providers';
 import {
   Collection,
   DEFAULT_ERROR_MESSAGE,
+  ENVIRONMENT_ID_LOCALS_KEY,
   ErrorCode,
   collectionService,
   connectionService,
@@ -16,7 +17,6 @@ import { RESERVED_COLLECTION_PROPERTIES } from '../utils/constants';
 import { zodError } from '../utils/helpers';
 import {
   CollectionObject,
-  ImageSearchCollectionRequestSchema,
   QueryCollectionRequestSchema,
   UpdateCollectionRequestSchema,
 } from '../utils/types';
@@ -24,15 +24,20 @@ import {
 class CollectionController {
   public async listCollections(req: Request, res: Response) {
     try {
-      const integrationId = req.params['integration_id'];
-      if (!integrationId) {
+      const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
+      const integrationId = req.query['integration_id'];
+      if (!integrationId || typeof integrationId !== 'string') {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
-          message: 'Integration ID missing',
+          message: 'Integration ID missing or invalid',
         });
       }
 
-      const collections = await collectionService.listCollections(integrationId);
+      const collections = await collectionService.listCollections({
+        integrationId,
+        environmentId,
+      });
+
       if (!collections) {
         return errorService.errorResponse(res, {
           code: ErrorCode.InternalServerError,
@@ -50,9 +55,7 @@ class CollectionController {
           default_sync_frequency: collection.default_sync_frequency,
           auto_start_syncs: collection.auto_start_syncs,
           exclude_properties_from_syncs: collection.exclude_properties_from_syncs,
-          text_embedding_model: collection.text_embedding_model,
-          multimodal_embedding_model: collection.multimodal_embedding_model,
-          multimodal_enabled: collection.multimodal_enabled,
+          configuration: collection.configuration as Record<string, any> | null,
           created_at: collection.created_at,
           updated_at: collection.updated_at,
         };
@@ -71,13 +74,14 @@ class CollectionController {
 
   public async retrieveCollection(req: Request, res: Response) {
     try {
-      const integrationId = req.params['integration_id'];
+      const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
+      const integrationId = req.query['integration_id'];
       const collectionKey = req.params['collection_key'];
 
-      if (!integrationId) {
+      if (!integrationId || typeof integrationId !== 'string') {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
-          message: 'Integration ID missing',
+          message: 'Integration ID missing or invalid',
         });
       } else if (!collectionKey) {
         return errorService.errorResponse(res, {
@@ -86,7 +90,12 @@ class CollectionController {
         });
       }
 
-      const collection = await collectionService.retrieveCollection(collectionKey, integrationId);
+      const collection = await collectionService.retrieveCollection({
+        collectionKey,
+        integrationId,
+        environmentId,
+      });
+
       if (!collection) {
         return errorService.errorResponse(res, {
           code: ErrorCode.NotFound,
@@ -103,9 +112,7 @@ class CollectionController {
         default_sync_frequency: collection.default_sync_frequency,
         auto_start_syncs: collection.auto_start_syncs,
         exclude_properties_from_syncs: collection.exclude_properties_from_syncs,
-        text_embedding_model: collection.text_embedding_model,
-        multimodal_embedding_model: collection.multimodal_embedding_model,
-        multimodal_enabled: collection.multimodal_enabled,
+        configuration: collection.configuration as Record<string, any> | null,
         created_at: collection.created_at,
         updated_at: collection.updated_at,
       };
@@ -123,13 +130,14 @@ class CollectionController {
 
   public async enableCollection(req: Request, res: Response) {
     try {
-      const integrationId = req.params['integration_id'];
+      const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
+      const integrationId = req.query['integration_id'];
       const collectionKey = req.params['collection_key'];
 
-      if (!integrationId) {
+      if (!integrationId || typeof integrationId !== 'string') {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
-          message: 'Integration ID missing',
+          message: 'Integration ID missing or invalid',
         });
       } else if (!collectionKey) {
         return errorService.errorResponse(res, {
@@ -138,11 +146,12 @@ class CollectionController {
         });
       }
 
-      const updatedCollection = await collectionService.updateCollection(
+      const updatedCollection = await collectionService.updateCollection({
         collectionKey,
         integrationId,
-        { is_enabled: true }
-      );
+        environmentId,
+        data: { is_enabled: true },
+      });
 
       if (!updatedCollection) {
         return errorService.errorResponse(res, {
@@ -160,9 +169,7 @@ class CollectionController {
         default_sync_frequency: updatedCollection.default_sync_frequency,
         auto_start_syncs: updatedCollection.auto_start_syncs,
         exclude_properties_from_syncs: updatedCollection.exclude_properties_from_syncs,
-        text_embedding_model: updatedCollection.text_embedding_model,
-        multimodal_embedding_model: updatedCollection.multimodal_embedding_model,
-        multimodal_enabled: updatedCollection.multimodal_enabled,
+        configuration: updatedCollection.configuration as Record<string, any> | null,
         created_at: updatedCollection.created_at,
         updated_at: updatedCollection.updated_at,
       };
@@ -180,13 +187,14 @@ class CollectionController {
 
   public async disableCollection(req: Request, res: Response) {
     try {
-      const integrationId = req.params['integration_id'];
+      const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
+      const integrationId = req.query['integration_id'];
       const collectionKey = req.params['collection_key'];
 
-      if (!integrationId) {
+      if (!integrationId || typeof integrationId !== 'string') {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
-          message: 'Integration ID missing',
+          message: 'Integration ID missing or invalid',
         });
       } else if (!collectionKey) {
         return errorService.errorResponse(res, {
@@ -195,11 +203,12 @@ class CollectionController {
         });
       }
 
-      const updatedCollection = await collectionService.updateCollection(
+      const updatedCollection = await collectionService.updateCollection({
         collectionKey,
         integrationId,
-        { is_enabled: false }
-      );
+        environmentId,
+        data: { is_enabled: false },
+      });
 
       if (!updatedCollection) {
         return errorService.errorResponse(res, {
@@ -217,9 +226,7 @@ class CollectionController {
         default_sync_frequency: updatedCollection.default_sync_frequency,
         auto_start_syncs: updatedCollection.auto_start_syncs,
         exclude_properties_from_syncs: updatedCollection.exclude_properties_from_syncs,
-        text_embedding_model: updatedCollection.text_embedding_model,
-        multimodal_embedding_model: updatedCollection.multimodal_embedding_model,
-        multimodal_enabled: updatedCollection.multimodal_enabled,
+        configuration: updatedCollection.configuration as Record<string, any> | null,
         created_at: updatedCollection.created_at,
         updated_at: updatedCollection.updated_at,
       };
@@ -237,13 +244,14 @@ class CollectionController {
 
   public async updateCollection(req: Request, res: Response) {
     try {
-      const integrationId = req.params['integration_id'];
+      const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
+      const integrationId = req.query['integration_id'];
       const collectionKey = req.params['collection_key'];
 
-      if (!integrationId) {
+      if (!integrationId || typeof integrationId !== 'string') {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
-          message: 'Integration ID missing',
+          message: 'Integration ID missing or invalid',
         });
       } else if (!collectionKey) {
         return errorService.errorResponse(res, {
@@ -252,10 +260,11 @@ class CollectionController {
         });
       }
 
-      const initialCollection = await collectionService.retrieveCollection(
+      const initialCollection = await collectionService.retrieveCollection({
         collectionKey,
-        integrationId
-      );
+        integrationId,
+        environmentId,
+      });
 
       if (!initialCollection) {
         return errorService.errorResponse(res, {
@@ -273,20 +282,13 @@ class CollectionController {
       }
 
       const {
-        is_enabled,
         default_sync_frequency,
         auto_start_syncs,
         exclude_properties_from_syncs,
-        text_embedding_model,
-        multimodal_embedding_model,
-        multimodal_enabled,
+        configuration,
       } = parsedBody.data;
 
       const data: Partial<Collection> = { updated_at: now() };
-      if (typeof is_enabled === 'boolean') {
-        data.is_enabled = is_enabled;
-      }
-
       if (typeof default_sync_frequency !== 'undefined') {
         data.default_sync_frequency = default_sync_frequency;
       }
@@ -308,23 +310,16 @@ class CollectionController {
         data.exclude_properties_from_syncs = exclude_properties_from_syncs;
       }
 
-      if (typeof text_embedding_model !== 'undefined') {
-        data.text_embedding_model = text_embedding_model;
+      if (typeof configuration !== 'undefined') {
+        data.configuration = configuration;
       }
 
-      if (typeof multimodal_embedding_model !== 'undefined') {
-        data.multimodal_embedding_model = multimodal_embedding_model;
-      }
-
-      if (typeof multimodal_enabled === 'boolean') {
-        data.multimodal_enabled = multimodal_enabled;
-      }
-
-      const updatedCollection = await collectionService.updateCollection(
+      const updatedCollection = await collectionService.updateCollection({
         collectionKey,
         integrationId,
-        data
-      );
+        environmentId,
+        data,
+      });
 
       if (!updatedCollection) {
         return errorService.errorResponse(res, {
@@ -347,9 +342,7 @@ class CollectionController {
         default_sync_frequency: updatedCollection.default_sync_frequency,
         auto_start_syncs: updatedCollection.auto_start_syncs,
         exclude_properties_from_syncs: updatedCollection.exclude_properties_from_syncs,
-        text_embedding_model: updatedCollection.text_embedding_model,
-        multimodal_embedding_model: updatedCollection.multimodal_embedding_model,
-        multimodal_enabled: updatedCollection.multimodal_enabled,
+        configuration: updatedCollection.configuration as Record<string, any> | null,
         created_at: updatedCollection.created_at,
         updated_at: updatedCollection.updated_at,
       };
@@ -367,15 +360,16 @@ class CollectionController {
 
   public async listCollectionSchemas(req: Request, res: Response) {
     try {
-      const integrationId = req.params['integration_id'];
-      if (!integrationId) {
+      const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
+      const integrationId = req.query['integration_id'];
+      if (!integrationId || typeof integrationId !== 'string') {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
-          message: 'Integration ID missing',
+          message: 'Integration ID missing or invalid',
         });
       }
 
-      const integration = await integrationService.getIntegrationById(integrationId);
+      const integration = await integrationService.getIntegrationById(integrationId, environmentId);
       if (!integration) {
         return errorService.errorResponse(res, {
           code: ErrorCode.NotFound,
@@ -407,13 +401,14 @@ class CollectionController {
 
   public async retrieveCollectionSchema(req: Request, res: Response) {
     try {
-      const integrationId = req.params['integration_id'];
+      const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
+      const integrationId = req.query['integration_id'];
       const collectionKey = req.params['collection_key'];
 
-      if (!integrationId) {
+      if (!integrationId || typeof integrationId !== 'string') {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
-          message: 'Integration ID missing',
+          message: 'Integration ID missing or invalid',
         });
       } else if (!collectionKey) {
         return errorService.errorResponse(res, {
@@ -422,7 +417,7 @@ class CollectionController {
         });
       }
 
-      const integration = await integrationService.getIntegrationById(integrationId);
+      const integration = await integrationService.getIntegrationById(integrationId, environmentId);
       if (!integration) {
         return errorService.errorResponse(res, {
           code: ErrorCode.NotFound,
@@ -493,13 +488,20 @@ class CollectionController {
 
   public async queryCollection(req: Request, res: Response) {
     try {
-      const connectionId = req.params['connection_id'];
+      const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
+      const integrationId = req.query['integration_id'];
+      const connectionId = req.query['connection_id'];
       const collectionKey = req.params['collection_key'];
 
-      if (!connectionId) {
+      if (!integrationId || typeof integrationId !== 'string') {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
-          message: 'Connection ID missing',
+          message: 'Integration ID missing or invalid',
+        });
+      } else if (!connectionId || typeof connectionId !== 'string') {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.BadRequest,
+          message: 'Connection ID missing or invalid',
         });
       } else if (!collectionKey) {
         return errorService.errorResponse(res, {
@@ -508,7 +510,7 @@ class CollectionController {
         });
       }
 
-      const connection = await connectionService.getConnectionById(connectionId);
+      const connection = await connectionService.getConnectionById(connectionId, integrationId);
       if (!connection) {
         return errorService.errorResponse(res, {
           code: ErrorCode.NotFound,
@@ -516,11 +518,11 @@ class CollectionController {
         });
       }
 
-      const integration = await integrationService.getIntegrationById(connection.integration_id);
+      const integration = await integrationService.getIntegrationById(integrationId, environmentId);
       if (!integration) {
         return errorService.errorResponse(res, {
           code: ErrorCode.NotFound,
-          message: `Integration not found for connection ${connection.id}`,
+          message: `Integration not found with ID ${integrationId}`,
         });
       }
 
@@ -530,6 +532,31 @@ class CollectionController {
           code: ErrorCode.BadRequest,
           message: zodError(parsedBody.error),
         });
+      }
+
+      if (parsedBody.data.image) {
+        if (parsedBody.data.type !== undefined && parsedBody.data.type !== 'vector') {
+          return errorService.errorResponse(res, {
+            code: ErrorCode.BadRequest,
+            message: 'Image search is only available for vector queries',
+          });
+        }
+
+        const results = await collectionService.imageSearchCollection({
+          connection,
+          providerKey: integration.provider_key,
+          collectionKey,
+          imageSearchOptions: parsedBody.data,
+        });
+
+        if (!results) {
+          return errorService.errorResponse(res, {
+            code: ErrorCode.InternalServerError,
+            message: DEFAULT_ERROR_MESSAGE,
+          });
+        }
+
+        return res.status(200).json({ object: 'list', data: results });
       }
 
       const results = await collectionService.queryCollection({
@@ -547,98 +574,6 @@ class CollectionController {
       }
 
       res.status(200).json({ object: 'list', data: results });
-    } catch (err) {
-      await errorService.reportError(err);
-
-      return errorService.errorResponse(res, {
-        code: ErrorCode.InternalServerError,
-        message: DEFAULT_ERROR_MESSAGE,
-      });
-    }
-  }
-
-  public async imageSearchCollection(req: Request, res: Response) {
-    try {
-      const connectionId = req.params['connection_id'];
-      const collectionKey = req.params['collection_key'];
-
-      if (!connectionId) {
-        return errorService.errorResponse(res, {
-          code: ErrorCode.BadRequest,
-          message: 'Connection ID missing',
-        });
-      } else if (!collectionKey) {
-        return errorService.errorResponse(res, {
-          code: ErrorCode.BadRequest,
-          message: 'Collection unique key missing',
-        });
-      }
-
-      const connection = await connectionService.getConnectionById(connectionId);
-      if (!connection) {
-        return errorService.errorResponse(res, {
-          code: ErrorCode.NotFound,
-          message: 'Connection not found',
-        });
-      }
-
-      const integration = await integrationService.getIntegrationById(connection.integration_id);
-      if (!integration) {
-        return errorService.errorResponse(res, {
-          code: ErrorCode.NotFound,
-          message: `Integration not found for connection ${connection.id}`,
-        });
-      }
-
-      const parsedBody = ImageSearchCollectionRequestSchema.safeParse(req.body);
-      if (!parsedBody.success) {
-        return errorService.errorResponse(res, {
-          code: ErrorCode.BadRequest,
-          message: zodError(parsedBody.error),
-        });
-      }
-
-      const results = await collectionService.imageSearchCollection({
-        connection,
-        providerKey: integration.provider_key,
-        collectionKey,
-        imageSearchOptions: parsedBody.data,
-      });
-
-      if (!results) {
-        return errorService.errorResponse(res, {
-          code: ErrorCode.InternalServerError,
-          message: DEFAULT_ERROR_MESSAGE,
-        });
-      }
-
-      res.status(200).json({ object: 'list', data: results });
-    } catch (err) {
-      await errorService.reportError(err);
-
-      return errorService.errorResponse(res, {
-        code: ErrorCode.InternalServerError,
-        message: DEFAULT_ERROR_MESSAGE,
-      });
-    }
-  }
-
-  public async listCollectionRecords(req: Request, res: Response) {
-    try {
-      // TODO
-    } catch (err) {
-      await errorService.reportError(err);
-
-      return errorService.errorResponse(res, {
-        code: ErrorCode.InternalServerError,
-        message: DEFAULT_ERROR_MESSAGE,
-      });
-    }
-  }
-
-  public async retrieveCollectionRecord(req: Request, res: Response) {
-    try {
-      // TODO
     } catch (err) {
       await errorService.reportError(err);
 

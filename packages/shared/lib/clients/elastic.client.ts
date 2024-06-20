@@ -117,10 +117,11 @@ class ElasticClient {
       });
     }
 
-    const modelSettings = await collectionService.getCollectionModelSettings(
-      connection.integration_id,
-      collectionKey
-    );
+    const modelSettings = await collectionService.getCollectionModelSettings({
+      collectionKey,
+      integrationId: connection.integration_id,
+      environmentId: connection.environment_id,
+    });
 
     if (!modelSettings) {
       throw new Error('Failed to get collection model settings');
@@ -178,10 +179,11 @@ class ElasticClient {
 
     const returnProperties = imageSearchOptions.returnProperties;
     const schemaProperties = collection.schema.properties;
-    const modelSettings = await collectionService.getCollectionModelSettings(
-      connection.integration_id,
-      collectionKey
-    );
+    const modelSettings = await collectionService.getCollectionModelSettings({
+      collectionKey,
+      integrationId: connection.integration_id,
+      environmentId: connection.environment_id,
+    });
 
     if (!modelSettings) {
       throw new Error('Failed to get collection model settings');
@@ -214,10 +216,11 @@ class ElasticClient {
     collectionKey: string;
   }): Promise<boolean> {
     try {
-      const modelSettings = await collectionService.getCollectionModelSettings(
+      const modelSettings = await collectionService.getCollectionModelSettings({
+        collectionKey,
         integrationId,
-        collectionKey
-      );
+        environmentId,
+      });
 
       if (!modelSettings) {
         throw new Error('Failed to get collection model settings');
@@ -400,10 +403,11 @@ class ElasticClient {
         throw new Error(`Failed to get collection schema for ${collectionKey}`);
       }
 
-      const modelSettings = await collectionService.getCollectionModelSettings(
+      const modelSettings = await collectionService.getCollectionModelSettings({
+        collectionKey,
         integrationId,
-        collectionKey
-      );
+        environmentId,
+      });
 
       if (!modelSettings) {
         throw new Error('Failed to get collection model settings');
@@ -467,10 +471,11 @@ class ElasticClient {
         throw new Error(`Failed to get collection schema for ${collectionKey}`);
       }
 
-      const modelSettings = await collectionService.getCollectionModelSettings(
+      const modelSettings = await collectionService.getCollectionModelSettings({
+        collectionKey,
         integrationId,
-        collectionKey
-      );
+        environmentId,
+      });
 
       if (!modelSettings) {
         throw new Error('Failed to get collection model settings');
@@ -528,10 +533,11 @@ class ElasticClient {
         throw new Error(`Failed to get collection schema for ${collectionKey}`);
       }
 
-      const modelSettings = await collectionService.getCollectionModelSettings(
+      const modelSettings = await collectionService.getCollectionModelSettings({
+        collectionKey,
         integrationId,
-        collectionKey
-      );
+        environmentId,
+      });
 
       if (!modelSettings) {
         throw new Error('Failed to get collection model settings');

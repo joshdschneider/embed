@@ -26,7 +26,6 @@ import userService from '../services/user.service';
 import { DEFAULT_EMAIL_SUBSCRIPTIONS, DEFAULT_ORGANIZATION_NAME } from '../utils/constants';
 import { generateSecretKey, zodError } from '../utils/helpers';
 import { EnvironmentType, UpdateUserRequestSchema } from '../utils/types';
-import integrationController from './integration.controller';
 
 class UserController {
   public async handleUserAuth(req: Request, res: Response) {
@@ -193,12 +192,11 @@ class UserController {
       }
 
       await integrationService.createIntegration({
-        id: integrationController.generateId('github'),
+        id: 'github-test',
         environment_id: stagingEnvironment.id,
         is_enabled: true,
         provider_key: 'github',
         auth_schemes: [AuthScheme.OAuth2],
-        display_name: 'GitHub Test Integration',
         is_using_test_credentials: true,
         oauth_client_id: null,
         oauth_client_secret: null,

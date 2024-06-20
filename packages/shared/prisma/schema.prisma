@@ -93,7 +93,6 @@ model SessionToken {
   auth_scheme          String
   language             String?
   redirect_url         String?
-  display_name         String?
   configuration        Json?
   inclusions           Json?
   exclusions           Json?
@@ -111,12 +110,11 @@ model SessionToken {
 }
 
 model Integration {
-  id                        String   @id
+  id                        String
   provider_key              String
   environment_id            String
   is_enabled                Boolean
   auth_schemes              String[]
-  display_name              String?
   is_using_test_credentials Boolean
   oauth_client_id           String?
   oauth_client_secret       String?
@@ -133,34 +131,34 @@ model Integration {
   actions     Action[]
 
   environment Environment @relation(fields: [environment_id], references: [id])
+
+  @@unique([id, environment_id])
 }
 
 model Connection {
-  id               String  @id
-  environment_id   String
-  integration_id   String
-  auth_scheme      String
-  display_name     String?
-  credentials      String
-  credentials_hash String?
-  credentials_iv   String?
-  credentials_tag  String?
-  configuration    Json?
-  inclusions       Json?
-  exclusions       Json?
-  metadata         Json?
-  created_at       Int
-  updated_at       Int
-  deleted_at       Int?
+  id              String
+  environment_id  String
+  integration_id  String
+  auth_scheme     String
+  credentials     String
+  credentials_iv  String?
+  credentials_tag String?
+  configuration   Json?
+  inclusions      Json?
+  exclusions      Json?
+  metadata        Json?
+  created_at      Int
+  updated_at      Int
+  deleted_at      Int?
 
-  syncs          Sync[]
-  sync_runs      SyncRun[]
-  sync_schedules SyncSchedule[]
-  action_runs    ActionRun[]
-  records        Record[]
+  syncs       Sync[]
+  action_runs ActionRun[]
+  records     Record[]
 
   environment Environment @relation(fields: [environment_id], references: [id])
-  integration Integration @relation(fields: [integration_id], references: [id])
+  integration Integration @relation(fields: [integration_id, environment_id], references: [id, environment_id])
+
+  @@unique([id, integration_id])
 }
 
 model Collection {
@@ -180,12 +178,11 @@ model Collection {
   updated_at                    Int
   deleted_at                    Int?
 
-  syncs   Sync[]
-  records Record[]
+  syncs Sync[]
 
-  integration Integration @relation(fields: [integration_id], references: [id])
+  integration Integration @relation(fields: [integration_id, environment_id], references: [id, environment_id])
 
-  @@unique([unique_key, integration_id])
+  @@unique([unique_key, integration_id, environment_id])
 }
 
 model Action {
@@ -201,9 +198,9 @@ model Action {
 
   runs ActionRun[]
 
-  integration Integration @relation(fields: [integration_id], references: [id])
+  integration Integration @relation(fields: [integration_id, environment_id], references: [id, environment_id])
 
-  @@unique([unique_key, integration_id])
+  @@unique([unique_key, integration_id, environment_id])
 }
 
 model Sync {
@@ -222,33 +219,34 @@ model Sync {
   runs      SyncRun[]
   schedules SyncSchedule[]
 
-  collection  Collection  @relation(fields: [collection_key, integration_id], references: [unique_key, integration_id])
-  connection  Connection  @relation(fields: [connection_id], references: [id])
-  integration Integration @relation(fields: [integration_id], references: [id])
+  collection  Collection  @relation(fields: [collection_key, integration_id, environment_id], references: [unique_key, integration_id, environment_id])
+  connection  Connection  @relation(fields: [connection_id, integration_id], references: [id, integration_id])
+  integration Integration @relation(fields: [integration_id, environment_id], references: [id, environment_id])
 
-  @@unique([collection_key, connection_id])
+  @@unique([collection_key, connection_id, integration_id])
 }
 
 model SyncRun {
   id              String  @id
   collection_key  String
   connection_id   String
+  integration_id  String
   status          String
   temporal_run_id String?
   records_added   Int?
   records_updated Int?
   records_deleted Int?
-  created_at      Int
-  updated_at      Int
+  timestamp       Int
+  duration        Int?
 
-  sync       Sync       @relation(fields: [collection_key, connection_id], references: [collection_key, connection_id])
-  connection Connection @relation(fields: [connection_id], references: [id])
+  sync Sync @relation(fields: [collection_key, connection_id, integration_id], references: [collection_key, connection_id, integration_id])
 }
 
 model SyncSchedule {
   id             String @id
   collection_key String
   connection_id  String
+  integration_id String
   status         String
   frequency      String
   offset         Int
@@ -256,10 +254,9 @@ model SyncSchedule {
   updated_at     Int
   deleted_at     Int?
 
-  sync       Sync       @relation(fields: [collection_key, connection_id], references: [collection_key, connection_id])
-  connection Connection @relation(fields: [connection_id], references: [id])
+  sync Sync @relation(fields: [collection_key, connection_id, integration_id], references: [collection_key, connection_id, integration_id])
 
-  @@unique([collection_key, connection_id])
+  @@unique([collection_key, connection_id, integration_id])
 }
 
 model ActionRun {
@@ -268,11 +265,14 @@ model ActionRun {
   integration_id String
   connection_id  String
   environment_id String
-  created_at     Int
-  updated_at     Int
+  status         String
+  input          Json
+  output         Json
+  timestamp      Int
+  duration       Int
 
-  action     Action     @relation(fields: [action_key, integration_id], references: [unique_key, integration_id])
-  connection Connection @relation(fields: [connection_id], references: [id])
+  action     Action     @relation(fields: [action_key, integration_id, environment_id], references: [unique_key, integration_id, environment_id])
+  connection Connection @relation(fields: [connection_id, integration_id], references: [id, integration_id])
 }
 
 model Record {
@@ -290,11 +290,10 @@ model Record {
   updated_at     Int
   deleted_at     Int?
 
-  collection Collection @relation(fields: [collection_key, integration_id], references: [unique_key, integration_id])
-  connection Connection @relation(fields: [connection_id], references: [id])
+  connection Connection @relation(fields: [connection_id, integration_id], references: [id, integration_id])
 
-  @@unique([external_id, connection_id, collection_key])
-  @@unique([hash, connection_id, collection_key])
+  @@unique([external_id, collection_key, connection_id, integration_id])
+  @@unique([hash, collection_key, connection_id, integration_id])
 }
 
 model Webhook {

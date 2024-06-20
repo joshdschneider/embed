@@ -11,11 +11,21 @@ class ProviderController {
       });
     }
 
-    res.status(200).send({ object: 'list', data: providers });
+    const providerObjects = providers.map((provider) => {
+      const { unique_key, ...rest } = provider;
+      return {
+        object: 'provider',
+        unique_key,
+        schema: { ...rest },
+      };
+    });
+
+    res.status(200).send({ object: 'list', data: providerObjects });
   }
 
   public async retrieveProvider(req: Request, res: Response): Promise<void> {
     const { unique_key: slug } = req.params;
+
     if (!slug) {
       return errorService.errorResponse(res, {
         code: ErrorCode.BadRequest,
@@ -31,7 +41,13 @@ class ProviderController {
       });
     }
 
-    res.status(200).send({ object: 'provider', ...providerSpec });
+    const { unique_key, ...rest } = providerSpec;
+
+    res.status(200).send({
+      object: 'provider',
+      unique_key,
+      schema: { ...rest },
+    });
   }
 }
 

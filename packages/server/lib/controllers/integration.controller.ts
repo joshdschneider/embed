@@ -21,7 +21,6 @@ import {
   EnvironmentType,
   IntegrationDeletedObject,
   IntegrationObject,
-  IntegrationObjectWithCredentials,
   PaginationParametersSchema,
   UpdateIntegrationRequestSchema,
 } from '../utils/types';
@@ -64,16 +63,19 @@ class IntegrationController {
       }
 
       const integrationObjects: IntegrationObject[] = integrations.map((integration) => {
-        const provider = providers.find((p) => p.unique_key === integration.provider_key);
+        const provider = providers.find((p) => p.unique_key === integration.provider_key)!;
         return {
           object: 'integration',
           id: integration.id,
           provider_key: integration.provider_key,
-          logo_url: provider?.logo_url || null,
-          logo_url_dark_mode: provider?.logo_url_dark_mode || null,
-          display_name: integration.display_name,
+          logo_url: provider.logo_url,
+          logo_url_dark_mode: provider.logo_url_dark_mode || null,
           is_enabled: integration.is_enabled,
           auth_schemes: integration.auth_schemes as AuthScheme[],
+          is_using_test_credentials: integration.is_using_test_credentials,
+          oauth_client_id: integration.oauth_client_id,
+          oauth_client_secret: integration.oauth_client_secret,
+          oauth_scopes: integration.oauth_scopes ? integration.oauth_scopes.split(',') : [],
           connection_count: integration.connection_count,
           created_at: integration.created_at,
           updated_at: integration.updated_at,
@@ -99,8 +101,8 @@ class IntegrationController {
 
   public async retrieveIntegration(req: Request, res: Response) {
     try {
+      const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
       const integrationId = req.params['integration_id'];
-      const includeCredentials = req.query['include_credentials'] === 'true';
 
       if (!integrationId) {
         return errorService.errorResponse(res, {
@@ -109,7 +111,7 @@ class IntegrationController {
         });
       }
 
-      const integration = await integrationService.getIntegrationById(integrationId);
+      const integration = await integrationService.getIntegrationById(integrationId, environmentId);
       if (!integration) {
         return errorService.errorResponse(res, {
           code: ErrorCode.NotFound,
@@ -125,41 +127,23 @@ class IntegrationController {
         });
       }
 
-      if (includeCredentials) {
-        const integrationObject: IntegrationObjectWithCredentials = {
-          object: 'integration',
-          id: integration.id,
-          provider_key: integration.provider_key,
-          logo_url: provider.logo_url,
-          logo_url_dark_mode: provider.logo_url_dark_mode || null,
-          display_name: integration.display_name,
-          is_enabled: integration.is_enabled,
-          auth_schemes: integration.auth_schemes as AuthScheme[],
-          is_using_test_credentials: integration.is_using_test_credentials,
-          oauth_client_id: integration.oauth_client_id,
-          oauth_client_secret: integration.oauth_client_secret,
-          oauth_scopes: integration.oauth_scopes ? integration.oauth_scopes.split(',') : [],
-          created_at: integration.created_at,
-          updated_at: integration.updated_at,
-        };
+      const integrationObject: IntegrationObject = {
+        object: 'integration',
+        id: integration.id,
+        provider_key: integration.provider_key,
+        logo_url: provider.logo_url,
+        logo_url_dark_mode: provider.logo_url_dark_mode || null,
+        is_enabled: integration.is_enabled,
+        auth_schemes: integration.auth_schemes as AuthScheme[],
+        is_using_test_credentials: integration.is_using_test_credentials,
+        oauth_client_id: integration.oauth_client_id,
+        oauth_client_secret: integration.oauth_client_secret,
+        oauth_scopes: integration.oauth_scopes ? integration.oauth_scopes.split(',') : [],
+        created_at: integration.created_at,
+        updated_at: integration.updated_at,
+      };
 
-        res.status(200).send(integrationObject);
-      } else {
-        const integrationObject: IntegrationObject = {
-          object: 'integration',
-          id: integration.id,
-          provider_key: integration.provider_key,
-          logo_url: provider.logo_url,
-          logo_url_dark_mode: provider.logo_url_dark_mode || null,
-          display_name: integration.display_name,
-          is_enabled: integration.is_enabled,
-          auth_schemes: integration.auth_schemes as AuthScheme[],
-          created_at: integration.created_at,
-          updated_at: integration.updated_at,
-        };
-
-        res.status(200).send(integrationObject);
-      }
+      res.status(200).send(integrationObject);
     } catch (err) {
       await errorService.reportError(err);
 
@@ -172,6 +156,7 @@ class IntegrationController {
 
   public async enableIntegration(req: Request, res: Response) {
     try {
+      const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
       const integrationId = req.params['integration_id'];
       if (!integrationId) {
         return errorService.errorResponse(res, {
@@ -180,7 +165,7 @@ class IntegrationController {
         });
       }
 
-      const integration = await integrationService.getIntegrationById(integrationId);
+      const integration = await integrationService.getIntegrationById(integrationId, environmentId);
       if (!integration) {
         return errorService.errorResponse(res, {
           code: ErrorCode.NotFound,
@@ -196,9 +181,11 @@ class IntegrationController {
         });
       }
 
-      const updatedIntegration = await integrationService.updateIntegration(integrationId, {
-        is_enabled: true,
-      });
+      const updatedIntegration = await integrationService.updateIntegration(
+        integrationId,
+        environmentId,
+        { is_enabled: true }
+      );
 
       if (!updatedIntegration) {
         return errorService.errorResponse(res, {
@@ -211,13 +198,18 @@ class IntegrationController {
         object: 'integration',
         id: updatedIntegration.id,
         provider_key: updatedIntegration.provider_key,
-        display_name: updatedIntegration.display_name,
         logo_url: provider.logo_url,
         logo_url_dark_mode: provider.logo_url_dark_mode || null,
         is_enabled: updatedIntegration.is_enabled,
         auth_schemes: integration.auth_schemes as AuthScheme[],
         created_at: updatedIntegration.created_at,
         updated_at: updatedIntegration.updated_at,
+        is_using_test_credentials: updatedIntegration.is_using_test_credentials,
+        oauth_client_id: updatedIntegration.oauth_client_id,
+        oauth_client_secret: updatedIntegration.oauth_client_secret,
+        oauth_scopes: updatedIntegration.oauth_scopes
+          ? updatedIntegration.oauth_scopes.split(',')
+          : [],
       };
 
       res.status(200).send(integrationObject);
@@ -233,6 +225,7 @@ class IntegrationController {
 
   public async disableIntegration(req: Request, res: Response) {
     try {
+      const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
       const integrationId = req.params['integration_id'];
       if (!integrationId) {
         return errorService.errorResponse(res, {
@@ -241,7 +234,7 @@ class IntegrationController {
         });
       }
 
-      const integration = await integrationService.getIntegrationById(integrationId);
+      const integration = await integrationService.getIntegrationById(integrationId, environmentId);
       if (!integration) {
         return errorService.errorResponse(res, {
           code: ErrorCode.NotFound,
@@ -257,9 +250,11 @@ class IntegrationController {
         });
       }
 
-      const updatedIntegration = await integrationService.updateIntegration(integrationId, {
-        is_enabled: false,
-      });
+      const updatedIntegration = await integrationService.updateIntegration(
+        integrationId,
+        environmentId,
+        { is_enabled: false }
+      );
 
       if (!updatedIntegration) {
         return errorService.errorResponse(res, {
@@ -274,13 +269,18 @@ class IntegrationController {
         object: 'integration',
         id: updatedIntegration.id,
         provider_key: updatedIntegration.provider_key,
-        display_name: updatedIntegration.display_name,
         is_enabled: updatedIntegration.is_enabled,
         logo_url: provider.logo_url,
         logo_url_dark_mode: provider.logo_url_dark_mode || null,
         auth_schemes: integration.auth_schemes as AuthScheme[],
         created_at: updatedIntegration.created_at,
         updated_at: updatedIntegration.updated_at,
+        is_using_test_credentials: updatedIntegration.is_using_test_credentials,
+        oauth_client_id: updatedIntegration.oauth_client_id,
+        oauth_client_secret: updatedIntegration.oauth_client_secret,
+        oauth_scopes: updatedIntegration.oauth_scopes
+          ? updatedIntegration.oauth_scopes.split(',')
+          : [],
       };
 
       res.status(200).send(integrationObject);
@@ -306,9 +306,9 @@ class IntegrationController {
       }
 
       const {
+        id,
         provider_key,
         auth_schemes,
-        display_name,
         use_test_credentials,
         oauth_client_id,
         oauth_client_secret,
@@ -367,12 +367,11 @@ class IntegrationController {
       }
 
       const createdIntegration = await integrationService.createIntegration({
-        id: this.generateId(provider_key),
+        id: id ? id : this.generateId(provider_key),
         environment_id: environmentId,
         is_enabled: true,
         provider_key,
         auth_schemes: integrationAuthSchemes,
-        display_name: display_name || null,
         is_using_test_credentials: useTestCredentials,
         oauth_client_id: oauth_client_id || null,
         oauth_client_secret: oauth_client_secret || null,
@@ -429,11 +428,10 @@ class IntegrationController {
         }
       }
 
-      const integrationObject: IntegrationObjectWithCredentials = {
+      const integrationObject: IntegrationObject = {
         object: 'integration',
         id: createdIntegration.id,
         provider_key: createdIntegration.provider_key,
-        display_name: createdIntegration.display_name,
         is_enabled: createdIntegration.is_enabled,
         logo_url: provider.logo_url,
         logo_url_dark_mode: provider.logo_url_dark_mode || null,
@@ -460,7 +458,7 @@ class IntegrationController {
   }
 
   public generateId(providerKey: string, byteLength: number = 8) {
-    return `${providerKey.replace('-', '_')}_${crypto.randomBytes(byteLength).toString('hex')}`;
+    return `${providerKey}-${crypto.randomBytes(byteLength).toString('hex')}`;
   }
 
   public async updateIntegration(req: Request, res: Response) {
@@ -474,7 +472,7 @@ class IntegrationController {
         });
       }
 
-      const integration = await integrationService.getIntegrationById(integrationId);
+      const integration = await integrationService.getIntegrationById(integrationId, environmentId);
       if (!integration) {
         return errorService.errorResponse(res, {
           code: ErrorCode.NotFound,
@@ -498,13 +496,8 @@ class IntegrationController {
         });
       }
 
-      const {
-        display_name,
-        is_using_test_credentials,
-        oauth_client_id,
-        oauth_client_secret,
-        oauth_scopes,
-      } = parsedBody.data;
+      const { is_using_test_credentials, oauth_client_id, oauth_client_secret, oauth_scopes } =
+        parsedBody.data;
 
       if (integration.auth_schemes.includes(AuthScheme.OAuth2)) {
         if (is_using_test_credentials) {
@@ -533,10 +526,6 @@ class IntegrationController {
       }
 
       const data: Partial<Integration> = { updated_at: now() };
-      if (typeof display_name !== 'undefined') {
-        data.display_name = display_name;
-      }
-
       if (
         typeof is_using_test_credentials === 'boolean' &&
         integration.auth_schemes.includes(AuthScheme.OAuth2)
@@ -565,9 +554,11 @@ class IntegrationController {
         data.oauth_scopes = oauth_scopes === null ? null : oauth_scopes.join(',');
       }
 
-      const updatedIntegration = await integrationService.updateIntegration(integrationId, {
-        ...data,
-      });
+      const updatedIntegration = await integrationService.updateIntegration(
+        integrationId,
+        environmentId,
+        { ...data }
+      );
 
       if (!updatedIntegration) {
         return errorService.errorResponse(res, {
@@ -576,11 +567,10 @@ class IntegrationController {
         });
       }
 
-      const integrationObject: IntegrationObjectWithCredentials = {
+      const integrationObject: IntegrationObject = {
         object: 'integration',
         id: updatedIntegration.id,
         provider_key: updatedIntegration.provider_key,
-        display_name: updatedIntegration.display_name,
         is_enabled: updatedIntegration.is_enabled,
         logo_url: provider.logo_url,
         logo_url_dark_mode: provider.logo_url_dark_mode || null,
@@ -608,6 +598,7 @@ class IntegrationController {
 
   public async deleteIntegration(req: Request, res: Response) {
     try {
+      const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
       const integrationId = req.params['integration_id'];
       if (!integrationId) {
         return errorService.errorResponse(res, {
@@ -616,7 +607,11 @@ class IntegrationController {
         });
       }
 
-      const integrationDeleted = await integrationService.deleteIntegration(integrationId);
+      const integrationDeleted = await integrationService.deleteIntegration(
+        integrationId,
+        environmentId
+      );
+
       if (!integrationDeleted) {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
@@ -625,7 +620,7 @@ class IntegrationController {
       }
 
       const integrationDeletedObject: IntegrationDeletedObject = {
-        object: 'integration.deleted',
+        object: 'integration',
         id: integrationId,
         deleted: true,
       };

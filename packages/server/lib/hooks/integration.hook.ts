@@ -6,7 +6,11 @@ class IntegrationHook {
       return;
     }
 
-    const collections = await collectionService.listCollections(integration.id);
+    const collections = await collectionService.listCollections({
+      integrationId: integration.id,
+      environmentId: integration.environment_id,
+    });
+
     if (!collections) {
       return await errorService.reportError(
         new Error('Failed to retrieve collections from database')
@@ -14,8 +18,11 @@ class IntegrationHook {
     }
 
     for (const collection of collections) {
-      await collectionService.updateCollection(collection.unique_key, integration.id, {
-        is_enabled: false,
+      await collectionService.updateCollection({
+        integrationId: integration.id,
+        environmentId: integration.environment_id,
+        collectionKey: collection.unique_key,
+        data: { is_enabled: false },
       });
 
       await collectionService.onCollectionDisabled(collection);

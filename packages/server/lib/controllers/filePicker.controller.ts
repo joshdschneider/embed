@@ -65,7 +65,11 @@ class FilePickerController {
         });
       }
 
-      const integration = await integrationService.getIntegrationById(sessionToken.integration_id);
+      const integration = await integrationService.getIntegrationById(
+        sessionToken.integration_id,
+        sessionToken.environment_id
+      );
+
       if (!integration) {
         throw new Error(`Failed to retrieve integration with ID ${sessionToken.integration_id}`);
       }
@@ -99,7 +103,7 @@ class FilePickerController {
         message: `User viewed file picker`,
       });
 
-      const connection = await connectionService.getConnectionById(connectionId);
+      const connection = await connectionService.getConnectionById(connectionId, integration.id);
       if (!connection) {
         throw new Error('Connection not found');
       }
@@ -197,7 +201,11 @@ class FilePickerController {
         });
       }
 
-      const integration = await integrationService.getIntegrationById(sessionToken.integration_id);
+      const integration = await integrationService.getIntegrationById(
+        sessionToken.integration_id,
+        sessionToken.environment_id
+      );
+
       if (!integration) {
         throw new Error(`Failed to retrieve integration with ID ${sessionToken.integration_id}`);
       }
@@ -220,17 +228,21 @@ class FilePickerController {
         });
       }
 
-      const connection = await connectionService.getConnectionById(connectionId);
+      const connection = await connectionService.getConnectionById(connectionId, integration.id);
       if (!connection) {
         throw new Error('Connection not found');
       }
 
-      const updatedConnection = await connectionService.updateConnection(connectionId, {
-        inclusions: {
-          ...(connection.inclusions as object),
-          files: selectedFiles,
-        },
-      });
+      const updatedConnection = await connectionService.updateConnection(
+        connectionId,
+        integration.id,
+        {
+          inclusions: {
+            ...(connection.inclusions as object),
+            files: selectedFiles,
+          },
+        }
+      );
 
       if (!updatedConnection) {
         throw new Error('Failed to update connection');

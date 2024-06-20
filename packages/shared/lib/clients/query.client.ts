@@ -437,7 +437,7 @@ export class QueryClient {
     const limit = imageSearchOptions.limit || DEFAULT_QUERY_LIMIT;
 
     if (!image) {
-      throw new Error('Query missing for vector search');
+      throw new Error('Image missing for vector search');
     }
 
     const mainProperties: string[] = [];
