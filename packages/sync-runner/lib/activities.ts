@@ -31,7 +31,12 @@ export async function triggerSync(args: SyncArgs): Promise<void> {
     timestamp: now(),
   });
 
-  const sync = await syncService.retrieveSync(args.connectionId, args.collectionKey);
+  const sync = await syncService.retrieveSync({
+    integrationId: args.integrationId,
+    connectionId: args.connectionId,
+    collectionKey: args.collectionKey,
+  });
+
   if (!sync) {
     await activityService.createActivityLog(activityId, {
       message: 'Sync failed',
@@ -58,6 +63,7 @@ export async function triggerSync(args: SyncArgs): Promise<void> {
   const temporalRunId = Context.current().info.workflowExecution.runId;
   const syncRun = await syncService.createSyncRun({
     id: generateId(Resource.SyncRun),
+    integration_id: sync.integration_id,
     connection_id: sync.connection_id,
     collection_key: sync.collection_key,
     status: SyncRunStatus.Running,
@@ -65,8 +71,8 @@ export async function triggerSync(args: SyncArgs): Promise<void> {
     records_added: 0,
     records_updated: 0,
     records_deleted: 0,
-    created_at: now(),
-    updated_at: now(),
+    timestamp: now(),
+    duration: null,
   });
 
   if (!syncRun) {
@@ -84,16 +90,21 @@ export async function triggerSync(args: SyncArgs): Promise<void> {
 
   try {
     const temporalContext: Context = Context.current();
-    const modelSettings = await collectionService.getCollectionModelSettings(
-      sync.integration_id,
-      sync.collection_key
-    );
+    const modelSettings = await collectionService.getCollectionModelSettings({
+      integrationId: sync.integration_id,
+      collectionKey: sync.collection_key,
+      environmentId: args.environmentId,
+    });
 
     if (!modelSettings) {
       throw new Error('Failed to get collection model settings');
     }
 
-    const lastSyncedAt = await syncService.getLastSyncedAt(sync.connection_id, sync.collection_key);
+    const lastSyncedAt = await syncService.getLastSyncedAt({
+      integrationId: sync.integration_id,
+      connectionId: sync.connection_id,
+      collectionKey: sync.collection_key,
+    });
 
     const syncContext = new SyncContext({
       environmentId: sync.environment_id,
@@ -114,6 +125,7 @@ export async function triggerSync(args: SyncArgs): Promise<void> {
     const results = await syncContext.reportResults();
     await syncService.updateSyncRun(syncRun.id, {
       status: SyncRunStatus.Succeeded,
+      duration: now() - syncRun.timestamp,
       ...results,
     });
 
@@ -126,7 +138,11 @@ export async function triggerSync(args: SyncArgs): Promise<void> {
       payload: results,
     });
   } catch (err) {
-    await syncService.updateSyncRun(syncRun.id, { status: SyncRunStatus.Failed });
+    await syncService.updateSyncRun(syncRun.id, {
+      status: SyncRunStatus.Failed,
+      duration: now() - syncRun.timestamp,
+    });
+
     await activityService.createActivityLog(activityId, {
       message: 'Sync failed',
       level: LogLevel.Error,
@@ -160,7 +176,12 @@ export async function reportFailure(args: SyncFailureArgs): Promise<void> {
     }
   }
 
-  const sync = await syncService.retrieveSync(args.args.connectionId, args.args.collectionKey);
+  const sync = await syncService.retrieveSync({
+    integrationId: args.args.integrationId,
+    connectionId: args.args.connectionId,
+    collectionKey: args.args.collectionKey,
+  });
+
   if (sync) {
     await syncService.handleSyncFailure({ sync, reason: message, activityId: null });
   }

@@ -7,7 +7,6 @@ import {
   LogAction,
   LogLevel,
   Resource,
-  SUPPORTED_LANGUAGES,
   activityService,
   connectionService,
   errorService,
@@ -42,17 +41,15 @@ class SessionTokenController {
         integration_id: integrationId,
         connection_id: connectionId,
         expires_in_mins: expiresInMins,
-        language,
         redirect_url: redirectUrl,
         auth_scheme: authScheme,
-        connection_name: connectionName,
         configuration,
         inclusions,
         exclusions,
         metadata,
       } = parsedBody.data;
 
-      const integration = await integrationService.getIntegrationById(integrationId);
+      const integration = await integrationService.getIntegrationById(integrationId, environmentId);
       if (!integration) {
         return errorService.errorResponse(res, {
           code: ErrorCode.NotFound,
@@ -63,28 +60,23 @@ class SessionTokenController {
       let selectedAuthScheme: string | null = null;
 
       if (connectionId) {
-        const connection = await connectionService.getConnectionById(connectionId);
-        if (!connection) {
-          return errorService.errorResponse(res, {
-            code: ErrorCode.NotFound,
-            message: 'Can not reconnect account: Connection not found',
-          });
-        }
+        const connection = await connectionService.getConnectionById(connectionId, integrationId);
+        if (connection) {
+          if (connection.integration_id !== integrationId) {
+            return errorService.errorResponse(res, {
+              code: ErrorCode.BadRequest,
+              message: `Connection ${connectionId} must reconnect to integration ${connection.integration_id}`,
+            });
+          }
 
-        if (connection.integration_id !== integrationId) {
-          return errorService.errorResponse(res, {
-            code: ErrorCode.BadRequest,
-            message: `Connection ${connectionId} must reconnect to integration ${connection.integration_id}`,
-          });
-        }
-
-        if (authScheme && connection.auth_scheme && authScheme !== connection.auth_scheme) {
-          return errorService.errorResponse(res, {
-            code: ErrorCode.BadRequest,
-            message: `Auth scheme must match the connection's existing auth scheme: ${connection.auth_scheme}`,
-          });
-        } else {
-          selectedAuthScheme = connection.auth_scheme;
+          if (authScheme && connection.auth_scheme && authScheme !== connection.auth_scheme) {
+            return errorService.errorResponse(res, {
+              code: ErrorCode.BadRequest,
+              message: `Auth scheme must match the connection's existing auth scheme: ${connection.auth_scheme}`,
+            });
+          } else {
+            selectedAuthScheme = connection.auth_scheme;
+          }
         }
       }
 
@@ -120,13 +112,6 @@ class SessionTokenController {
         ? now() + expiresInMins * defaultMinutes
         : now() + minMinutes * defaultMinutes;
 
-      if (language && SUPPORTED_LANGUAGES.indexOf(language) === -1) {
-        return errorService.errorResponse(res, {
-          code: ErrorCode.BadRequest,
-          message: `Unsupported language ${language}`,
-        });
-      }
-
       if (redirectUrl) {
         try {
           new URL(redirectUrl);
@@ -145,9 +130,8 @@ class SessionTokenController {
         connection_id: connectionId || null,
         expires_at: expiresAt,
         auth_scheme: selectedAuthScheme,
-        language: language || DEFAULT_LANGUAGE,
+        language: DEFAULT_LANGUAGE,
         redirect_url: redirectUrl || null,
-        display_name: connectionName || null,
         configuration: configuration || null,
         inclusions: inclusions || null,
         exclusions: exclusions || null,
@@ -189,7 +173,7 @@ class SessionTokenController {
         payload: {
           token: sessionToken.id,
           url: this.buildSessionTokenUrl(sessionToken.id),
-          expires_in_mins: this.expiresInMinutes(sessionToken.expires_at),
+          expires_at: sessionToken.expires_at,
           integration_id: sessionToken.integration_id,
           connection_id: sessionToken.connection_id,
           redirect_url: sessionToken.redirect_url,
@@ -204,13 +188,15 @@ class SessionTokenController {
         object: 'session_token',
         token: sessionToken.id,
         url: this.buildSessionTokenUrl(sessionToken.id),
-        expires_in_mins: this.expiresInMinutes(sessionToken.expires_at),
+        expires_at: sessionToken.expires_at,
+        auth_scheme: sessionToken.auth_scheme,
         integration_id: sessionToken.integration_id,
         connection_id: sessionToken.connection_id,
         redirect_url: sessionToken.redirect_url,
-        language: sessionToken.language || DEFAULT_LANGUAGE,
-        metadata: sessionToken.metadata as Record<string, any> | null,
         configuration: sessionToken.configuration as Record<string, any> | null,
+        inclusions: sessionToken.inclusions as Record<string, any> | null,
+        exclusions: sessionToken.exclusions as Record<string, any> | null,
+        metadata: sessionToken.metadata as Record<string, any> | null,
         created_at: sessionToken.created_at,
       };
 
@@ -242,13 +228,16 @@ class SessionTokenController {
           object: 'session_token',
           token: sessionToken.id,
           url: this.buildSessionTokenUrl(sessionToken.id),
-          expires_in_mins: this.expiresInMinutes(sessionToken.expires_at),
+          auth_scheme: sessionToken.auth_scheme,
+          expires_at: sessionToken.expires_at,
           integration_id: sessionToken.integration_id,
           connection_id: sessionToken.connection_id,
           redirect_url: sessionToken.redirect_url,
-          language: sessionToken.language || DEFAULT_LANGUAGE,
-          metadata: sessionToken.metadata as Record<string, any> | null,
+          language: DEFAULT_LANGUAGE,
           configuration: sessionToken.configuration as Record<string, any> | null,
+          inclusions: sessionToken.inclusions as Record<string, any> | null,
+          exclusions: sessionToken.exclusions as Record<string, any> | null,
+          metadata: sessionToken.metadata as Record<string, any> | null,
           created_at: sessionToken.created_at,
         };
       });
@@ -286,13 +275,15 @@ class SessionTokenController {
         object: 'session_token',
         token: sessionToken.id,
         url: this.buildSessionTokenUrl(sessionToken.id),
-        expires_in_mins: this.expiresInMinutes(sessionToken.expires_at),
+        auth_scheme: sessionToken.auth_scheme,
+        expires_at: sessionToken.expires_at,
         integration_id: sessionToken.integration_id,
         connection_id: sessionToken.connection_id,
         redirect_url: sessionToken.redirect_url,
-        language: sessionToken.language || DEFAULT_LANGUAGE,
-        metadata: sessionToken.metadata as Record<string, any> | null,
         configuration: sessionToken.configuration as Record<string, any> | null,
+        inclusions: sessionToken.inclusions as Record<string, any> | null,
+        exclusions: sessionToken.exclusions as Record<string, any> | null,
+        metadata: sessionToken.metadata as Record<string, any> | null,
         created_at: sessionToken.created_at,
       };
 
@@ -326,7 +317,7 @@ class SessionTokenController {
       }
 
       const sessionTokenDeletedObject: SessionTokenDeletedObject = {
-        object: 'session_token.deleted',
+        object: 'session_token',
         token: deletedSessionToken.id,
         deleted: true,
       };

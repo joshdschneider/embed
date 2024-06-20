@@ -14,16 +14,23 @@ import { SyncObject, SyncRunObject, UpdateSyncRequestSchema } from '../utils/typ
 
 class SyncController {
   public async listSyncs(req: Request, res: Response) {
-    const connectionId = req.params['connection_id'];
-    if (!connectionId) {
+    const integrationId = req.query['integration_id'];
+    const connectionId = req.query['connection_id'];
+
+    if (!integrationId || typeof integrationId !== 'string') {
       return errorService.errorResponse(res, {
         code: ErrorCode.BadRequest,
-        message: 'Connection ID missing',
+        message: 'Integration ID missing or invalid',
+      });
+    } else if (!connectionId || typeof connectionId !== 'string') {
+      return errorService.errorResponse(res, {
+        code: ErrorCode.BadRequest,
+        message: 'Connection ID missing or invalid',
       });
     }
 
     try {
-      const connection = await connectionService.getConnectionById(connectionId);
+      const connection = await connectionService.getConnectionById(connectionId, integrationId);
       if (!connection) {
         return errorService.errorResponse(res, {
           code: ErrorCode.NotFound,
@@ -31,7 +38,7 @@ class SyncController {
         });
       }
 
-      const syncs = await syncService.listSyncs(connectionId);
+      const syncs = await syncService.listSyncs({ connectionId, integrationId });
       if (!syncs) {
         return errorService.errorResponse(res, {
           code: ErrorCode.InternalServerError,
@@ -66,13 +73,19 @@ class SyncController {
   }
 
   public async retrieveSync(req: Request, res: Response) {
-    const connectionId = req.params['connection_id'];
+    const integrationId = req.query['integration_id'];
+    const connectionId = req.query['connection_id'];
     const collectionKey = req.params['collection_key'];
 
-    if (!connectionId) {
+    if (!integrationId || typeof integrationId !== 'string') {
       return errorService.errorResponse(res, {
         code: ErrorCode.BadRequest,
-        message: 'Connection ID missing',
+        message: 'Integration ID missing or invalid',
+      });
+    } else if (!connectionId || typeof connectionId !== 'string') {
+      return errorService.errorResponse(res, {
+        code: ErrorCode.BadRequest,
+        message: 'Connection ID missing or invalid',
       });
     } else if (!collectionKey) {
       return errorService.errorResponse(res, {
@@ -82,7 +95,12 @@ class SyncController {
     }
 
     try {
-      const sync = await syncService.retrieveSync(connectionId, collectionKey);
+      const sync = await syncService.retrieveSync({
+        integrationId,
+        connectionId,
+        collectionKey,
+      });
+
       if (!sync) {
         return errorService.errorResponse(res, {
           code: ErrorCode.NotFound,
@@ -115,13 +133,19 @@ class SyncController {
   }
 
   public async updateSync(req: Request, res: Response) {
-    const connectionId = req.params['connection_id'];
+    const integrationId = req.query['integration_id'];
+    const connectionId = req.query['connection_id'];
     const collectionKey = req.params['collection_key'];
 
-    if (!connectionId) {
+    if (!integrationId || typeof integrationId !== 'string') {
       return errorService.errorResponse(res, {
         code: ErrorCode.BadRequest,
-        message: 'Connection ID missing',
+        message: 'Integration ID missing or invalid',
+      });
+    } else if (!connectionId || typeof connectionId !== 'string') {
+      return errorService.errorResponse(res, {
+        code: ErrorCode.BadRequest,
+        message: 'Connection ID missing or invalid',
       });
     } else if (!collectionKey) {
       return errorService.errorResponse(res, {
@@ -140,11 +164,12 @@ class SyncController {
       }
 
       const { frequency } = parsedBody.data;
-      const updatedSync = await syncService.updateSyncFrequency(
+      const updatedSync = await syncService.updateSyncFrequency({
+        integrationId,
         connectionId,
         collectionKey,
-        frequency
-      );
+        frequency,
+      });
 
       if (!updatedSync) {
         return errorService.errorResponse(res, {
@@ -178,13 +203,19 @@ class SyncController {
   }
 
   public async startSync(req: Request, res: Response) {
-    const connectionId = req.params['connection_id'];
+    const integrationId = req.query['integration_id'];
+    const connectionId = req.query['connection_id'];
     const collectionKey = req.params['collection_key'];
 
-    if (!connectionId) {
+    if (!integrationId || typeof integrationId !== 'string') {
       return errorService.errorResponse(res, {
         code: ErrorCode.BadRequest,
-        message: 'Connection ID missing',
+        message: 'Integration ID missing or invalid',
+      });
+    } else if (!connectionId || typeof connectionId !== 'string') {
+      return errorService.errorResponse(res, {
+        code: ErrorCode.BadRequest,
+        message: 'Connection ID missing or invalid',
       });
     } else if (!collectionKey) {
       return errorService.errorResponse(res, {
@@ -193,7 +224,12 @@ class SyncController {
       });
     }
 
-    const sync = await syncService.retrieveSync(connectionId, collectionKey);
+    const sync = await syncService.retrieveSync({
+      integrationId,
+      connectionId,
+      collectionKey,
+    });
+
     if (!sync) {
       return errorService.errorResponse(res, {
         code: ErrorCode.NotFound,
@@ -201,10 +237,12 @@ class SyncController {
       });
     }
 
-    const collection = await collectionService.retrieveCollection(
-      sync.collection_key,
-      sync.integration_id
-    );
+    const collection = await collectionService.retrieveCollection({
+      integrationId: sync.integration_id,
+      collectionKey: sync.collection_key,
+      environmentId: sync.environment_id,
+    });
+
     if (!collection) {
       return errorService.errorResponse(res, {
         code: ErrorCode.NotFound,
@@ -251,13 +289,19 @@ class SyncController {
   }
 
   public async stopSync(req: Request, res: Response) {
-    const connectionId = req.params['connection_id'];
+    const integrationId = req.query['integration_id'];
+    const connectionId = req.query['connection_id'];
     const collectionKey = req.params['collection_key'];
 
-    if (!connectionId) {
+    if (!integrationId || typeof integrationId !== 'string') {
       return errorService.errorResponse(res, {
         code: ErrorCode.BadRequest,
-        message: 'Connection ID missing',
+        message: 'Integration ID missing or invalid',
+      });
+    } else if (!connectionId || typeof connectionId !== 'string') {
+      return errorService.errorResponse(res, {
+        code: ErrorCode.BadRequest,
+        message: 'Connection ID missing or invalid',
       });
     } else if (!collectionKey) {
       return errorService.errorResponse(res, {
@@ -266,7 +310,12 @@ class SyncController {
       });
     }
 
-    const sync = await syncService.retrieveSync(connectionId, collectionKey);
+    const sync = await syncService.retrieveSync({
+      integrationId,
+      connectionId,
+      collectionKey,
+    });
+
     if (!sync) {
       return errorService.errorResponse(res, {
         code: ErrorCode.NotFound,
@@ -275,10 +324,12 @@ class SyncController {
     }
 
     if (sync.status === SyncStatus.Stopped) {
-      const collection = await collectionService.retrieveCollection(
-        sync.collection_key,
-        sync.integration_id
-      );
+      const collection = await collectionService.retrieveCollection({
+        integrationId: sync.integration_id,
+        collectionKey: sync.collection_key,
+        environmentId: sync.environment_id,
+      });
+
       if (!collection) {
         return errorService.errorResponse(res, {
           code: ErrorCode.NotFound,
@@ -323,13 +374,19 @@ class SyncController {
   }
 
   public async triggerSync(req: Request, res: Response) {
+    const integrationId = req.query['integration_id'];
     const connectionId = req.params['connection_id'];
     const collectionKey = req.params['collection_key'];
 
-    if (!connectionId) {
+    if (!integrationId || typeof integrationId !== 'string') {
       return errorService.errorResponse(res, {
         code: ErrorCode.BadRequest,
-        message: 'Connection ID missing',
+        message: 'Integration ID missing or invalid',
+      });
+    } else if (!connectionId || typeof connectionId !== 'string') {
+      return errorService.errorResponse(res, {
+        code: ErrorCode.BadRequest,
+        message: 'Connection ID missing or invalid',
       });
     } else if (!collectionKey) {
       return errorService.errorResponse(res, {
@@ -338,7 +395,12 @@ class SyncController {
       });
     }
 
-    const sync = await syncService.retrieveSync(connectionId, collectionKey);
+    const sync = await syncService.retrieveSync({
+      integrationId,
+      connectionId,
+      collectionKey,
+    });
+
     if (!sync) {
       return errorService.errorResponse(res, {
         code: ErrorCode.NotFound,
@@ -346,10 +408,12 @@ class SyncController {
       });
     }
 
-    const collection = await collectionService.retrieveCollection(
-      sync.collection_key,
-      sync.integration_id
-    );
+    const collection = await collectionService.retrieveCollection({
+      integrationId: sync.integration_id,
+      collectionKey: sync.collection_key,
+      environmentId: sync.environment_id,
+    });
+
     if (!collection) {
       return errorService.errorResponse(res, {
         code: ErrorCode.NotFound,
@@ -396,13 +460,19 @@ class SyncController {
   }
 
   public async listSyncRuns(req: Request, res: Response) {
-    const connectionId = req.params['connection_id'];
+    const integrationId = req.query['integration_id'];
+    const connectionId = req.query['connection_id'];
     const collectionKey = req.params['collection_key'];
 
-    if (!connectionId) {
+    if (!integrationId || typeof integrationId !== 'string') {
       return errorService.errorResponse(res, {
         code: ErrorCode.BadRequest,
-        message: 'Connection ID missing',
+        message: 'Integration ID missing or invalid',
+      });
+    } else if (!connectionId || typeof connectionId !== 'string') {
+      return errorService.errorResponse(res, {
+        code: ErrorCode.BadRequest,
+        message: 'Connection ID missing or invalid',
       });
     } else if (!collectionKey) {
       return errorService.errorResponse(res, {
@@ -412,7 +482,12 @@ class SyncController {
     }
 
     try {
-      const syncRuns = await syncService.listSyncRuns(connectionId, collectionKey);
+      const syncRuns = await syncService.listSyncRuns({
+        integrationId,
+        connectionId,
+        collectionKey,
+      });
+
       if (!syncRuns) {
         return errorService.errorResponse(res, {
           code: ErrorCode.InternalServerError,
@@ -423,6 +498,7 @@ class SyncController {
       const syncRunObjects: SyncRunObject[] = syncRuns.map((run) => {
         return {
           object: 'sync_run',
+          id: run.id,
           collection_key: run.collection_key,
           integration_id: run.integration_id,
           connection_id: run.connection_id,
@@ -430,8 +506,8 @@ class SyncController {
           records_added: run.records_added,
           records_updated: run.records_updated,
           records_deleted: run.records_deleted,
-          created_at: run.created_at,
-          updated_at: run.updated_at,
+          timestamp: run.timestamp,
+          duration: run.duration,
         };
       });
 
@@ -447,7 +523,7 @@ class SyncController {
   }
 
   public async retrieveSyncRun(req: Request, res: Response) {
-    const runId = req.params['run_id'];
+    const runId = req.params['sync_run_id'];
     if (!runId) {
       return errorService.errorResponse(res, {
         code: ErrorCode.BadRequest,
@@ -466,6 +542,7 @@ class SyncController {
 
       const syncRunObject: SyncRunObject = {
         object: 'sync_run',
+        id: run.id,
         collection_key: run.collection_key,
         integration_id: run.integration_id,
         connection_id: run.connection_id,
@@ -473,8 +550,8 @@ class SyncController {
         records_added: run.records_added,
         records_updated: run.records_updated,
         records_deleted: run.records_deleted,
-        created_at: run.created_at,
-        updated_at: run.updated_at,
+        timestamp: run.timestamp,
+        duration: run.duration,
       };
 
       res.status(200).json(syncRunObject);

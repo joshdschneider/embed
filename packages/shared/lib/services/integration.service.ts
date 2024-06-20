@@ -30,10 +30,19 @@ class IntegrationService {
     }
   }
 
-  public async getIntegrationById(integrationId: string): Promise<Integration | null> {
+  public async getIntegrationById(
+    integrationId: string,
+    environmentId: string
+  ): Promise<Integration | null> {
     try {
       const integration = await database.integration.findUnique({
-        where: { id: integrationId, deleted_at: null },
+        where: {
+          id_environment_id: {
+            id: integrationId,
+            environment_id: environmentId,
+          },
+          deleted_at: null,
+        },
       });
 
       if (!integration) {
@@ -47,10 +56,19 @@ class IntegrationService {
     }
   }
 
-  public async getIntegrationActions(integrationId: string): Promise<Action[] | null> {
+  public async getIntegrationActions(
+    integrationId: string,
+    environmentId: string
+  ): Promise<Action[] | null> {
     try {
       const integration = await database.integration.findUnique({
-        where: { id: integrationId, deleted_at: null },
+        where: {
+          id_environment_id: {
+            id: integrationId,
+            environment_id: environmentId,
+          },
+          deleted_at: null,
+        },
         select: { actions: true },
       });
 
@@ -96,7 +114,6 @@ class IntegrationService {
         ...(options?.query && {
           OR: [
             { id: { contains: query, mode: QueryMode.insensitive } },
-            { display_name: { contains: query, mode: QueryMode.insensitive } },
             { provider_key: { contains: query, mode: QueryMode.insensitive } },
           ],
         }),
@@ -151,6 +168,7 @@ class IntegrationService {
 
   public async updateIntegration(
     integrationId: string,
+    environmentId: string,
     data: Partial<Integration>
   ): Promise<Integration | null> {
     try {
@@ -164,7 +182,13 @@ class IntegrationService {
       }
 
       const integration = await database.integration.update({
-        where: { id: integrationId, deleted_at: null },
+        where: {
+          id_environment_id: {
+            id: integrationId,
+            environment_id: environmentId,
+          },
+          deleted_at: null,
+        },
         data: { ...data, updated_at: now() },
       });
 
@@ -175,9 +199,13 @@ class IntegrationService {
     }
   }
 
-  public async deleteIntegration(integrationId: string): Promise<boolean> {
+  public async deleteIntegration(integrationId: string, environmentId: string): Promise<boolean> {
     try {
-      const collections = await collectionService.listCollections(integrationId);
+      const collections = await collectionService.listCollections({
+        integrationId,
+        environmentId,
+      });
+
       if (!collections) {
         return false;
       }
@@ -194,20 +222,34 @@ class IntegrationService {
         }
       }
 
-      const actions = await actionService.listActions(integrationId);
+      const actions = await actionService.listActions({
+        integrationId,
+        environmentId,
+      });
+
       if (!actions) {
         return false;
       }
 
       for (const action of actions) {
-        const actionDeleted = await actionService.deleteAction(action.unique_key, integrationId);
+        const actionDeleted = await actionService.deleteAction({
+          actionKey: action.unique_key,
+          integrationId,
+          environmentId,
+        });
+
         if (!actionDeleted) {
           return false;
         }
       }
 
       await database.integration.update({
-        where: { id: integrationId },
+        where: {
+          id_environment_id: {
+            id: integrationId,
+            environment_id: environmentId,
+          },
+        },
         data: { deleted_at: now() },
       });
 

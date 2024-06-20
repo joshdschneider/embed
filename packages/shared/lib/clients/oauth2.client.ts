@@ -3,6 +3,7 @@ import type { Connection, Integration } from '@prisma/client';
 import { AuthorizationCode } from 'simple-oauth2';
 import integrationService from '../services/integration.service';
 import { interpolateString } from '../utils/helpers';
+import type { OAuth1Credentials, OAuth2Credentials } from '../utils/types';
 
 export function getSimpleOAuth2ClientConfig(
   integration: Integration,
@@ -84,21 +85,6 @@ export async function getFreshOAuth2Credentials(
 
   return newCredentials;
 }
-
-export type OAuth2Credentials = {
-  type: AuthScheme.OAuth2;
-  access_token: string;
-  refresh_token: string;
-  expires_at?: Date;
-  raw: Record<string, any>;
-};
-
-export type OAuth1Credentials = {
-  type: AuthScheme.OAuth1;
-  oauth_token: string;
-  oauth_token_secret: string;
-  raw: Record<string, any>;
-};
 
 export function parseRawCredentials(credentials: Record<string, any>, authScheme: AuthScheme) {
   if (authScheme === AuthScheme.OAuth2) {

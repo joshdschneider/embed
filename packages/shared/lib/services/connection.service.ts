@@ -18,26 +18,26 @@ class ConnectionService {
     action: 'created' | 'updated';
   } | null> {
     try {
-      const credentialsHash = encryptionService.hashString(connection.credentials);
-      const encryptedConnection = encryptionService.encryptConnection({
-        ...connection,
-        credentials_hash: credentialsHash,
-      });
-
-      const duplicate = await database.connection.findFirst({
+      const encryptedConnection = encryptionService.encryptConnection(connection);
+      const duplicate = await database.connection.findUnique({
         where: {
-          OR: [
-            { id: encryptedConnection.id, deleted_at: null },
-            { credentials_hash: encryptedConnection.credentials_hash, deleted_at: null },
-          ],
+          id_integration_id: {
+            id: encryptedConnection.integration_id,
+            integration_id: encryptedConnection.integration_id,
+          },
+          deleted_at: null,
         },
       });
 
       if (duplicate) {
         const existingConnection = await database.connection.update({
-          where: { id: duplicate.id },
+          where: {
+            id_integration_id: {
+              id: encryptedConnection.integration_id,
+              integration_id: encryptedConnection.integration_id,
+            },
+          },
           data: {
-            display_name: encryptedConnection.display_name,
             credentials: encryptedConnection.credentials,
             credentials_iv: encryptedConnection.credentials_iv,
             credentials_tag: encryptedConnection.credentials_tag,
@@ -108,9 +108,7 @@ class ConnectionService {
         ...(options?.query && {
           OR: [
             { id: { contains: query, mode: QueryMode.insensitive } },
-            { display_name: { contains: query, mode: QueryMode.insensitive } },
             { integration_id: { contains: query, mode: QueryMode.insensitive } },
-            { integration: { display_name: { contains: query, mode: QueryMode.insensitive } } },
           ],
         }),
       };
@@ -159,10 +157,19 @@ class ConnectionService {
     }
   }
 
-  public async getConnectionById(connectionId: string): Promise<Connection | null> {
+  public async getConnectionById(
+    connectionId: string,
+    integrationId: string
+  ): Promise<Connection | null> {
     try {
       const connection = await database.connection.findUnique({
-        where: { id: connectionId, deleted_at: null },
+        where: {
+          id_integration_id: {
+            id: connectionId,
+            integration_id: integrationId,
+          },
+          deleted_at: null,
+        },
       });
 
       if (!connection) {
@@ -178,6 +185,7 @@ class ConnectionService {
 
   public async updateConnection(
     connectionId: string,
+    integrationId: string,
     data: Partial<Connection>
   ): Promise<Connection | null> {
     try {
@@ -195,7 +203,13 @@ class ConnectionService {
       }
 
       const connection = await database.connection.update({
-        where: { id: connectionId, deleted_at: null },
+        where: {
+          id_integration_id: {
+            id: connectionId,
+            integration_id: integrationId,
+          },
+          deleted_at: null,
+        },
         data: {
           ...data,
           configuration: data.configuration || undefined,
@@ -217,18 +231,34 @@ class ConnectionService {
     }
   }
 
-  public async deleteConnection(connectionId: string): Promise<Connection | null> {
+  public async deleteConnection(
+    connectionId: string,
+    integrationId: string
+  ): Promise<Connection | null> {
     try {
       const connection = await database.connection.findUnique({
-        where: { id: connectionId },
+        where: {
+          id_integration_id: {
+            id: connectionId,
+            integration_id: integrationId,
+          },
+          deleted_at: null,
+        },
       });
 
       if (!connection) {
         return null;
       }
 
-      await recordService.deleteRecordsForConnection(connectionId);
-      const syncs = await syncService.listSyncs(connectionId);
+      await recordService.deleteRecordsForConnection({
+        connectionId,
+        integrationId,
+      });
+
+      const syncs = await syncService.listSyncs({
+        integrationId,
+        connectionId,
+      });
 
       if (syncs) {
         const elastic = ElasticClient.getInstance();
@@ -245,7 +275,13 @@ class ConnectionService {
       }
 
       const deletedConnection = await database.connection.update({
-        where: { id: connectionId, deleted_at: null },
+        where: {
+          id_integration_id: {
+            id: connectionId,
+            integration_id: integrationId,
+          },
+          deleted_at: null,
+        },
         data: { deleted_at: now() },
       });
 
@@ -277,7 +313,11 @@ class ConnectionService {
         return null;
       }
 
-      const integration = await integrationService.getIntegrationById(connection.integration_id);
+      const integration = await integrationService.getIntegrationById(
+        connection.integration_id,
+        connection.environment_id
+      );
+
       if (!integration) {
         throw new Error('Failed to get integration during token refresh');
       }
@@ -288,7 +328,7 @@ class ConnectionService {
         connection
       );
 
-      await this.updateConnection(connection.id, {
+      await this.updateConnection(connection.id, connection.integration_id, {
         credentials: JSON.stringify(freshOAuth2Credentials),
       });
 

@@ -121,11 +121,12 @@ export class SyncContext extends BaseContext {
         };
       });
 
-      const batchSaveResult = await recordService.batchSave(
-        this.connectionId,
-        this.collectionKey,
-        records
-      );
+      const batchSaveResult = await recordService.batchSave({
+        integrationId: this.integrationId,
+        connectionId: this.connectionId,
+        collectionKey: this.collectionKey,
+        records,
+      });
 
       if (!batchSaveResult) {
         await activityService.createActivityLog(this.activityId, {
@@ -162,7 +163,13 @@ export class SyncContext extends BaseContext {
           payload: { error: 'Internal server error' },
         });
 
-        await recordService.deleteRecordsByIds(this.connectionId, this.collectionKey, addedKeys);
+        await recordService.deleteRecordsByIds({
+          integrationId: this.integrationId,
+          connectionId: this.connectionId,
+          collectionKey: this.collectionKey,
+          externalIds: addedKeys,
+        });
+
         this.addedKeys = this.addedKeys.filter((key) => !addedKeys.includes(key));
       }
 
@@ -186,7 +193,13 @@ export class SyncContext extends BaseContext {
           payload: { error: 'Internal server error' },
         });
 
-        await recordService.deleteRecordsByIds(this.connectionId, this.collectionKey, updatedKeys);
+        await recordService.deleteRecordsByIds({
+          integrationId: this.integrationId,
+          connectionId: this.connectionId,
+          collectionKey: this.collectionKey,
+          externalIds: updatedKeys,
+        });
+
         this.updatedKeys = this.updatedKeys.filter((key) => !updatedKeys.includes(key));
       }
 
@@ -205,11 +218,12 @@ export class SyncContext extends BaseContext {
 
   public async pruneDeleted(allIds: string[]): Promise<boolean> {
     try {
-      const result = await recordService.pruneDeleted(
-        this.connectionId,
-        this.collectionKey,
-        allIds
-      );
+      const result = await recordService.pruneDeleted({
+        integrationId: this.integrationId,
+        connectionId: this.connectionId,
+        collectionKey: this.collectionKey,
+        crawledExternalIds: allIds,
+      });
 
       if (!result) {
         await activityService.createActivityLog(this.activityId, {
@@ -217,6 +231,7 @@ export class SyncContext extends BaseContext {
           message: 'Failed to prune deleted records',
           timestamp: now(),
         });
+
         return false;
       }
 

@@ -1,7 +1,5 @@
 import { OAuth1Client, OAuth1RequestTokenResult } from './clients/oauth1.client';
 import {
-  OAuth1Credentials,
-  OAuth2Credentials,
   getFreshOAuth2Credentials,
   getSimpleOAuth2ClientConfig,
   parseRawCredentials,
@@ -56,9 +54,7 @@ export {
   BaseContext,
   MultimodalEmbeddingModel,
   OAuth1Client,
-  OAuth1Credentials,
   OAuth1RequestTokenResult,
-  OAuth2Credentials,
   SyncContext,
   TextEmbeddingModel,
   actionService,
