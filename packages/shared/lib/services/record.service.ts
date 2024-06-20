@@ -5,14 +5,21 @@ import encryptionService from './encryption.service';
 import errorService from './error.service';
 
 class RecordService {
-  public async batchSave(
-    connectionId: string,
-    collectionKey: string,
-    records: DataRecord[]
-  ): Promise<{ addedKeys: string[]; updatedKeys: string[] } | null> {
+  public async batchSave({
+    integrationId,
+    connectionId,
+    collectionKey,
+    records,
+  }: {
+    integrationId: string;
+    connectionId: string;
+    collectionKey: string;
+    records: DataRecord[];
+  }): Promise<{ addedKeys: string[]; updatedKeys: string[] } | null> {
     try {
       const existingRecords = await database.record.findMany({
         where: {
+          integration_id: integrationId,
           connection_id: connectionId,
           collection_key: collectionKey,
           external_id: { in: records.map((rec) => rec.external_id) },
@@ -46,10 +53,11 @@ class RecordService {
           const encryptedRecord = encryptionService.encryptRecord(rec);
           const updatedRecord = await database.record.update({
             where: {
-              external_id_connection_id_collection_key: {
-                connection_id: connectionId,
-                collection_key: collectionKey,
+              external_id_collection_key_connection_id_integration_id: {
                 external_id: rec.external_id,
+                collection_key: collectionKey,
+                connection_id: connectionId,
+                integration_id: integrationId,
               },
               deleted_at: null,
             },
@@ -74,14 +82,21 @@ class RecordService {
     }
   }
 
-  public async pruneDeleted(
-    connectionId: string,
-    collectionKey: string,
-    crawledExternalIds: string[]
-  ): Promise<{ deletedKeys: string[] } | null> {
+  public async pruneDeleted({
+    integrationId,
+    connectionId,
+    collectionKey,
+    crawledExternalIds,
+  }: {
+    integrationId: string;
+    connectionId: string;
+    collectionKey: string;
+    crawledExternalIds: string[];
+  }): Promise<{ deletedKeys: string[] } | null> {
     try {
       const recordsToDelete = await database.record.findMany({
         where: {
+          integration_id: integrationId,
           connection_id: connectionId,
           collection_key: collectionKey,
           external_id: { notIn: crawledExternalIds },
@@ -111,14 +126,21 @@ class RecordService {
     }
   }
 
-  public async deleteRecordsByIds(
-    connectionId: string,
-    collectionKey: string,
-    externalIds: string[]
-  ): Promise<{ deletedKeys: string[] } | null> {
+  public async deleteRecordsByIds({
+    integrationId,
+    connectionId,
+    collectionKey,
+    externalIds,
+  }: {
+    integrationId: string;
+    connectionId: string;
+    collectionKey: string;
+    externalIds: string[];
+  }): Promise<{ deletedKeys: string[] } | null> {
     try {
       const recordsToDelete = await database.record.findMany({
         where: {
+          integration_id: integrationId,
           connection_id: connectionId,
           collection_key: collectionKey,
           external_id: { in: externalIds },
@@ -150,15 +172,18 @@ class RecordService {
   }
 
   public async deleteRecordsForCollection({
+    environmentId,
     integrationId,
     collectionKey,
   }: {
+    environmentId: string;
     integrationId: string;
     collectionKey: string;
   }): Promise<boolean> {
     try {
       const recordsToDelete = await database.record.findMany({
         where: {
+          environment_id: environmentId,
           integration_id: integrationId,
           collection_key: collectionKey,
           deleted_at: null,
@@ -188,10 +213,20 @@ class RecordService {
     }
   }
 
-  public async deleteRecordsForConnection(connectionId: string): Promise<boolean> {
+  public async deleteRecordsForConnection({
+    connectionId,
+    integrationId,
+  }: {
+    connectionId: string;
+    integrationId: string;
+  }): Promise<boolean> {
     try {
       const recordsToDelete = await database.record.findMany({
-        where: { connection_id: connectionId, deleted_at: null },
+        where: {
+          connection_id: connectionId,
+          integration_id: integrationId,
+          deleted_at: null,
+        },
         select: { id: true, external_id: true, hash: true },
       });
 

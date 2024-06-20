@@ -1,4 +1,4 @@
-import { SourceObject } from '@embed/providers';
+import { AuthScheme, SourceObject } from '@embed/providers';
 import { Invitation, Organization, OrganizationMembership, User } from '@workos-inc/node';
 
 export type WorkOSUser = User;
@@ -42,6 +42,21 @@ export type Branding = {
   };
 };
 
+export type OAuth2Credentials = {
+  type: AuthScheme.OAuth2;
+  access_token: string;
+  refresh_token: string;
+  expires_at?: Date;
+  raw: Record<string, any>;
+};
+
+export type OAuth1Credentials = {
+  type: AuthScheme.OAuth1;
+  oauth_token: string;
+  oauth_token_secret: string;
+  raw: Record<string, any>;
+};
+
 export type QueryOptions = {
   type?: 'vector' | 'hybrid' | 'keyword';
   query?: string;
@@ -51,11 +66,8 @@ export type QueryOptions = {
   alpha?: number;
 };
 
-export type ImageSearchOptions = {
-  image: string;
-  filter?: any;
-  returnProperties?: string[];
-  limit?: number;
+export type ImageSearchOptions = QueryOptions & {
+  image?: string;
 };
 
 export interface TermFilter {

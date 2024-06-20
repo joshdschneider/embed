@@ -232,6 +232,7 @@ export type HttpMethod =
 export type ResponseType = 'arraybuffer' | 'json' | 'text' | 'stream';
 
 export interface ProxyOptions {
+  integrationId: string;
   connectionId: string;
   endpoint: string;
   baseUrlOverride?: string;
@@ -243,7 +244,7 @@ export interface ProxyOptions {
   retries?: number;
 }
 
-export type InternalProxyOptions = Omit<ProxyOptions, 'connectionId'>;
+export type InternalProxyOptions = Omit<ProxyOptions, 'connectionId' | 'integrationId'>;
 
 export type MethodProxyOptions = Omit<InternalProxyOptions, 'method'>;
 

@@ -29,7 +29,11 @@ export class BaseContext {
   }
 
   public async proxy<T = any>(options: InternalProxyOptions): Promise<AxiosResponse<T>> {
-    return await proxyService.proxy<T>({ ...options, connectionId: this.connectionId });
+    return await proxyService.proxy<T>({
+      ...options,
+      connectionId: this.connectionId,
+      integrationId: this.integrationId,
+    });
   }
 
   public async get<T = any>(options: MethodProxyOptions): Promise<AxiosResponse<T>> {

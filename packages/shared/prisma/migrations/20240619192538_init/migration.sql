@@ -81,7 +81,6 @@ CREATE TABLE "SessionToken" (
     "auth_scheme" TEXT NOT NULL,
     "language" TEXT,
     "redirect_url" TEXT,
-    "display_name" TEXT,
     "configuration" JSONB,
     "inclusions" JSONB,
     "exclusions" JSONB,
@@ -105,7 +104,6 @@ CREATE TABLE "Integration" (
     "environment_id" TEXT NOT NULL,
     "is_enabled" BOOLEAN NOT NULL,
     "auth_schemes" TEXT[],
-    "display_name" TEXT,
     "is_using_test_credentials" BOOLEAN NOT NULL,
     "oauth_client_id" TEXT,
     "oauth_client_secret" TEXT,
@@ -114,9 +112,7 @@ CREATE TABLE "Integration" (
     "oauth_scopes" TEXT,
     "created_at" INTEGER NOT NULL,
     "updated_at" INTEGER NOT NULL,
-    "deleted_at" INTEGER,
-
-    CONSTRAINT "Integration_pkey" PRIMARY KEY ("id")
+    "deleted_at" INTEGER
 );
 
 -- CreateTable
@@ -125,9 +121,7 @@ CREATE TABLE "Connection" (
     "environment_id" TEXT NOT NULL,
     "integration_id" TEXT NOT NULL,
     "auth_scheme" TEXT NOT NULL,
-    "display_name" TEXT,
     "credentials" TEXT NOT NULL,
-    "credentials_hash" TEXT,
     "credentials_iv" TEXT,
     "credentials_tag" TEXT,
     "configuration" JSONB,
@@ -136,9 +130,7 @@ CREATE TABLE "Connection" (
     "metadata" JSONB,
     "created_at" INTEGER NOT NULL,
     "updated_at" INTEGER NOT NULL,
-    "deleted_at" INTEGER,
-
-    CONSTRAINT "Connection_pkey" PRIMARY KEY ("id")
+    "deleted_at" INTEGER
 );
 
 -- CreateTable
@@ -193,13 +185,14 @@ CREATE TABLE "SyncRun" (
     "id" TEXT NOT NULL,
     "collection_key" TEXT NOT NULL,
     "connection_id" TEXT NOT NULL,
+    "integration_id" TEXT NOT NULL,
     "status" TEXT NOT NULL,
     "temporal_run_id" TEXT,
     "records_added" INTEGER,
     "records_updated" INTEGER,
     "records_deleted" INTEGER,
-    "created_at" INTEGER NOT NULL,
-    "updated_at" INTEGER NOT NULL,
+    "timestamp" INTEGER NOT NULL,
+    "duration" INTEGER,
 
     CONSTRAINT "SyncRun_pkey" PRIMARY KEY ("id")
 );
@@ -209,6 +202,7 @@ CREATE TABLE "SyncSchedule" (
     "id" TEXT NOT NULL,
     "collection_key" TEXT NOT NULL,
     "connection_id" TEXT NOT NULL,
+    "integration_id" TEXT NOT NULL,
     "status" TEXT NOT NULL,
     "frequency" TEXT NOT NULL,
     "offset" INTEGER NOT NULL,
@@ -226,8 +220,11 @@ CREATE TABLE "ActionRun" (
     "integration_id" TEXT NOT NULL,
     "connection_id" TEXT NOT NULL,
     "environment_id" TEXT NOT NULL,
-    "created_at" INTEGER NOT NULL,
-    "updated_at" INTEGER NOT NULL,
+    "status" TEXT NOT NULL,
+    "input" JSONB NOT NULL,
+    "output" JSONB NOT NULL,
+    "timestamp" INTEGER NOT NULL,
+    "duration" INTEGER NOT NULL,
 
     CONSTRAINT "ActionRun_pkey" PRIMARY KEY ("id")
 );
@@ -312,22 +309,28 @@ CREATE TABLE "ActivityLog" (
 CREATE UNIQUE INDEX "ApiKey_key_hash_key" ON "ApiKey"("key_hash");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Collection_unique_key_integration_id_key" ON "Collection"("unique_key", "integration_id");
+CREATE UNIQUE INDEX "Integration_id_environment_id_key" ON "Integration"("id", "environment_id");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Action_unique_key_integration_id_key" ON "Action"("unique_key", "integration_id");
+CREATE UNIQUE INDEX "Connection_id_integration_id_key" ON "Connection"("id", "integration_id");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Sync_collection_key_connection_id_key" ON "Sync"("collection_key", "connection_id");
+CREATE UNIQUE INDEX "Collection_unique_key_integration_id_environment_id_key" ON "Collection"("unique_key", "integration_id", "environment_id");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "SyncSchedule_collection_key_connection_id_key" ON "SyncSchedule"("collection_key", "connection_id");
+CREATE UNIQUE INDEX "Action_unique_key_integration_id_environment_id_key" ON "Action"("unique_key", "integration_id", "environment_id");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Record_external_id_connection_id_collection_key_key" ON "Record"("external_id", "connection_id", "collection_key");
+CREATE UNIQUE INDEX "Sync_collection_key_connection_id_integration_id_key" ON "Sync"("collection_key", "connection_id", "integration_id");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Record_hash_connection_id_collection_key_key" ON "Record"("hash", "connection_id", "collection_key");
+CREATE UNIQUE INDEX "SyncSchedule_collection_key_connection_id_integration_id_key" ON "SyncSchedule"("collection_key", "connection_id", "integration_id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Record_external_id_collection_key_connection_id_integration_key" ON "Record"("external_id", "collection_key", "connection_id", "integration_id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Record_hash_collection_key_connection_id_integration_id_key" ON "Record"("hash", "collection_key", "connection_id", "integration_id");
 
 -- AddForeignKey
 ALTER TABLE "OrganizationMembership" ADD CONSTRAINT "OrganizationMembership_organization_id_fkey" FOREIGN KEY ("organization_id") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -351,46 +354,37 @@ ALTER TABLE "Integration" ADD CONSTRAINT "Integration_environment_id_fkey" FOREI
 ALTER TABLE "Connection" ADD CONSTRAINT "Connection_environment_id_fkey" FOREIGN KEY ("environment_id") REFERENCES "Environment"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Connection" ADD CONSTRAINT "Connection_integration_id_fkey" FOREIGN KEY ("integration_id") REFERENCES "Integration"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Connection" ADD CONSTRAINT "Connection_integration_id_environment_id_fkey" FOREIGN KEY ("integration_id", "environment_id") REFERENCES "Integration"("id", "environment_id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Collection" ADD CONSTRAINT "Collection_integration_id_fkey" FOREIGN KEY ("integration_id") REFERENCES "Integration"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Collection" ADD CONSTRAINT "Collection_integration_id_environment_id_fkey" FOREIGN KEY ("integration_id", "environment_id") REFERENCES "Integration"("id", "environment_id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Action" ADD CONSTRAINT "Action_integration_id_fkey" FOREIGN KEY ("integration_id") REFERENCES "Integration"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Action" ADD CONSTRAINT "Action_integration_id_environment_id_fkey" FOREIGN KEY ("integration_id", "environment_id") REFERENCES "Integration"("id", "environment_id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Sync" ADD CONSTRAINT "Sync_collection_key_integration_id_fkey" FOREIGN KEY ("collection_key", "integration_id") REFERENCES "Collection"("unique_key", "integration_id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Sync" ADD CONSTRAINT "Sync_collection_key_integration_id_environment_id_fkey" FOREIGN KEY ("collection_key", "integration_id", "environment_id") REFERENCES "Collection"("unique_key", "integration_id", "environment_id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Sync" ADD CONSTRAINT "Sync_connection_id_fkey" FOREIGN KEY ("connection_id") REFERENCES "Connection"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Sync" ADD CONSTRAINT "Sync_connection_id_integration_id_fkey" FOREIGN KEY ("connection_id", "integration_id") REFERENCES "Connection"("id", "integration_id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Sync" ADD CONSTRAINT "Sync_integration_id_fkey" FOREIGN KEY ("integration_id") REFERENCES "Integration"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Sync" ADD CONSTRAINT "Sync_integration_id_environment_id_fkey" FOREIGN KEY ("integration_id", "environment_id") REFERENCES "Integration"("id", "environment_id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "SyncRun" ADD CONSTRAINT "SyncRun_collection_key_connection_id_fkey" FOREIGN KEY ("collection_key", "connection_id") REFERENCES "Sync"("collection_key", "connection_id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "SyncRun" ADD CONSTRAINT "SyncRun_collection_key_connection_id_integration_id_fkey" FOREIGN KEY ("collection_key", "connection_id", "integration_id") REFERENCES "Sync"("collection_key", "connection_id", "integration_id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "SyncRun" ADD CONSTRAINT "SyncRun_connection_id_fkey" FOREIGN KEY ("connection_id") REFERENCES "Connection"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "SyncSchedule" ADD CONSTRAINT "SyncSchedule_collection_key_connection_id_integration_id_fkey" FOREIGN KEY ("collection_key", "connection_id", "integration_id") REFERENCES "Sync"("collection_key", "connection_id", "integration_id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "SyncSchedule" ADD CONSTRAINT "SyncSchedule_collection_key_connection_id_fkey" FOREIGN KEY ("collection_key", "connection_id") REFERENCES "Sync"("collection_key", "connection_id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "ActionRun" ADD CONSTRAINT "ActionRun_action_key_integration_id_environment_id_fkey" FOREIGN KEY ("action_key", "integration_id", "environment_id") REFERENCES "Action"("unique_key", "integration_id", "environment_id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "SyncSchedule" ADD CONSTRAINT "SyncSchedule_connection_id_fkey" FOREIGN KEY ("connection_id") REFERENCES "Connection"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "ActionRun" ADD CONSTRAINT "ActionRun_connection_id_integration_id_fkey" FOREIGN KEY ("connection_id", "integration_id") REFERENCES "Connection"("id", "integration_id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "ActionRun" ADD CONSTRAINT "ActionRun_action_key_integration_id_fkey" FOREIGN KEY ("action_key", "integration_id") REFERENCES "Action"("unique_key", "integration_id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "ActionRun" ADD CONSTRAINT "ActionRun_connection_id_fkey" FOREIGN KEY ("connection_id") REFERENCES "Connection"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Record" ADD CONSTRAINT "Record_collection_key_integration_id_fkey" FOREIGN KEY ("collection_key", "integration_id") REFERENCES "Collection"("unique_key", "integration_id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Record" ADD CONSTRAINT "Record_connection_id_fkey" FOREIGN KEY ("connection_id") REFERENCES "Connection"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Record" ADD CONSTRAINT "Record_connection_id_integration_id_fkey" FOREIGN KEY ("connection_id", "integration_id") REFERENCES "Connection"("id", "integration_id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Webhook" ADD CONSTRAINT "Webhook_environment_id_fkey" FOREIGN KEY ("environment_id") REFERENCES "Environment"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

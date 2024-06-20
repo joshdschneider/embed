@@ -51,6 +51,12 @@ export enum SyncRunStatus {
   Failed = 'failed',
 }
 
+export enum ActionRunStatus {
+  Running = 'running',
+  Succeeded = 'succeeded',
+  Failed = 'failed',
+}
+
 export enum SyncScheduleStatus {
   Running = 'running',
   Stopped = 'stopped',

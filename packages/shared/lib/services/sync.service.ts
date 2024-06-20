@@ -72,13 +72,21 @@ class SyncService {
 
   public async startSync(sync: Sync): Promise<Sync | null> {
     try {
-      const syncSchedule = await this.unpauseSchedule(sync.connection_id, sync.collection_key);
+      const syncSchedule = await this.unpauseSchedule({
+        connectionId: sync.connection_id,
+        integrationId: sync.integration_id,
+        collectionKey: sync.collection_key,
+      });
+
       if (!syncSchedule) {
         throw new Error('Failed to unpause sync schedule');
       }
 
-      return await this.updateSync(sync.connection_id, sync.collection_key, {
-        status: SyncStatus.Running,
+      return await this.updateSync({
+        integrationId: sync.integration_id,
+        connectionId: sync.connection_id,
+        collectionKey: sync.collection_key,
+        data: { status: SyncStatus.Running },
       });
     } catch (err) {
       await errorService.reportError(err);
@@ -88,7 +96,12 @@ class SyncService {
 
   public async stopSync(sync: Sync): Promise<Sync | null> {
     try {
-      const syncRuns = await this.listSyncRuns(sync.connection_id, sync.collection_key);
+      const syncRuns = await this.listSyncRuns({
+        integrationId: sync.integration_id,
+        connectionId: sync.connection_id,
+        collectionKey: sync.collection_key,
+      });
+
       if (!syncRuns) {
         throw new Error('Failed to get sync runs');
       }
@@ -100,13 +113,21 @@ class SyncService {
         }
       }
 
-      const syncSchedule = await this.pauseSchedule(sync.connection_id, sync.collection_key);
+      const syncSchedule = await this.pauseSchedule({
+        integrationId: sync.integration_id,
+        connectionId: sync.connection_id,
+        collectionKey: sync.collection_key,
+      });
+
       if (!syncSchedule) {
         throw new Error('Failed to unpause sync schedule');
       }
 
-      return await this.updateSync(sync.connection_id, sync.collection_key, {
-        status: SyncStatus.Stopped,
+      return await this.updateSync({
+        integrationId: sync.integration_id,
+        connectionId: sync.connection_id,
+        collectionKey: sync.collection_key,
+        data: { status: SyncStatus.Stopped },
       });
     } catch (err) {
       await errorService.reportError(err);
@@ -116,16 +137,22 @@ class SyncService {
 
   public async triggerSync(sync: Sync): Promise<Sync | null> {
     try {
-      const syncSchedule = await this.getSyncSchedule(sync.connection_id, sync.collection_key);
+      const syncSchedule = await this.getSyncSchedule({
+        connectionId: sync.connection_id,
+        integrationId: sync.integration_id,
+        collectionKey: sync.collection_key,
+      });
+
       if (!syncSchedule) {
         throw new Error('Sync schedule does not exist');
       }
 
       const temporal = await TemporalClient.getInstance();
-      const temporalSyncScheduleId = TemporalClient.generateSyncScheduleId(
-        sync.connection_id,
-        sync.collection_key
-      );
+      const temporalSyncScheduleId = TemporalClient.generateSyncScheduleId({
+        integrationId: sync.integration_id,
+        connectionId: sync.connection_id,
+        collectionKey: sync.collection_key,
+      });
 
       const didTrigger = await temporal.triggerSyncSchedule(temporalSyncScheduleId);
       if (!didTrigger) {
@@ -139,13 +166,24 @@ class SyncService {
     }
   }
 
-  public async updateSyncFrequency(
-    connectionId: string,
-    collectionKey: string,
-    frequency: SyncFrequency
-  ): Promise<Sync | null> {
+  public async updateSyncFrequency({
+    integrationId,
+    connectionId,
+    collectionKey,
+    frequency,
+  }: {
+    integrationId: string;
+    connectionId: string;
+    collectionKey: string;
+    frequency: SyncFrequency;
+  }): Promise<Sync | null> {
     try {
-      const syncSchedule = await this.getSyncSchedule(connectionId, collectionKey);
+      const syncSchedule = await this.getSyncSchedule({
+        connectionId,
+        collectionKey,
+        integrationId,
+      });
+
       if (!syncSchedule) {
         throw new Error('Sync schedule not found');
       }
@@ -153,10 +191,11 @@ class SyncService {
       const { interval, offset } = getFrequencyInterval(frequency, new Date());
 
       const temporal = await TemporalClient.getInstance();
-      const temporalSyncScheduleId = TemporalClient.generateSyncScheduleId(
+      const temporalSyncScheduleId = TemporalClient.generateSyncScheduleId({
+        integrationId,
         connectionId,
-        collectionKey
-      );
+        collectionKey,
+      });
 
       const didUpdate = await temporal.updateSyncSchedule(temporalSyncScheduleId, interval, offset);
       if (!didUpdate) {
@@ -172,7 +211,12 @@ class SyncService {
         throw new Error('Failed to update sync schedule in database');
       }
 
-      return await this.updateSync(connectionId, collectionKey, { frequency });
+      return await this.updateSync({
+        integrationId,
+        connectionId,
+        collectionKey,
+        data: { frequency },
+      });
     } catch (err) {
       await errorService.reportError(err);
       return null;
@@ -188,8 +232,11 @@ class SyncService {
     results: { records_added: number; records_updated: number; records_deleted: number };
     activityId: string | null;
   }): Promise<void> {
-    await this.updateSync(sync.connection_id, sync.collection_key, {
-      last_synced_at: now(),
+    await this.updateSync({
+      integrationId: sync.integration_id,
+      connectionId: sync.connection_id,
+      collectionKey: sync.collection_key,
+      data: { last_synced_at: now() },
     });
 
     webhookService.sendSyncWebhook({
@@ -209,9 +256,17 @@ class SyncService {
     activityId: string | null;
     reason?: string;
   }): Promise<void> {
-    await this.pauseSchedule(sync.connection_id, sync.collection_key);
-    await this.updateSync(sync.connection_id, sync.collection_key, {
-      status: SyncStatus.Error,
+    await this.pauseSchedule({
+      integrationId: sync.integration_id,
+      connectionId: sync.connection_id,
+      collectionKey: sync.collection_key,
+    });
+
+    await this.updateSync({
+      integrationId: sync.integration_id,
+      connectionId: sync.connection_id,
+      collectionKey: sync.collection_key,
+      data: { status: SyncStatus.Error },
     });
 
     webhookService.sendSyncWebhook({
@@ -222,17 +277,24 @@ class SyncService {
     });
   }
 
-  public async updateSync(
-    connectionId: string,
-    collectionKey: string,
-    data: Partial<Sync>
-  ): Promise<Sync | null> {
+  public async updateSync({
+    integrationId,
+    connectionId,
+    collectionKey,
+    data,
+  }: {
+    integrationId: string;
+    connectionId: string;
+    collectionKey: string;
+    data: Partial<Sync>;
+  }): Promise<Sync | null> {
     try {
       return await database.sync.update({
         where: {
-          collection_key_connection_id: {
-            connection_id: connectionId,
+          collection_key_connection_id_integration_id: {
             collection_key: collectionKey,
+            connection_id: connectionId,
+            integration_id: integrationId,
           },
           deleted_at: null,
         },
@@ -244,10 +306,16 @@ class SyncService {
     }
   }
 
-  public async listSyncs(connectionId: string): Promise<Sync[] | null> {
+  public async listSyncs({
+    integrationId,
+    connectionId,
+  }: {
+    integrationId: string;
+    connectionId: string;
+  }): Promise<Sync[] | null> {
     try {
       return await database.sync.findMany({
-        where: { connection_id: connectionId, deleted_at: null },
+        where: { integration_id: integrationId, connection_id: connectionId, deleted_at: null },
       });
     } catch (err) {
       await errorService.reportError(err);
@@ -276,13 +344,22 @@ class SyncService {
     }
   }
 
-  public async retrieveSync(connectionId: string, collectionKey: string): Promise<Sync | null> {
+  public async retrieveSync({
+    integrationId,
+    connectionId,
+    collectionKey,
+  }: {
+    integrationId: string;
+    connectionId: string;
+    collectionKey: string;
+  }): Promise<Sync | null> {
     try {
       return await database.sync.findUnique({
         where: {
-          collection_key_connection_id: {
+          collection_key_connection_id_integration_id: {
             connection_id: connectionId,
             collection_key: collectionKey,
+            integration_id: integrationId,
           },
           deleted_at: null,
         },
@@ -293,16 +370,22 @@ class SyncService {
     }
   }
 
-  public async getLastSyncedAt(
-    connectionId: string,
-    collectionKey: string
-  ): Promise<number | null> {
+  public async getLastSyncedAt({
+    integrationId,
+    connectionId,
+    collectionKey,
+  }: {
+    integrationId: string;
+    connectionId: string;
+    collectionKey: string;
+  }): Promise<number | null> {
     try {
       const sync = await database.sync.findUnique({
         where: {
-          collection_key_connection_id: {
+          collection_key_connection_id_integration_id: {
             connection_id: connectionId,
             collection_key: collectionKey,
+            integration_id: integrationId,
           },
           deleted_at: null,
         },
@@ -320,15 +403,21 @@ class SyncService {
     try {
       const existingSync = await database.sync.findUnique({
         where: {
-          collection_key_connection_id: {
+          collection_key_connection_id_integration_id: {
             collection_key: sync.collection_key,
             connection_id: sync.connection_id,
+            integration_id: sync.integration_id,
           },
         },
       });
 
       if (existingSync) {
-        return await this.updateSync(sync.connection_id, sync.collection_key, { ...sync });
+        return await this.updateSync({
+          integrationId: sync.integration_id,
+          connectionId: sync.connection_id,
+          collectionKey: sync.collection_key,
+          data: { ...sync },
+        });
       }
 
       return await database.sync.create({ data: sync });
@@ -338,48 +427,46 @@ class SyncService {
     }
   }
 
-  public async listSyncRuns(
-    connectionId: string,
-    collectionKey: string
-  ): Promise<(SyncRun & { integration_id: string })[] | null> {
+  public async listSyncRuns({
+    integrationId,
+    connectionId,
+    collectionKey,
+  }: {
+    integrationId: string;
+    connectionId: string;
+    collectionKey: string;
+  }): Promise<(SyncRun & { integration_id: string })[] | null> {
     try {
       const syncRuns = await database.syncRun.findMany({
         where: {
+          integration_id: integrationId,
           connection_id: connectionId,
           collection_key: collectionKey,
         },
-        include: { connection: { select: { integration_id: true } } },
       });
 
       if (!syncRuns) {
         return null;
       }
 
-      return syncRuns.map((run) => {
-        const { connection, ...rest } = run;
-        return { ...rest, integration_id: connection.integration_id };
-      });
+      return syncRuns;
     } catch (err) {
       await errorService.reportError(err);
       return null;
     }
   }
 
-  public async retrieveSyncRun(
-    syncRunId: string
-  ): Promise<(SyncRun & { integration_id: string }) | null> {
+  public async retrieveSyncRun(syncRunId: string): Promise<SyncRun | null> {
     try {
       const syncRun = await database.syncRun.findUnique({
         where: { id: syncRunId },
-        include: { connection: { select: { integration_id: true } } },
       });
 
       if (!syncRun) {
         return null;
       }
 
-      const { connection, ...rest } = syncRun;
-      return { ...rest, integration_id: connection.integration_id };
+      return syncRun;
     } catch (err) {
       await errorService.reportError(err);
       return null;
@@ -426,9 +513,10 @@ class SyncService {
     try {
       const existingSyncSchedule = await database.syncSchedule.findUnique({
         where: {
-          collection_key_connection_id: {
+          collection_key_connection_id_integration_id: {
             collection_key: sync.collection_key,
             connection_id: sync.connection_id,
+            integration_id: sync.integration_id,
           },
         },
       });
@@ -455,6 +543,7 @@ class SyncService {
         syncSchedule = await database.syncSchedule.create({
           data: {
             id: generateId(Resource.SyncSchedule),
+            integration_id: sync.integration_id,
             connection_id: sync.connection_id,
             collection_key: sync.collection_key,
             frequency: interval,
@@ -468,10 +557,11 @@ class SyncService {
       }
 
       const temporal = await TemporalClient.getInstance();
-      const temporalSyncScheduleId = TemporalClient.generateSyncScheduleId(
-        sync.connection_id,
-        sync.collection_key
-      );
+      const temporalSyncScheduleId = TemporalClient.generateSyncScheduleId({
+        integrationId: sync.integration_id,
+        connectionId: sync.connection_id,
+        collectionKey: sync.collection_key,
+      });
 
       const scheduleHandle = await temporal.createSyncSchedule(
         temporalSyncScheduleId,
@@ -497,21 +587,32 @@ class SyncService {
     }
   }
 
-  private async unpauseSchedule(
-    connectionId: string,
-    collectionKey: string
-  ): Promise<SyncSchedule | null> {
+  private async unpauseSchedule({
+    connectionId,
+    integrationId,
+    collectionKey,
+  }: {
+    connectionId: string;
+    integrationId: string;
+    collectionKey: string;
+  }): Promise<SyncSchedule | null> {
     try {
-      const syncSchedule = await this.getSyncSchedule(connectionId, collectionKey);
+      const syncSchedule = await this.getSyncSchedule({
+        integrationId,
+        connectionId,
+        collectionKey,
+      });
+
       if (!syncSchedule) {
         throw new Error('Sync schedule not found');
       }
 
       const temporal = await TemporalClient.getInstance();
-      const temporalSyncScheduleId = TemporalClient.generateSyncScheduleId(
+      const temporalSyncScheduleId = TemporalClient.generateSyncScheduleId({
+        integrationId,
         connectionId,
-        collectionKey
-      );
+        collectionKey,
+      });
 
       const scheduleHandle = await temporal.getSyncScheduleHandle(temporalSyncScheduleId);
       if (!scheduleHandle) {
@@ -530,21 +631,32 @@ class SyncService {
     }
   }
 
-  private async pauseSchedule(
-    connectionId: string,
-    collectionKey: string
-  ): Promise<SyncSchedule | null> {
+  private async pauseSchedule({
+    integrationId,
+    connectionId,
+    collectionKey,
+  }: {
+    integrationId: string;
+    connectionId: string;
+    collectionKey: string;
+  }): Promise<SyncSchedule | null> {
     try {
-      const syncSchedule = await this.getSyncSchedule(connectionId, collectionKey);
+      const syncSchedule = await this.getSyncSchedule({
+        integrationId,
+        connectionId,
+        collectionKey,
+      });
+
       if (!syncSchedule) {
         throw new Error('Sync schedule not found');
       }
 
       const temporal = await TemporalClient.getInstance();
-      const temporalSyncScheduleId = TemporalClient.generateSyncScheduleId(
+      const temporalSyncScheduleId = TemporalClient.generateSyncScheduleId({
+        integrationId,
         connectionId,
-        collectionKey
-      );
+        collectionKey,
+      });
 
       const scheduleHandle = await temporal.getSyncScheduleHandle(temporalSyncScheduleId);
       if (!scheduleHandle) {
@@ -577,16 +689,22 @@ class SyncService {
     }
   }
 
-  public async getSyncSchedule(
-    connectionId: string,
-    collectionKey: string
-  ): Promise<SyncSchedule | null> {
+  public async getSyncSchedule({
+    integrationId,
+    connectionId,
+    collectionKey,
+  }: {
+    integrationId: string;
+    connectionId: string;
+    collectionKey: string;
+  }): Promise<SyncSchedule | null> {
     try {
       return await database.syncSchedule.findUnique({
         where: {
-          collection_key_connection_id: {
+          collection_key_connection_id_integration_id: {
             collection_key: collectionKey,
             connection_id: connectionId,
+            integration_id: integrationId,
           },
           deleted_at: null,
         },
@@ -610,15 +728,22 @@ class SyncService {
 
   public async deleteSync(sync: Sync): Promise<Sync | null> {
     try {
+      const integrationId = sync.integration_id;
       const connectionId = sync.connection_id;
       const collectionKey = sync.collection_key;
       const temporal = await TemporalClient.getInstance();
-      const temporalSyncScheduleId = TemporalClient.generateSyncScheduleId(
+      const temporalSyncScheduleId = TemporalClient.generateSyncScheduleId({
         connectionId,
-        collectionKey
-      );
+        collectionKey,
+        integrationId,
+      });
 
-      const syncSchedule = await this.getSyncSchedule(connectionId, collectionKey);
+      const syncSchedule = await this.getSyncSchedule({
+        connectionId,
+        collectionKey,
+        integrationId,
+      });
+
       if (syncSchedule) {
         await temporal.deleteSyncSchedule(temporalSyncScheduleId);
         await this.updateSyncSchedule(syncSchedule.id, {
@@ -627,7 +752,12 @@ class SyncService {
         });
       }
 
-      const syncRuns = await this.listSyncRuns(connectionId, collectionKey);
+      const syncRuns = await this.listSyncRuns({
+        integrationId,
+        connectionId,
+        collectionKey,
+      });
+
       if (!syncRuns) {
         throw new Error('Failed to get sync runs');
       }
@@ -638,9 +768,11 @@ class SyncService {
         }
       }
 
-      return await this.updateSync(connectionId, collectionKey, {
-        status: SyncStatus.Stopped,
-        deleted_at: now(),
+      return await this.updateSync({
+        integrationId,
+        connectionId,
+        collectionKey,
+        data: { status: SyncStatus.Stopped, deleted_at: now() },
       });
     } catch (err) {
       await errorService.reportError(err);
