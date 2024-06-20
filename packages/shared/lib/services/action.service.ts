@@ -4,10 +4,22 @@ import { now } from '../utils/helpers';
 import errorService from './error.service';
 
 class ActionService {
-  public async listActions(integrationId: string): Promise<Action[] | null> {
+  public async listActions({
+    integrationId,
+    environmentId,
+  }: {
+    integrationId: string;
+    environmentId: string;
+  }): Promise<Action[] | null> {
     try {
       const integration = await database.integration.findUnique({
-        where: { id: integrationId, deleted_at: null },
+        where: {
+          id_environment_id: {
+            id: integrationId,
+            environment_id: environmentId,
+          },
+          deleted_at: null,
+        },
         select: { actions: true },
       });
 
@@ -22,13 +34,22 @@ class ActionService {
     }
   }
 
-  public async retrieveAction(actionKey: string, integrationId: string): Promise<Action | null> {
+  public async retrieveAction({
+    actionKey,
+    integrationId,
+    environmentId,
+  }: {
+    actionKey: string;
+    integrationId: string;
+    environmentId: string;
+  }): Promise<Action | null> {
     try {
       return await database.action.findUnique({
         where: {
-          unique_key_integration_id: {
+          unique_key_integration_id_environment_id: {
             unique_key: actionKey,
             integration_id: integrationId,
+            environment_id: environmentId,
           },
           deleted_at: null,
         },
@@ -56,17 +77,24 @@ class ActionService {
     }
   }
 
-  public async updateAction(
-    actionKey: string,
-    integrationId: string,
-    data: Partial<Action>
-  ): Promise<Action | null> {
+  public async updateAction({
+    actionKey,
+    integrationId,
+    environmentId,
+    data,
+  }: {
+    actionKey: string;
+    integrationId: string;
+    environmentId: string;
+    data: Partial<Action>;
+  }): Promise<Action | null> {
     try {
       return await database.action.update({
         where: {
-          unique_key_integration_id: {
+          unique_key_integration_id_environment_id: {
             unique_key: actionKey,
             integration_id: integrationId,
+            environment_id: environmentId,
           },
           deleted_at: null,
         },
@@ -82,40 +110,22 @@ class ActionService {
     }
   }
 
-  public async listIntegrationActionRuns(
-    actionKey: string,
-    integrationId: string
-  ): Promise<ActionRun[] | null> {
-    try {
-      const action = await database.action.findUnique({
-        where: {
-          unique_key_integration_id: {
-            unique_key: actionKey,
-            integration_id: integrationId,
-          },
-          deleted_at: null,
-        },
-        select: { runs: true },
-      });
-
-      if (!action) {
-        return null;
-      }
-
-      return action.runs;
-    } catch (err) {
-      await errorService.reportError(err);
-      return null;
-    }
-  }
-
-  public async deleteAction(actionKey: string, integrationId: string): Promise<boolean> {
+  public async deleteAction({
+    actionKey,
+    integrationId,
+    environmentId,
+  }: {
+    actionKey: string;
+    integrationId: string;
+    environmentId: string;
+  }): Promise<boolean> {
     try {
       await database.action.update({
         where: {
-          unique_key_integration_id: {
+          unique_key_integration_id_environment_id: {
             unique_key: actionKey,
             integration_id: integrationId,
+            environment_id: environmentId,
           },
           deleted_at: null,
         },
@@ -128,13 +138,25 @@ class ActionService {
     }
   }
 
-  public async listConnectionActionRuns(
-    actionKey: string,
-    connectionId: string
-  ): Promise<ActionRun[] | null> {
+  public async listActionRuns({
+    actionKey,
+    connectionId,
+    integrationId,
+    environmentId,
+  }: {
+    actionKey: string;
+    connectionId: string;
+    integrationId: string;
+    environmentId: string;
+  }): Promise<ActionRun[] | null> {
     try {
       return await database.actionRun.findMany({
-        where: { connection_id: connectionId, action_key: actionKey },
+        where: {
+          connection_id: connectionId,
+          integration_id: integrationId,
+          action_key: actionKey,
+          environment_id: environmentId,
+        },
       });
     } catch (err) {
       await errorService.reportError(err);

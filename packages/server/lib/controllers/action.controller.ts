@@ -1,5 +1,7 @@
 import {
+  ActionRunStatus,
   DEFAULT_ERROR_MESSAGE,
+  ENVIRONMENT_ID_LOCALS_KEY,
   ErrorCode,
   actionService,
   errorService,
@@ -12,15 +14,20 @@ import { ActionObject, ActionRunObject } from '../utils/types';
 class ActionController {
   public async listActions(req: Request, res: Response) {
     try {
-      const integrationId = req.params['integration_id'];
-      if (!integrationId) {
+      const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
+      const integrationId = req.query['integration_id'];
+      if (!integrationId || typeof integrationId !== 'string') {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
-          message: 'Integration ID missing',
+          message: 'Integration ID missing or invalid',
         });
       }
 
-      const actions = await actionService.listActions(integrationId);
+      const actions = await actionService.listActions({
+        environmentId,
+        integrationId,
+      });
+
       if (!actions) {
         return errorService.errorResponse(res, {
           code: ErrorCode.InternalServerError,
@@ -35,6 +42,7 @@ class ActionController {
           integration_id: action.integration_id,
           provider_key: action.provider_key,
           is_enabled: action.is_enabled,
+          configuration: action.configuration as Record<string, any> | null,
           created_at: action.created_at,
           updated_at: action.updated_at,
         };
@@ -53,13 +61,14 @@ class ActionController {
 
   public async retrieveAction(req: Request, res: Response) {
     try {
-      const integrationId = req.params['integration_id'];
+      const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
+      const integrationId = req.query['integration_id'];
       const actionKey = req.params['action_key'];
 
-      if (!integrationId) {
+      if (!integrationId || typeof integrationId !== 'string') {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
-          message: 'Integration ID missing',
+          message: 'Integration ID missing or invalid',
         });
       } else if (!actionKey) {
         return errorService.errorResponse(res, {
@@ -68,7 +77,12 @@ class ActionController {
         });
       }
 
-      const action = await actionService.retrieveAction(actionKey, integrationId);
+      const action = await actionService.retrieveAction({
+        actionKey,
+        integrationId,
+        environmentId,
+      });
+
       if (!action) {
         return errorService.errorResponse(res, {
           code: ErrorCode.NotFound,
@@ -82,6 +96,7 @@ class ActionController {
         integration_id: action.integration_id,
         provider_key: action.provider_key,
         is_enabled: action.is_enabled,
+        configuration: action.configuration as Record<string, any> | null,
         created_at: action.created_at,
         updated_at: action.updated_at,
       };
@@ -99,13 +114,14 @@ class ActionController {
 
   public async enableAction(req: Request, res: Response) {
     try {
-      const integrationId = req.params['integration_id'];
+      const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
+      const integrationId = req.query['integration_id'];
       const actionKey = req.params['action_key'];
 
-      if (!integrationId) {
+      if (!integrationId || typeof integrationId !== 'string') {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
-          message: 'Integration ID missing',
+          message: 'Integration ID missing or invalid',
         });
       } else if (!actionKey) {
         return errorService.errorResponse(res, {
@@ -114,8 +130,11 @@ class ActionController {
         });
       }
 
-      const updatedAction = await actionService.updateAction(actionKey, integrationId, {
-        is_enabled: true,
+      const updatedAction = await actionService.updateAction({
+        actionKey,
+        integrationId,
+        environmentId,
+        data: { is_enabled: true },
       });
 
       if (!updatedAction) {
@@ -131,6 +150,7 @@ class ActionController {
         integration_id: updatedAction.integration_id,
         provider_key: updatedAction.provider_key,
         is_enabled: updatedAction.is_enabled,
+        configuration: updatedAction.configuration as Record<string, any> | null,
         created_at: updatedAction.created_at,
         updated_at: updatedAction.updated_at,
       };
@@ -148,13 +168,14 @@ class ActionController {
 
   public async disableAction(req: Request, res: Response) {
     try {
-      const integrationId = req.params['integration_id'];
+      const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
+      const integrationId = req.query['integration_id'];
       const actionKey = req.params['action_key'];
 
-      if (!integrationId) {
+      if (!integrationId || typeof integrationId !== 'string') {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
-          message: 'Integration ID missing',
+          message: 'Integration ID missing or invalid',
         });
       } else if (!actionKey) {
         return errorService.errorResponse(res, {
@@ -163,8 +184,11 @@ class ActionController {
         });
       }
 
-      const updatedAction = await actionService.updateAction(actionKey, integrationId, {
-        is_enabled: false,
+      const updatedAction = await actionService.updateAction({
+        actionKey,
+        integrationId,
+        environmentId,
+        data: { is_enabled: false },
       });
 
       if (!updatedAction) {
@@ -179,6 +203,7 @@ class ActionController {
         unique_key: updatedAction.unique_key,
         integration_id: updatedAction.integration_id,
         provider_key: updatedAction.provider_key,
+        configuration: updatedAction.configuration as Record<string, any> | null,
         is_enabled: updatedAction.is_enabled,
         created_at: updatedAction.created_at,
         updated_at: updatedAction.updated_at,
@@ -197,15 +222,16 @@ class ActionController {
 
   public async listActionSchemas(req: Request, res: Response) {
     try {
-      const integrationId = req.params['integration_id'];
-      if (!integrationId) {
+      const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
+      const integrationId = req.query['integration_id'];
+      if (!integrationId || typeof integrationId !== 'string') {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
-          message: 'Integration ID missing',
+          message: 'Integration ID missing or invalid',
         });
       }
 
-      const integration = await integrationService.getIntegrationById(integrationId);
+      const integration = await integrationService.getIntegrationById(integrationId, environmentId);
       if (!integration) {
         return errorService.errorResponse(res, {
           code: ErrorCode.NotFound,
@@ -238,13 +264,14 @@ class ActionController {
 
   public async retrieveActionSchema(req: Request, res: Response) {
     try {
-      const integrationId = req.params['integration_id'];
+      const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
+      const integrationId = req.query['integration_id'];
       const actionKey = req.params['action_key'];
 
-      if (!integrationId) {
+      if (!integrationId || typeof integrationId !== 'string') {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
-          message: 'Integration ID missing',
+          message: 'Integration ID missing or invalid',
         });
       } else if (!actionKey) {
         return errorService.errorResponse(res, {
@@ -253,7 +280,7 @@ class ActionController {
         });
       }
 
-      const integration = await integrationService.getIntegrationById(integrationId);
+      const integration = await integrationService.getIntegrationById(integrationId, environmentId);
       if (!integration) {
         return errorService.errorResponse(res, {
           code: ErrorCode.NotFound,
@@ -292,6 +319,28 @@ class ActionController {
 
   public async triggerAction(req: Request, res: Response) {
     try {
+      const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
+      const integrationId = req.query['integration_id'];
+      const connectionId = req.query['connection_id'];
+      const actionKey = req.params['action_key'];
+
+      if (!integrationId || typeof integrationId !== 'string') {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.BadRequest,
+          message: 'Integration ID missing or invalid',
+        });
+      } else if (!connectionId || typeof connectionId !== 'string') {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.BadRequest,
+          message: 'Connection ID missing or invalid',
+        });
+      } else if (!actionKey) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.BadRequest,
+          message: 'Action unique key missing',
+        });
+      }
+
       //..
     } catch (err) {
       await errorService.reportError(err);
@@ -305,13 +354,20 @@ class ActionController {
 
   public async listActionRuns(req: Request, res: Response) {
     try {
-      const connectionId = req.params['connection_id'];
+      const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
+      const integrationId = req.query['integration_id'];
+      const connectionId = req.query['connection_id'];
       const actionKey = req.params['action_key'];
 
-      if (!connectionId) {
+      if (!integrationId || typeof integrationId !== 'string') {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
-          message: 'Connection ID missing',
+          message: 'Integration ID missing or invalid',
+        });
+      } else if (!connectionId || typeof connectionId !== 'string') {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.BadRequest,
+          message: 'Connection ID missing or invalid',
         });
       } else if (!actionKey) {
         return errorService.errorResponse(res, {
@@ -320,7 +376,13 @@ class ActionController {
         });
       }
 
-      const actionRuns = await actionService.listConnectionActionRuns(actionKey, connectionId);
+      const actionRuns = await actionService.listActionRuns({
+        actionKey,
+        environmentId,
+        integrationId,
+        connectionId,
+      });
+
       if (!actionRuns) {
         return errorService.errorResponse(res, {
           code: ErrorCode.InternalServerError,
@@ -331,11 +393,15 @@ class ActionController {
       const actionRunObjects: ActionRunObject[] = actionRuns.map((actionRun) => {
         return {
           object: 'action_run',
+          id: actionRun.id,
           action_key: actionRun.action_key,
           integration_id: actionRun.integration_id,
           connection_id: actionRun.connection_id,
-          created_at: actionRun.created_at,
-          updated_at: actionRun.updated_at,
+          input: actionRun.input as Record<string, any>,
+          output: actionRun.output as Record<string, any>,
+          status: actionRun.status as ActionRunStatus,
+          duration: actionRun.duration,
+          timestamp: actionRun.timestamp,
         };
       });
 
@@ -352,7 +418,7 @@ class ActionController {
 
   public async retrieveActionRun(req: Request, res: Response) {
     try {
-      const actionRunId = req.params['run_id'];
+      const actionRunId = req.params['action_run_id'];
       if (!actionRunId) {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
@@ -370,11 +436,15 @@ class ActionController {
 
       const actionRunObject: ActionRunObject = {
         object: 'action_run',
+        id: actionRun.id,
         action_key: actionRun.action_key,
         integration_id: actionRun.integration_id,
         connection_id: actionRun.connection_id,
-        created_at: actionRun.created_at,
-        updated_at: actionRun.updated_at,
+        input: actionRun.input as Record<string, any>,
+        output: actionRun.output as Record<string, any>,
+        status: actionRun.status as ActionRunStatus,
+        duration: actionRun.duration,
+        timestamp: actionRun.timestamp,
       };
 
       res.status(200).json(actionRunObject);

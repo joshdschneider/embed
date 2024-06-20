@@ -26,7 +26,7 @@ webRouter
 
 webRouter
   .route('/users/:user_id')
-  .post(
+  .put(
     authMiddleware.webUserAuth.bind(authMiddleware),
     userController.updateProfile.bind(userController)
   );
@@ -53,11 +53,11 @@ webRouter
 
 webRouter
   .route('/environments/:environment_id')
-  .post(environmentController.modifyEnvironment.bind(environmentController));
+  .put(environmentController.modifyEnvironment.bind(environmentController));
 
 webRouter
   .route('/organizations/:organization_id')
-  .post(organizationController.updateOrganization.bind(organizationController));
+  .put(organizationController.updateOrganization.bind(organizationController));
 
 webRouter
   .route('/organizations/:organization_id/members')
@@ -81,7 +81,7 @@ webRouter.route('/api-keys').post(apiKeyController.generateApiKey.bind(apiKeyCon
 
 webRouter.route('/api-keys').get(apiKeyController.listApiKeys.bind(apiKeyController));
 
-webRouter.route('/api-keys/:api_key_id').post(apiKeyController.updateApiKey.bind(apiKeyController));
+webRouter.route('/api-keys/:api_key_id').put(apiKeyController.updateApiKey.bind(apiKeyController));
 
 webRouter
   .route('/api-keys/:api_key_id')
