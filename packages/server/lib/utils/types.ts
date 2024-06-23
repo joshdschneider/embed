@@ -3,6 +3,7 @@ import {
   ActionRunStatus,
   Branding,
   DEFAULT_LIMIT,
+  EnvironmentType,
   LogAction,
   LogLevel,
   SyncFrequency,
@@ -10,11 +11,6 @@ import {
   SyncStatus,
 } from '@embed/shared';
 import { z } from 'zod';
-
-export enum EnvironmentType {
-  Staging = 'staging',
-  Production = 'production',
-}
 
 export interface DefaultTemplateData {
   branding: Branding;

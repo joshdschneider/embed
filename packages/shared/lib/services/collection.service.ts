@@ -3,10 +3,11 @@ import ElasticClient from '../clients/elastic.client';
 import { database } from '../utils/database';
 import { MultimodalEmbeddingModel, SyncStatus, TextEmbeddingModel } from '../utils/enums';
 import { now } from '../utils/helpers';
-import { ImageSearchOptions, QueryOptions } from '../utils/types';
+import { ImageSearchOptions, QueryOptions, UsageType } from '../utils/types';
 import errorService from './error.service';
 import recordService from './record.service';
 import syncService from './sync.service';
+import usageService from './usage.service';
 
 class CollectionService {
   public async listCollections({
@@ -111,12 +112,22 @@ class CollectionService {
   }) {
     try {
       const elastic = ElasticClient.getInstance();
-      return await elastic.query({
+      const results = await elastic.query({
         connection,
         collectionKey,
         providerKey,
         queryOptions,
       });
+
+      usageService.reportUsage({
+        usageType: UsageType.Query,
+        queryType: 'text',
+        environmentId: connection.environment_id,
+        integrationId: connection.integration_id,
+        connectionId: connection.id,
+      });
+
+      return results;
     } catch (err) {
       await errorService.reportError(err);
       return null;
@@ -136,12 +147,22 @@ class CollectionService {
   }) {
     try {
       const elastic = ElasticClient.getInstance();
-      return await elastic.imageSearch({
+      const results = await elastic.imageSearch({
         connection,
         providerKey,
         collectionKey,
         imageSearchOptions,
       });
+
+      usageService.reportUsage({
+        usageType: UsageType.Query,
+        queryType: 'image',
+        environmentId: connection.environment_id,
+        integrationId: connection.integration_id,
+        connectionId: connection.id,
+      });
+
+      return results;
     } catch (err) {
       await errorService.reportError(err);
       return null;

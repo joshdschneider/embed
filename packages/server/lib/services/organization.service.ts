@@ -1,15 +1,28 @@
 import type { Organization, OrganizationMembership, User, WorkOSInvitation } from '@embed/shared';
-import { database, errorService, getWorkOS, now } from '@embed/shared';
+import { billingService, database, errorService, getWorkOS, now } from '@embed/shared';
 
 class OrganizationService {
   public async createOrganization(organizationName: string): Promise<Organization | null> {
     try {
       const workos = getWorkOS();
-      const workosOrg = await workos.organizations.createOrganization({ name: organizationName });
+      const workosOrg = await workos.organizations.createOrganization({
+        name: organizationName,
+      });
+
+      const stripeCustomer = await billingService.createCustomer({
+        name: organizationName,
+        organizationId: workosOrg.id,
+      });
+
+      if (!stripeCustomer) {
+        return null;
+      }
+
       return await database.organization.create({
         data: {
           id: workosOrg.id,
           name: workosOrg.name,
+          stripe_id: stripeCustomer,
           created_at: now(),
           updated_at: now(),
           deleted_at: null,

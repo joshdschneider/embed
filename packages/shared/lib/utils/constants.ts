@@ -1,9 +1,11 @@
 import { BedrockRuntimeClient } from '@aws-sdk/client-bedrock-runtime';
+import { createClient } from '@deepgram/sdk';
 import WorkOS from '@workos-inc/node';
 import { CohereClient } from 'cohere-ai';
 import { GoogleAuth } from 'google-auth-library';
 import OpenAI from 'openai';
 import { MultimodalEmbeddingModel, SyncFrequency, TextEmbeddingModel } from './enums';
+import { StripePriceIdsSchema } from './types';
 
 export function getServerUrl() {
   return process.env['SERVER_URL'];
@@ -77,6 +79,29 @@ export function getWorkOS(): WorkOS {
   }
 
   return new WorkOS(apiKey);
+}
+
+export function getStripeApiKey() {
+  return process.env['STRIPE_API_KEY'];
+}
+
+export function getStripeDefaultPriceIds() {
+  const priceIds = process.env['STRIPE_DEFAULT_PRICE_IDS'];
+  if (!priceIds) {
+    throw new Error('Stripe default price IDs not set');
+  }
+
+  const parsedPriceIds = JSON.parse(priceIds);
+  return StripePriceIdsSchema.parse(parsedPriceIds);
+}
+
+export function getDeepgramInstance() {
+  const apiKey = process.env['DEEPGRAM_API_KEY'];
+  if (!apiKey) {
+    throw new Error('Deepgram API key not set');
+  }
+
+  return createClient(apiKey);
 }
 
 export function getOpenai(): OpenAI {
@@ -161,6 +186,8 @@ export const DEFAULT_LIMIT = 20;
 
 export const SYNC_TASK_QUEUE = 'syncs';
 export const ACTION_TASK_QUEUE = 'actions';
+
+export const MAX_CONNECTIONS_IN_STAGING = 3;
 
 export const DEFAULT_TEXT_EMBEDDING_MODEL = TextEmbeddingModel.OpenaiTextEmbedding3Small;
 export const DEFAULT_MULTIMODAL_EMBEDDING_MODEL = MultimodalEmbeddingModel.AmazonTitanMultimodalG1;

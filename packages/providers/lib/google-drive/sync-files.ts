@@ -1,11 +1,9 @@
-import { backOff } from 'exponential-backoff';
 import { DocxLoader } from 'langchain/document_loaders/fs/docx';
 import { PDFLoader } from 'langchain/document_loaders/fs/pdf';
 import { PPTXLoader } from 'langchain/document_loaders/fs/pptx';
 import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
 import { z } from 'zod';
 import { InternalProxyOptions, SyncContext } from '../types';
-import { getDeepgramInstance } from '../utils';
 
 const FileChunkSchema = z.object({
   chunk: z.string(),
@@ -166,6 +164,12 @@ async function processFile(file: GoogleDriveFile, context: SyncContext): Promise
     case 'audio/webm':
       const audioChunks = await processAudio(file, context);
       return { ...fileObj, content: audioChunks.map((chunk) => ({ chunk })) };
+
+    // add rest
+    case 'video/mp4':
+    case 'video/webm':
+      const videoChunks = await processVideo(file, context);
+      return { ...fileObj, content: videoChunks.map((chunk) => ({ chunk })) };
 
     default:
       return fileObj;
@@ -406,34 +410,34 @@ async function processAudio(file: GoogleDriveFile, context: SyncContext): Promis
     });
 
     const buffer = Buffer.from(response.data, 'binary');
-    const deepgram = getDeepgramInstance();
+    return await context.processAudio(buffer);
+  } catch (err) {
+    await context.createActivityLog({
+      level: 'warn',
+      message: 'Failed to process audio file',
+      payload: { file },
+    });
 
-    const { result, error } = await backOff(
-      () => {
-        return deepgram.listen.prerecorded.transcribeFile(buffer, {
-          model: 'nova-2',
-          punctuate: true,
-        });
-      },
-      { numOfAttempts: 3 }
-    );
+    await context.reportError(err);
+    return [];
+  }
+}
 
-    if (error) {
+async function processVideo(file: GoogleDriveFile, context: SyncContext): Promise<string[]> {
+  try {
+    if (!context.multimodalEnabled) {
       return [];
     }
 
-    const content = result.results.channels
-      .map((ch) => ch.alternatives.map((alt) => alt.transcript).join(' '))
-      .join(' ');
-
-    const splitter = new RecursiveCharacterTextSplitter({
-      chunkSize: 1000,
-      chunkOverlap: 200,
-      separators: ['.', '!', '?', ','],
+    const response = await context.get({
+      endpoint: `drive/v3/files/${file.id}`,
+      params: { alt: 'media' },
+      retries: 3,
+      responseType: 'arraybuffer',
     });
 
-    const output = await splitter.createDocuments([content]);
-    return output.map((doc) => doc.pageContent);
+    const buffer = Buffer.from(response.data, 'binary');
+    return await context.processVideo(buffer);
   } catch (err) {
     await context.createActivityLog({
       level: 'warn',

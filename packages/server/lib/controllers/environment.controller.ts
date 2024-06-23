@@ -2,13 +2,14 @@ import type { Environment } from '@embed/shared';
 import {
   DEFAULT_ERROR_MESSAGE,
   ENVIRONMENT_ID_LOCALS_KEY,
+  EnvironmentType,
   ErrorCode,
   environmentService,
   errorService,
   now,
 } from '@embed/shared';
 import type { Request, Response } from 'express';
-import { EnvironmentObject, EnvironmentType } from '../utils/types';
+import { EnvironmentObject } from '../utils/types';
 
 class EnvironmentController {
   public async listEnvironments(req: Request, res: Response) {

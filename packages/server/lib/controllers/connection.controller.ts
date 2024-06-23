@@ -6,10 +6,12 @@ import {
   OAuth1Credentials,
   OAuth2Credentials,
   Resource,
+  UsageAction,
   connectionService,
   errorService,
   generateId,
   now,
+  usageService,
 } from '@embed/shared';
 import type { Request, Response } from 'express';
 import connectionHook from '../hooks/connection.hook';
@@ -89,6 +91,18 @@ class ConnectionController {
   public async upsertConnection(req: Request, res: Response) {
     try {
       const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
+      const limitExceeded = await usageService.usageLimitExceeded(
+        environmentId,
+        UsageAction.CreateConnection
+      );
+
+      if (limitExceeded) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.BadRequest,
+          message: 'Connection limit reached for staging environment',
+        });
+      }
+
       const parsedBody = UpsertConnectionRequestSchema.safeParse(req.body);
       if (!parsedBody.success) {
         return errorService.errorResponse(res, {

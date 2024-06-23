@@ -1,6 +1,7 @@
 import {
   DEFAULT_ERROR_MESSAGE,
   ENVIRONMENT_ID_LOCALS_KEY,
+  EnvironmentType,
   ErrorCode,
   Resource,
   apiKeyService,
@@ -11,7 +12,6 @@ import {
 } from '@embed/shared';
 import type { Request, Response } from 'express';
 import { generateSecretKey } from '../utils/helpers';
-import { EnvironmentType } from '../utils/types';
 
 class ApiKeyController {
   public async generateApiKey(req: Request, res: Response) {

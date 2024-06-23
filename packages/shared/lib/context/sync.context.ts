@@ -1,13 +1,18 @@
 import { SourceObject } from '@embed/providers';
 import { Record as DataRecord } from '@prisma/client';
 import { Context } from '@temporalio/activity';
+import { backOff } from 'exponential-backoff';
+import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
 import md5 from 'md5';
 import ElasticClient from '../clients/elastic.client';
 import activityService from '../services/activity.service';
 import providerService from '../services/provider.service';
 import recordService from '../services/record.service';
+import usageService from '../services/usage.service';
+import { getDeepgramInstance } from '../utils/constants';
 import { LogLevel, Resource } from '../utils/enums';
 import { generateId, hashObjects, now } from '../utils/helpers';
+import { UsageType } from '../utils/types';
 import { BaseContext, BaseContextOptions } from './base.context';
 
 export type SyncContextOptions = BaseContextOptions & {
@@ -28,6 +33,10 @@ export class SyncContext extends BaseContext {
   private addedKeys: string[];
   private updatedKeys: string[];
   private deletedKeys: string[];
+  private syncedWords: number;
+  private syncedImages: number;
+  private syncedAudioSeconds: number;
+  private syncedVideoSeconds: number;
   private interval?: NodeJS.Timeout;
 
   constructor(options: SyncContextOptions) {
@@ -41,12 +50,76 @@ export class SyncContext extends BaseContext {
     this.addedKeys = [];
     this.updatedKeys = [];
     this.deletedKeys = [];
+    this.syncedWords = 0;
+    this.syncedImages = 0;
+    this.syncedAudioSeconds = 0;
+    this.syncedVideoSeconds = 0;
 
     const temporal = options.temporalContext;
     const heartbeat = 1000 * 60 * 5;
     this.interval = setInterval(() => {
       temporal.heartbeat();
     }, heartbeat);
+  }
+
+  public async processAudio(buffer: Buffer): Promise<string[]> {
+    const deepgram = getDeepgramInstance();
+    const { result, error } = await backOff(
+      () => {
+        return deepgram.listen.prerecorded.transcribeFile(buffer, {
+          model: 'nova-2',
+          punctuate: true,
+        });
+      },
+      { numOfAttempts: 3 }
+    );
+
+    if (error) {
+      return [];
+    }
+
+    const content = result.results.channels
+      .map((ch) => ch.alternatives.map((alt) => alt.transcript).join(' '))
+      .join(' ');
+
+    const splitter = new RecursiveCharacterTextSplitter({
+      chunkSize: 1000,
+      chunkOverlap: 200,
+      separators: ['.', '!', '?', ','],
+    });
+
+    const output = await splitter.createDocuments([content]);
+    return output.map((doc) => doc.pageContent);
+  }
+
+  public async processVideo(buffer: Buffer): Promise<string[]> {
+    const deepgram = getDeepgramInstance();
+    const { result, error } = await backOff(
+      () => {
+        return deepgram.listen.prerecorded.transcribeFile(buffer, {
+          model: 'nova-2',
+          punctuate: true,
+        });
+      },
+      { numOfAttempts: 3 }
+    );
+
+    if (error) {
+      return [];
+    }
+
+    const content = result.results.channels
+      .map((ch) => ch.alternatives.map((alt) => alt.transcript).join(' '))
+      .join(' ');
+
+    const splitter = new RecursiveCharacterTextSplitter({
+      chunkSize: 1000,
+      chunkOverlap: 200,
+      separators: ['.', '!', '?', ','],
+    });
+
+    const output = await splitter.createDocuments([content]);
+    return output.map((doc) => doc.pageContent);
   }
 
   public async batchSave(objects: SourceObject[]): Promise<boolean> {
@@ -68,42 +141,6 @@ export class SyncContext extends BaseContext {
         const obj = { ...originalObj };
         const hash = md5(JSON.stringify(obj));
 
-        Object.entries(collection.schema.properties).forEach(([k, v]) => {
-          if (v.hidden) {
-            delete obj[k];
-          }
-
-          if (v.return_by_default === false) {
-            delete obj[k];
-          }
-
-          if (v.type === 'nested' && v.properties) {
-            Object.entries(v.properties).forEach(([nestedKey, nestedValue]) => {
-              const nestedObjOrArray = obj[k];
-              if (Array.isArray(nestedObjOrArray) && nestedObjOrArray.length > 0) {
-                nestedObjOrArray.forEach((nestedObj) => {
-                  if (nestedValue.hidden) {
-                    delete nestedObj[nestedKey];
-                  }
-
-                  if (nestedValue.return_by_default === false) {
-                    delete nestedObj[nestedKey];
-                  }
-                });
-                obj[k] = nestedObjOrArray;
-              } else if (nestedObjOrArray && typeof nestedObjOrArray === 'object') {
-                if (nestedValue.hidden) {
-                  delete obj[k][nestedKey];
-                }
-
-                if (nestedValue.return_by_default === false) {
-                  delete obj[k][nestedKey];
-                }
-              }
-            });
-          }
-        });
-
         return {
           id: generateId(Resource.Record),
           external_id: obj.id,
@@ -111,9 +148,6 @@ export class SyncContext extends BaseContext {
           connection_id: this.connectionId,
           integration_id: this.integrationId,
           collection_key: this.collectionKey,
-          object: JSON.stringify(obj),
-          object_iv: null,
-          object_tag: null,
           hash,
           created_at: now(),
           updated_at: now(),
@@ -276,6 +310,18 @@ export class SyncContext extends BaseContext {
     records_updated: number;
     records_deleted: number;
   }> {
+    usageService.reportUsage({
+      usageType: UsageType.Sync,
+      environmentId: this.environmentId,
+      integrationId: this.integrationId,
+      connectionId: this.connectionId,
+      syncedWords: this.syncedWords,
+      syncedImages: this.syncedImages,
+      syncedAudioSeconds: this.syncedAudioSeconds,
+      syncedVideoSeconds: this.syncedVideoSeconds,
+      syncRunId: this.syncRunId,
+    });
+
     return {
       records_added: this.addedKeys.length,
       records_updated: this.updatedKeys.length,

@@ -1,7 +1,6 @@
 import { Record as DataRecord } from '@prisma/client';
 import { database } from '../utils/database';
 import { now } from '../utils/helpers';
-import encryptionService from './encryption.service';
 import errorService from './error.service';
 
 class RecordService {
@@ -40,17 +39,12 @@ class RecordService {
       let updatedKeys: string[] = [];
 
       if (recordsToCreate.length > 0) {
-        const encryptedRecordsToCreate = recordsToCreate.map((rec) => {
-          return encryptionService.encryptRecord(rec);
-        });
-
-        await database.record.createMany({ data: encryptedRecordsToCreate });
-        addedKeys = encryptedRecordsToCreate.map((rec) => rec.external_id);
+        await database.record.createMany({ data: recordsToCreate });
+        addedKeys = recordsToCreate.map((rec) => rec.external_id);
       }
 
       if (recordsToUpdate.length > 0) {
         for (const rec of recordsToUpdate) {
-          const encryptedRecord = encryptionService.encryptRecord(rec);
           const updatedRecord = await database.record.update({
             where: {
               external_id_collection_key_connection_id_integration_id: {
@@ -61,13 +55,7 @@ class RecordService {
               },
               deleted_at: null,
             },
-            data: {
-              hash: encryptedRecord.hash,
-              object: encryptedRecord.object,
-              object_iv: encryptedRecord.object_iv,
-              object_tag: encryptedRecord.object_tag,
-              updated_at: now(),
-            },
+            data: { hash: rec.hash, updated_at: now() },
             select: { external_id: true },
           });
 

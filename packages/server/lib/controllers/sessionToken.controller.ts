@@ -7,6 +7,7 @@ import {
   LogAction,
   LogLevel,
   Resource,
+  UsageAction,
   activityService,
   connectionService,
   errorService,
@@ -14,6 +15,7 @@ import {
   getServerUrl,
   integrationService,
   now,
+  usageService,
 } from '@embed/shared';
 import type { Request, Response } from 'express';
 import sessionTokenService from '../services/sessionToken.service';
@@ -28,8 +30,19 @@ class SessionTokenController {
   public async createSessionToken(req: Request, res: Response) {
     try {
       const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
-      const parsedBody = CreateSessionTokenRequestSchema.safeParse(req.body);
+      const limitExceeded = await usageService.usageLimitExceeded(
+        environmentId,
+        UsageAction.CreateConnection
+      );
 
+      if (limitExceeded) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.BadRequest,
+          message: 'Connection limit reached for staging environment',
+        });
+      }
+
+      const parsedBody = CreateSessionTokenRequestSchema.safeParse(req.body);
       if (!parsedBody.success) {
         return errorService.errorResponse(res, {
           code: ErrorCode.BadRequest,
