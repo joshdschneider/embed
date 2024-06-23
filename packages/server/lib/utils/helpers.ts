@@ -1,7 +1,6 @@
-import { getServerUrl } from '@embed/shared';
+import { EnvironmentType, getServerUrl } from '@embed/shared';
 import crypto from 'crypto';
 import { ZodError } from 'zod';
-import { EnvironmentType } from './types';
 
 export function getOauthCallbackUrl() {
   const serverUrl = getServerUrl();

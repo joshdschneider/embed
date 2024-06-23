@@ -286,6 +286,8 @@ export interface SyncContext extends BaseContext {
   multimodalEnabled: boolean;
   syncRunId: string;
   lastSyncedAt: number | null;
+  processAudio(buffer: Buffer): Promise<string[]>;
+  processVideo(buffer: Buffer): Promise<string[]>;
   batchSave(objects: SourceObject[]): Promise<boolean>;
   pruneDeleted(allIds: string[]): Promise<boolean>;
   reportResults(): Promise<{

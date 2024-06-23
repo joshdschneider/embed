@@ -323,6 +323,7 @@ class ActionController {
       const integrationId = req.query['integration_id'];
       const connectionId = req.query['connection_id'];
       const actionKey = req.params['action_key'];
+      const input = req.body['input'];
 
       if (!integrationId || typeof integrationId !== 'string') {
         return errorService.errorResponse(res, {
@@ -339,9 +340,29 @@ class ActionController {
           code: ErrorCode.BadRequest,
           message: 'Action unique key missing',
         });
+      } else if (!input || typeof input !== 'object') {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.BadRequest,
+          message: 'Input missing or invalid',
+        });
       }
 
-      //..
+      const actionResponse = await actionService.triggerAction({
+        environmentId,
+        integrationId,
+        connectionId,
+        actionKey,
+        input,
+      });
+
+      if (!actionResponse) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.InternalServerError,
+          message: DEFAULT_ERROR_MESSAGE,
+        });
+      }
+
+      res.status(actionResponse.status).json(actionResponse.data);
     } catch (err) {
       await errorService.reportError(err);
 

@@ -23,12 +23,15 @@ model User {
 model Organization {
   id         String @id
   name       String
+  stripe_id  String
   created_at Int
   updated_at Int
   deleted_at Int?
 
-  memberships  OrganizationMembership[]
-  environments Environment[]
+  environments    Environment[]
+  memberships     OrganizationMembership[]
+  subscriptions   Subscription[]
+  payment_methods PaymentMethod[]
 }
 
 model OrganizationMembership {
@@ -41,6 +44,37 @@ model OrganizationMembership {
 
   organization Organization @relation(fields: [organization_id], references: [id])
   user         User         @relation(fields: [user_id], references: [id])
+}
+
+model Subscription {
+  id              String @id
+  organization_id String
+  stripe_id       String
+  name            String
+  status          String
+  plan            String
+  price_ids       Json
+  created_at      Int
+  updated_at      Int
+  deleted_at      Int?
+
+  organization Organization @relation(fields: [organization_id], references: [id])
+}
+
+model PaymentMethod {
+  id              String  @id
+  organization_id String
+  stripe_id       String
+  type            String
+  card_brand      String?
+  card_last4      String?
+  card_exp_month  Int?
+  card_exp_year   Int?
+  created_at      Int
+  updated_at      Int
+  deleted_at      Int?
+
+  organization Organization @relation(fields: [organization_id], references: [id])
 }
 
 model Environment {
@@ -276,15 +310,12 @@ model ActionRun {
 }
 
 model Record {
-  id             String  @id
+  id             String @id
   collection_key String
   integration_id String
   connection_id  String
   environment_id String
   external_id    String
-  object         String
-  object_iv      String?
-  object_tag     String?
   hash           String
   created_at     Int
   updated_at     Int

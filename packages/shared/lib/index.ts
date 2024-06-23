@@ -10,6 +10,7 @@ import { SyncContext } from './context/sync.context';
 import actionService from './services/action.service';
 import activityService from './services/activity.service';
 import apiKeyService from './services/apiKey.service';
+import billingService from './services/billing.service';
 import collectionService from './services/collection.service';
 import connectionService from './services/connection.service';
 import encryptionService from './services/encryption.service';
@@ -19,6 +20,7 @@ import integrationService from './services/integration.service';
 import providerService from './services/provider.service';
 import proxyService from './services/proxy.service';
 import syncService from './services/sync.service';
+import usageService from './services/usage.service';
 import webhookService from './services/webhook.service';
 import { MultimodalEmbeddingModel, TextEmbeddingModel } from './utils/enums';
 
@@ -60,6 +62,7 @@ export {
   actionService,
   activityService,
   apiKeyService,
+  billingService,
   collectionService,
   connectionService,
   encryptionService,
@@ -72,5 +75,6 @@ export {
   providerService,
   proxyService,
   syncService,
+  usageService,
   webhookService,
 };

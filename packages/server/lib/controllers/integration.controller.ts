@@ -3,6 +3,7 @@ import type { Integration } from '@embed/shared';
 import {
   DEFAULT_ERROR_MESSAGE,
   ENVIRONMENT_ID_LOCALS_KEY,
+  EnvironmentType,
   ErrorCode,
   actionService,
   collectionService,
@@ -18,7 +19,6 @@ import integrationHook from '../hooks/integration.hook';
 import { zodError } from '../utils/helpers';
 import {
   CreateIntegrationRequestSchema,
-  EnvironmentType,
   IntegrationDeletedObject,
   IntegrationObject,
   PaginationParametersSchema,

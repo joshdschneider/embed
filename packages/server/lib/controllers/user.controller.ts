@@ -9,6 +9,7 @@ import {
   DEFAULT_MULTIMODAL_ENABLED,
   DEFAULT_SYNC_FREQUENCY,
   DEFAULT_TEXT_EMBEDDING_MODEL,
+  EnvironmentType,
   ErrorCode,
   Organization,
   Resource,
@@ -25,7 +26,7 @@ import organizationService from '../services/organization.service';
 import userService from '../services/user.service';
 import { DEFAULT_EMAIL_SUBSCRIPTIONS, DEFAULT_ORGANIZATION_NAME } from '../utils/constants';
 import { generateSecretKey, zodError } from '../utils/helpers';
-import { EnvironmentType, UpdateUserRequestSchema } from '../utils/types';
+import { UpdateUserRequestSchema } from '../utils/types';
 
 class UserController {
   public async handleUserAuth(req: Request, res: Response) {
@@ -191,7 +192,7 @@ class UserController {
         });
       }
 
-      await integrationService.createIntegration({
+      const integration = await integrationService.createIntegration({
         id: 'github-test',
         environment_id: stagingEnvironment.id,
         is_enabled: true,
@@ -207,6 +208,11 @@ class UserController {
         updated_at: now(),
         deleted_at: null,
       });
+
+      if (!integration) {
+        const err = new Error('Failed to create initial integration');
+        await errorService.reportError(err);
+      }
 
       return res.status(200).json({
         object: 'user',

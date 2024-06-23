@@ -4,9 +4,11 @@ import axios, { AxiosError, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { backOff } from 'exponential-backoff';
 import { DEFAULT_PROXY_ATTEMPTS, DEFAULT_PROXY_RESPONSE_TYPE } from '../utils/constants';
 import { interpolateIfNeeded } from '../utils/helpers';
+import { UsageType } from '../utils/types';
 import connectionService from './connection.service';
 import integrationService from './integration.service';
 import providerService from './provider.service';
+import usageService from './usage.service';
 
 class ProxyService {
   public async proxy<T = any>(options: ProxyOptions): Promise<AxiosResponse<T>> {
@@ -73,6 +75,13 @@ class ProxyService {
         retry: (error, attempt) => this.retryRequest(error, providerSpec.retry),
       }
     );
+
+    usageService.reportUsage({
+      usageType: UsageType.ProxyRequest,
+      environmentId: integration.environment_id,
+      integrationId: integration.id,
+      connectionId: connection.id,
+    });
 
     return responseStream;
   }

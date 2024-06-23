@@ -1,7 +1,9 @@
 import { Action, ActionRun } from '@prisma/client';
 import { database } from '../utils/database';
 import { now } from '../utils/helpers';
+import { UsageType } from '../utils/types';
 import errorService from './error.service';
+import usageService from './usage.service';
 
 class ActionService {
   public async listActions({
@@ -135,6 +137,38 @@ class ActionService {
     } catch (err) {
       await errorService.reportError(err);
       return false;
+    }
+  }
+
+  public async triggerAction({
+    environmentId,
+    integrationId,
+    connectionId,
+    actionKey,
+    input,
+  }: {
+    environmentId: string;
+    integrationId: string;
+    connectionId: string;
+    actionKey: string;
+    input: Record<string, any>;
+  }) {
+    try {
+      // execute action
+      const response = { status: 200, data: {}, runId: '' };
+
+      usageService.reportUsage({
+        usageType: UsageType.Action,
+        environmentId,
+        integrationId,
+        connectionId,
+        actionRunId: response.runId,
+      });
+
+      return response;
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
     }
   }
 

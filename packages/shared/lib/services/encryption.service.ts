@@ -1,10 +1,4 @@
-import type {
-  ApiKey,
-  Connection,
-  Record as DataRecord,
-  Integration,
-  Webhook,
-} from '@prisma/client';
+import type { ApiKey, Connection, Integration, Webhook } from '@prisma/client';
 import crypto, { CipherGCMTypes } from 'crypto';
 import { getEncryptonKey } from '../utils/constants';
 
@@ -183,38 +177,6 @@ class EncryptionService {
     };
 
     return decryptedWebhook;
-  }
-
-  public encryptRecord(record: DataRecord): DataRecord {
-    if (!this.shouldEncrypt()) {
-      return record;
-    }
-
-    const [object, iv, tag] = this.encrypt(record.object);
-
-    const encryptedRecord: DataRecord = {
-      ...record,
-      object: object,
-      object_iv: iv,
-      object_tag: tag,
-    };
-
-    return encryptedRecord;
-  }
-
-  public decryptRecord(record: DataRecord): DataRecord {
-    if (!record.object_iv || !record.object_tag) {
-      return record;
-    }
-
-    const decrypted = this.decrypt(record.object, record.object_iv, record.object_tag);
-
-    const decryptedRecord: DataRecord = {
-      ...record,
-      object: decrypted,
-    };
-
-    return decryptedRecord;
   }
 }
 
