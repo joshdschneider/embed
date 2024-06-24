@@ -403,7 +403,6 @@ class IntegrationController {
             exclude_properties_from_syncs: [],
             multimodal_embedding_model: environment.default_multimodal_embedding_model,
             text_embedding_model: environment.default_text_embedding_model,
-            multimodal_enabled: environment.multimodal_enabled_by_default,
             configuration: null,
             created_at: now(),
             updated_at: now(),

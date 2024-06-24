@@ -1,9 +1,6 @@
-import { CollectionProperty, SourceObject } from '@embed/providers';
 import crypto from 'crypto';
-import md5 from 'md5';
 import ms, { StringValue } from 'ms';
 import { Resource, SyncFrequency } from './enums';
-import { SourceObjectWithHash } from './types';
 
 export function generateId(prefix: Resource, byteLength = 8): string {
   return `${prefix}_${crypto.randomBytes(byteLength).toString('hex')}`;
@@ -166,40 +163,14 @@ export function isValidUrl(urlString: string): boolean {
   }
 }
 
-export function hashObjects(
-  objects: SourceObject[],
-  schemaProps: Record<string, CollectionProperty>
-): SourceObjectWithHash[] {
-  if (!objects || objects.length === 0) {
-    return [];
+export function countWords(input: string): number {
+  const trimmedInput = input.trim();
+  if (trimmedInput === '') {
+    return 0;
   }
 
-  return objects.map((originalObj) => {
-    const obj = { ...originalObj };
-
-    const objWithHash: SourceObjectWithHash = {
-      ...obj,
-      hash: md5(JSON.stringify(obj)),
-    };
-
-    Object.entries(schemaProps).forEach(([key, value]) => {
-      if (value.type === 'nested' && value.properties && obj.hasOwnProperty(key)) {
-        const nestedObjOrArray = obj[key];
-        if (Array.isArray(nestedObjOrArray)) {
-          objWithHash[key] = nestedObjOrArray.map((nestedObj) => {
-            return { ...nestedObj, hash: md5(JSON.stringify(nestedObj)) };
-          });
-        } else if (nestedObjOrArray && typeof nestedObjOrArray === 'object') {
-          objWithHash[key] = {
-            ...nestedObjOrArray,
-            hash: md5(JSON.stringify(nestedObjOrArray)),
-          };
-        }
-      }
-    });
-
-    return objWithHash;
-  });
+  const wordsArray = trimmedInput.split(/\s+/);
+  return wordsArray.length;
 }
 
 function truncateString(str: string, maxLength: number): string {

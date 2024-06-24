@@ -42,7 +42,6 @@ class EnvironmentController {
           default_sync_frequency: env.default_sync_frequency,
           default_multimodal_embedding_model: env.default_multimodal_embedding_model,
           default_text_embedding_model: env.default_text_embedding_model,
-          multimodal_enabled_by_default: env.multimodal_enabled_by_default,
           branding: env.branding,
           created_at: env.created_at,
           updated_at: env.updated_at,
@@ -83,7 +82,6 @@ class EnvironmentController {
         default_sync_frequency: environment.default_sync_frequency,
         default_multimodal_embedding_model: environment.default_multimodal_embedding_model,
         default_text_embedding_model: environment.default_text_embedding_model,
-        multimodal_enabled_by_default: environment.multimodal_enabled_by_default,
         branding: environment.branding,
         created_at: environment.created_at,
         updated_at: environment.updated_at,
@@ -147,10 +145,6 @@ class EnvironmentController {
         data.default_text_embedding_model = default_text_embedding_model;
       }
 
-      if (typeof multimodal_enabled_by_default === 'boolean') {
-        data.multimodal_enabled_by_default = multimodal_enabled_by_default;
-      }
-
       if (branding && typeof branding === 'object') {
         data.branding = branding;
       }
@@ -177,7 +171,6 @@ class EnvironmentController {
         default_sync_frequency: environment.default_sync_frequency,
         default_multimodal_embedding_model: environment.default_multimodal_embedding_model,
         default_text_embedding_model: environment.default_text_embedding_model,
-        multimodal_enabled_by_default: environment.multimodal_enabled_by_default,
         branding: environment.branding,
         created_at: environment.created_at,
         updated_at: environment.updated_at,

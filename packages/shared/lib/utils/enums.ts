@@ -111,6 +111,18 @@ export const embeddingModelDimensions = {
   [MultimodalEmbeddingModel.GoogleVertexMultimodalEmbedding001]: 1408,
 };
 
+export enum UsageAction {
+  CreateConnection = 'create_connection',
+}
+
+export enum UsageType {
+  Connection = 'connection',
+  Query = 'query',
+  Action = 'action',
+  ProxyRequest = 'proxy_request',
+  Sync = 'sync',
+}
+
 export enum QueryMode {
   default = 'default',
   insensitive = 'insensitive',

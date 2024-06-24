@@ -118,7 +118,7 @@ export interface CollectionProperty {
   keyword_searchable?: boolean;
   vector_searchable?: boolean;
   return_by_default?: boolean;
-  multimodal?: boolean;
+  image?: boolean;
   wildcard?: boolean;
   hidden?: boolean;
 }
@@ -132,7 +132,7 @@ export const CollectionPropertySchema: z.ZodType<CollectionProperty> = z.object(
   keyword_searchable: z.boolean().default(true),
   vector_searchable: z.boolean().default(true),
   return_by_default: z.boolean().default(true),
-  multimodal: z.boolean().default(false),
+  image: z.boolean().default(false),
   wildcard: z.boolean().default(false),
   hidden: z.boolean().default(false),
 });
@@ -281,13 +281,23 @@ export declare class BaseContext {
   }): Promise<ActivityLog | null>;
 }
 
-export interface SyncContext extends BaseContext {
+export interface FileProcessor {
+  processText: (str: string) => Promise<string[]>;
+  processJson: (str: string) => Promise<string[]>;
+  processPdf: (buffer: Buffer) => Promise<string[]>;
+  processDocx: (buffer: Buffer) => Promise<string[]>;
+  processPptx: (buffer: Buffer) => Promise<string[]>;
+  processAudio: (buffer: Buffer) => Promise<string[]>;
+  processVideo: (buffer: Buffer) => Promise<string[]>;
+  processImage: (buffer: Buffer) => string;
+}
+
+export declare class SyncContext extends BaseContext {
+  providerKey: string;
   collectionKey: string;
-  multimodalEnabled: boolean;
   syncRunId: string;
   lastSyncedAt: number | null;
-  processAudio(buffer: Buffer): Promise<string[]>;
-  processVideo(buffer: Buffer): Promise<string[]>;
+  processor: FileProcessor;
   batchSave(objects: SourceObject[]): Promise<boolean>;
   pruneDeleted(allIds: string[]): Promise<boolean>;
   reportResults(): Promise<{

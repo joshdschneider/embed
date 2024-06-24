@@ -98,7 +98,6 @@ class EnvironmentService {
           default_multimodal_embedding_model:
             environment.default_multimodal_embedding_model || undefined,
           default_text_embedding_model: environment.default_text_embedding_model || undefined,
-          multimodal_enabled_by_default: environment.multimodal_enabled_by_default ?? undefined,
           branding: environment.branding || undefined,
           updated_at: now(),
         },

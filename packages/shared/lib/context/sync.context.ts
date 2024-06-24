@@ -1,24 +1,21 @@
-import { SourceObject } from '@embed/providers';
+import { FileProcessor, SourceObject } from '@embed/providers';
 import { Record as DataRecord } from '@prisma/client';
 import { Context } from '@temporalio/activity';
-import { backOff } from 'exponential-backoff';
-import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
 import md5 from 'md5';
 import ElasticClient from '../clients/elastic.client';
 import activityService from '../services/activity.service';
+import collectionService from '../services/collection.service';
+import ingestService from '../services/ingest.service';
 import providerService from '../services/provider.service';
 import recordService from '../services/record.service';
 import usageService from '../services/usage.service';
-import { getDeepgramInstance } from '../utils/constants';
-import { LogLevel, Resource } from '../utils/enums';
-import { generateId, hashObjects, now } from '../utils/helpers';
-import { UsageType } from '../utils/types';
+import { LogLevel, Resource, UsageType } from '../utils/enums';
+import { generateId, now } from '../utils/helpers';
 import { BaseContext, BaseContextOptions } from './base.context';
 
 export type SyncContextOptions = BaseContextOptions & {
   providerKey: string;
   collectionKey: string;
-  multimodalEnabled: boolean;
   syncRunId: string;
   lastSyncedAt: number | null;
   temporalContext: Context;
@@ -27,7 +24,6 @@ export type SyncContextOptions = BaseContextOptions & {
 export class SyncContext extends BaseContext {
   public providerKey: string;
   public collectionKey: string;
-  public multimodalEnabled: boolean;
   public syncRunId: string;
   public lastSyncedAt: number | null;
   private addedKeys: string[];
@@ -37,13 +33,13 @@ export class SyncContext extends BaseContext {
   private syncedImages: number;
   private syncedAudioSeconds: number;
   private syncedVideoSeconds: number;
+  public processor: FileProcessor;
   private interval?: NodeJS.Timeout;
 
   constructor(options: SyncContextOptions) {
     super(options);
     this.providerKey = options.providerKey;
     this.collectionKey = options.collectionKey;
-    this.multimodalEnabled = options.multimodalEnabled;
     this.syncRunId = options.syncRunId;
     this.activityId = options.activityId;
     this.lastSyncedAt = options.lastSyncedAt;
@@ -54,7 +50,7 @@ export class SyncContext extends BaseContext {
     this.syncedImages = 0;
     this.syncedAudioSeconds = 0;
     this.syncedVideoSeconds = 0;
-
+    this.processor = this.mountFileProcessor();
     const temporal = options.temporalContext;
     const heartbeat = 1000 * 60 * 5;
     this.interval = setInterval(() => {
@@ -62,64 +58,25 @@ export class SyncContext extends BaseContext {
     }, heartbeat);
   }
 
-  public async processAudio(buffer: Buffer): Promise<string[]> {
-    const deepgram = getDeepgramInstance();
-    const { result, error } = await backOff(
-      () => {
-        return deepgram.listen.prerecorded.transcribeFile(buffer, {
-          model: 'nova-2',
-          punctuate: true,
-        });
+  private mountFileProcessor() {
+    return {
+      processText: ingestService.processText,
+      processJson: ingestService.processJson,
+      processPdf: ingestService.processPdf,
+      processDocx: ingestService.processDocx,
+      processPptx: ingestService.processPptx,
+      processImage: ingestService.processImage,
+      processAudio: async (buffer: Buffer) => {
+        const { chunks, duration } = await ingestService.processAudio(buffer);
+        this.syncedAudioSeconds += duration;
+        return chunks;
       },
-      { numOfAttempts: 3 }
-    );
-
-    if (error) {
-      return [];
-    }
-
-    const content = result.results.channels
-      .map((ch) => ch.alternatives.map((alt) => alt.transcript).join(' '))
-      .join(' ');
-
-    const splitter = new RecursiveCharacterTextSplitter({
-      chunkSize: 1000,
-      chunkOverlap: 200,
-      separators: ['.', '!', '?', ','],
-    });
-
-    const output = await splitter.createDocuments([content]);
-    return output.map((doc) => doc.pageContent);
-  }
-
-  public async processVideo(buffer: Buffer): Promise<string[]> {
-    const deepgram = getDeepgramInstance();
-    const { result, error } = await backOff(
-      () => {
-        return deepgram.listen.prerecorded.transcribeFile(buffer, {
-          model: 'nova-2',
-          punctuate: true,
-        });
+      processVideo: async (buffer: Buffer) => {
+        const { chunks, duration } = await ingestService.processVideo(buffer);
+        this.syncedVideoSeconds += duration;
+        return chunks;
       },
-      { numOfAttempts: 3 }
-    );
-
-    if (error) {
-      return [];
-    }
-
-    const content = result.results.channels
-      .map((ch) => ch.alternatives.map((alt) => alt.transcript).join(' '))
-      .join(' ');
-
-    const splitter = new RecursiveCharacterTextSplitter({
-      chunkSize: 1000,
-      chunkOverlap: 200,
-      separators: ['.', '!', '?', ','],
-    });
-
-    const output = await splitter.createDocuments([content]);
-    return output.map((doc) => doc.pageContent);
+    };
   }
 
   public async batchSave(objects: SourceObject[]): Promise<boolean> {
@@ -176,17 +133,40 @@ export class SyncContext extends BaseContext {
       this.addedKeys.push(...addedKeys);
       this.updatedKeys.push(...updatedKeys);
 
-      const elastic = ElasticClient.getInstance();
-      const objectsToCreate = objects.filter((obj) => addedKeys.includes(obj.id));
-      const hashedObjectsToCreate = hashObjects(objectsToCreate, collection.schema.properties);
+      const collectionModelSettings = await collectionService.getCollectionModelSettings({
+        environmentId: this.environmentId,
+        integrationId: this.integrationId,
+        collectionKey: this.collectionKey,
+      });
 
+      if (!collectionModelSettings) {
+        throw new Error(`Failed to get collection model settings for ${this.collectionKey}`);
+      }
+
+      const { textEmbeddingModel, multimodalEmbeddingModel } = collectionModelSettings;
+      const objectsToCreate = objects.filter((obj) => addedKeys.includes(obj.id));
+      const hashedObjectsToCreate = ingestService.hashSourceObjects({
+        objects: objectsToCreate,
+        schemaProperties: collection.schema.properties,
+      });
+
+      const vectorizedObjectsToCreate = await ingestService.vectorizeSourceObjects({
+        objects: hashedObjectsToCreate,
+        schemaProperties: collection.schema.properties,
+        textEmbeddingModel,
+        multimodalEmbeddingModel,
+      });
+
+      this.syncedWords += vectorizedObjectsToCreate.wordCount;
+      this.syncedImages += vectorizedObjectsToCreate.imageCount;
+
+      const elastic = ElasticClient.getInstance();
       const didCreate = await elastic.batchUpsertObjects({
         environmentId: this.environmentId,
         collectionKey: this.collectionKey,
         integrationId: this.integrationId,
-        providerKey: this.providerKey,
         connectionId: this.connectionId,
-        objects: hashedObjectsToCreate,
+        objects: vectorizedObjectsToCreate.objects,
       });
 
       if (!didCreate) {
@@ -208,7 +188,20 @@ export class SyncContext extends BaseContext {
       }
 
       const objectsToUpdate = objects.filter((obj) => updatedKeys.includes(obj.id));
-      const hashedObjectsToUpdate = hashObjects(objectsToUpdate, collection.schema.properties);
+      const hashedObjectsToUpdate = ingestService.hashSourceObjects({
+        objects: objectsToUpdate,
+        schemaProperties: collection.schema.properties,
+      });
+
+      const vectorizedObjectsToUpdate = await ingestService.vectorizeSourceObjects({
+        objects: hashedObjectsToUpdate,
+        schemaProperties: collection.schema.properties,
+        textEmbeddingModel,
+        multimodalEmbeddingModel,
+      });
+
+      this.syncedWords += vectorizedObjectsToUpdate.wordCount;
+      this.syncedImages += vectorizedObjectsToUpdate.imageCount;
 
       const didUpdate = await elastic.updateObjects({
         environmentId: this.environmentId,
@@ -216,7 +209,7 @@ export class SyncContext extends BaseContext {
         integrationId: this.integrationId,
         providerKey: this.providerKey,
         connectionId: this.connectionId,
-        objects: hashedObjectsToUpdate,
+        objects: vectorizedObjectsToUpdate.objects,
       });
 
       if (!didUpdate) {
@@ -309,6 +302,10 @@ export class SyncContext extends BaseContext {
     records_added: number;
     records_updated: number;
     records_deleted: number;
+    usage_words: number;
+    usage_images: number;
+    usage_audio_seconds: number;
+    usage_video_seconds: number;
   }> {
     usageService.reportUsage({
       usageType: UsageType.Sync,
@@ -326,6 +323,10 @@ export class SyncContext extends BaseContext {
       records_added: this.addedKeys.length,
       records_updated: this.updatedKeys.length,
       records_deleted: this.deletedKeys.length,
+      usage_words: this.syncedWords,
+      usage_images: this.syncedImages,
+      usage_audio_seconds: this.syncedAudioSeconds,
+      usage_video_seconds: this.syncedVideoSeconds,
     };
   }
 

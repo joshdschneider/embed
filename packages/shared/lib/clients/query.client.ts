@@ -1,6 +1,6 @@
 import { Client as Elastic } from '@elastic/elasticsearch';
 import type {
-  KnnQuery,
+  KnnSearch,
   QueryDslQueryContainer,
   QueryDslRangeQuery,
   SearchHighlightField,
@@ -187,7 +187,6 @@ export class QueryClient {
     queryOptions,
     textEmbeddingModel,
     multimodalEmbeddingModel,
-    multimodalEnabled,
     noFormat,
   }: {
     connectionId: string;
@@ -196,7 +195,6 @@ export class QueryClient {
     queryOptions: QueryOptions;
     textEmbeddingModel: TextEmbeddingModel;
     multimodalEmbeddingModel: MultimodalEmbeddingModel;
-    multimodalEnabled: boolean;
     noFormat?: boolean;
   }) {
     const query = queryOptions.query;
@@ -217,7 +215,7 @@ export class QueryClient {
         Object.entries(prop.properties).forEach(([nestedName, nestedProp]) => {
           nestedProperties.push(`${name}.${nestedName}`);
           if (nestedProp.vector_searchable) {
-            if (nestedProp.multimodal && multimodalEnabled) {
+            if (nestedProp.image) {
               multimodalProperties.push(`${name}.${nestedName}`);
             } else {
               textProperties.push(`${name}.${nestedName}`);
@@ -227,7 +225,7 @@ export class QueryClient {
       } else {
         mainProperties.push(name);
         if (prop.vector_searchable) {
-          if (prop.multimodal && multimodalEnabled) {
+          if (prop.image) {
             multimodalProperties.push(name);
           } else {
             textProperties.push(name);
@@ -266,7 +264,7 @@ export class QueryClient {
     const textResults = textProperties.map(async (prop) => {
       const queryVector = await textEmbeddingPromise!;
 
-      const knn: KnnQuery = {
+      const knn: KnnSearch = {
         field: `${prop}_vector`,
         k: limit,
         num_candidates: DEFAULT_KNN_NUM_CANDIDATES,
@@ -306,7 +304,7 @@ export class QueryClient {
     const multimodalResults = multimodalProperties.map(async (prop) => {
       const queryVector = await multimodalEmbeddingPromise!;
 
-      const knn: KnnQuery = {
+      const knn: KnnSearch = {
         field: `${prop}_vector`,
         k: limit,
         num_candidates: DEFAULT_KNN_NUM_CANDIDATES,
@@ -368,7 +366,6 @@ export class QueryClient {
     queryOptions,
     textEmbeddingModel,
     multimodalEmbeddingModel,
-    multimodalEnabled,
   }: {
     connectionId: string;
     indexName: string;
@@ -376,7 +373,6 @@ export class QueryClient {
     queryOptions: QueryOptions;
     textEmbeddingModel: TextEmbeddingModel;
     multimodalEmbeddingModel: MultimodalEmbeddingModel;
-    multimodalEnabled: boolean;
   }): Promise<object[]> {
     const keywordQueryPromise = this.keywordQuery({
       connectionId,
@@ -393,7 +389,6 @@ export class QueryClient {
       queryOptions,
       textEmbeddingModel,
       multimodalEmbeddingModel,
-      multimodalEnabled,
       noFormat: true,
     });
 
@@ -448,14 +443,14 @@ export class QueryClient {
       if (prop.type === 'nested' && prop.properties) {
         Object.entries(prop.properties).forEach(([nestedName, nestedProp]) => {
           nestedProperties.push(`${name}.${nestedName}`);
-          if (nestedProp.vector_searchable && nestedProp.multimodal) {
+          if (nestedProp.vector_searchable && nestedProp.image) {
             multimodalProperties.push(`${name}.${nestedName}`);
           }
         });
       } else {
         mainProperties.push(name);
         if (prop.vector_searchable) {
-          if (prop.multimodal === true) {
+          if (prop.image === true) {
             multimodalProperties.push(name);
           }
         }
@@ -480,7 +475,7 @@ export class QueryClient {
     const multimodalResults = multimodalProperties.map(async (prop) => {
       const queryVector = multimodalEmbedding;
 
-      const knn: KnnQuery = {
+      const knn: KnnSearch = {
         field: `${prop}_vector`,
         k: limit,
         num_candidates: DEFAULT_KNN_NUM_CANDIDATES,

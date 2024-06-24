@@ -122,7 +122,6 @@ export interface EnvironmentObject {
   default_sync_frequency: string;
   default_text_embedding_model: string;
   default_multimodal_embedding_model: string;
-  multimodal_enabled_by_default: boolean;
   branding: any;
   created_at: number;
   updated_at: number;

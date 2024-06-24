@@ -1,7 +1,3 @@
-import { DocxLoader } from 'langchain/document_loaders/fs/docx';
-import { PDFLoader } from 'langchain/document_loaders/fs/pdf';
-import { PPTXLoader } from 'langchain/document_loaders/fs/pptx';
-import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
 import { z } from 'zod';
 import { InternalProxyOptions, SyncContext } from '../types';
 
@@ -17,7 +13,7 @@ const FileSchema = z.object({
   name: z.string(),
   parents: z.array(z.string()),
   mime_type: z.string(),
-  base64: z.string().optional(),
+  image_base64: z.string().optional(),
   content: z.array(FileChunkSchema).optional(),
   created_at: z.string(),
   updated_at: z.string(),
@@ -150,7 +146,7 @@ async function processFile(file: GoogleDriveFile, context: SyncContext): Promise
     case 'image/jpeg':
     case 'image/png':
       const base64Image = await processImage(file, context);
-      return { ...fileObj, base64: base64Image ? base64Image : undefined };
+      return { ...fileObj, image_base64: base64Image ? base64Image : undefined };
 
     case 'audio/wav':
     case 'audio/mpeg':
@@ -165,7 +161,7 @@ async function processFile(file: GoogleDriveFile, context: SyncContext): Promise
       const audioChunks = await processAudio(file, context);
       return { ...fileObj, content: audioChunks.map((chunk) => ({ chunk })) };
 
-    // add rest
+    // TODO: add rest
     case 'video/mp4':
     case 'video/webm':
       const videoChunks = await processVideo(file, context);
@@ -187,13 +183,8 @@ async function processGoogleAppsFile(
       retries: 3,
     });
 
-    const splitter = new RecursiveCharacterTextSplitter({
-      chunkSize: 1000,
-      chunkOverlap: 200,
-    });
-
-    const output = await splitter.createDocuments([res.data]);
-    return output.map((doc) => doc.pageContent);
+    const text = res.data;
+    return await context.processor.processText(text);
   } catch (err) {
     await context.reportError(err);
     return [];
@@ -210,22 +201,7 @@ async function processPdf(file: GoogleDriveFile, context: SyncContext): Promise<
     });
 
     const buffer = Buffer.from(response.data, 'binary');
-    const blob = new Blob([buffer]);
-    const loader = new PDFLoader(blob, { splitPages: false });
-    const docs = await loader.load();
-    const content = docs.map((doc) => doc.pageContent).join('\n\n');
-
-    if (content) {
-      const splitter = new RecursiveCharacterTextSplitter({
-        chunkSize: 1000,
-        chunkOverlap: 200,
-      });
-
-      const output = await splitter.createDocuments([content]);
-      return output.map((doc) => doc.pageContent);
-    }
-
-    return [];
+    return await context.processor.processPdf(buffer);
   } catch (err) {
     await context.createActivityLog({
       level: 'warn',
@@ -248,22 +224,7 @@ async function processDocx(file: GoogleDriveFile, context: SyncContext): Promise
     });
 
     const buffer = Buffer.from(response.data, 'binary');
-    const blob = new Blob([buffer]);
-    const loader = new DocxLoader(blob);
-    const docs = await loader.load();
-    const content = docs.map((doc) => doc.pageContent).join('\n\n');
-
-    if (content) {
-      const splitter = new RecursiveCharacterTextSplitter({
-        chunkSize: 1000,
-        chunkOverlap: 200,
-      });
-
-      const output = await splitter.createDocuments([content]);
-      return output.map((doc) => doc.pageContent);
-    }
-
-    return [];
+    return await context.processor.processDocx(buffer);
   } catch (err) {
     await context.createActivityLog({
       level: 'warn',
@@ -286,22 +247,7 @@ async function processPptx(file: GoogleDriveFile, context: SyncContext): Promise
     });
 
     const buffer = Buffer.from(response.data, 'binary');
-    const blob = new Blob([buffer]);
-    const loader = new PPTXLoader(blob);
-    const docs = await loader.load();
-    const content = docs.map((doc) => doc.pageContent).join('\n\n');
-
-    if (content) {
-      const splitter = new RecursiveCharacterTextSplitter({
-        chunkSize: 1000,
-        chunkOverlap: 200,
-      });
-
-      const output = await splitter.createDocuments([content]);
-      return output.map((doc) => doc.pageContent);
-    }
-
-    return [];
+    return await context.processor.processPptx(buffer);
   } catch (err) {
     await context.createActivityLog({
       level: 'warn',
@@ -322,13 +268,8 @@ async function processText(file: GoogleDriveFile, context: SyncContext): Promise
       retries: 3,
     });
 
-    const splitter = new RecursiveCharacterTextSplitter({
-      chunkSize: 1000,
-      chunkOverlap: 200,
-    });
-
-    const output = await splitter.createDocuments([response.data]);
-    return output.map((doc) => doc.pageContent);
+    const text = response.data;
+    return await context.processor.processText(text);
   } catch (err) {
     await context.createActivityLog({
       level: 'warn',
@@ -349,15 +290,8 @@ async function processJson(file: GoogleDriveFile, context: SyncContext): Promise
       retries: 3,
     });
 
-    const jsonString = JSON.stringify(response.data);
-    const splitter = new RecursiveCharacterTextSplitter({
-      chunkSize: 2000,
-      chunkOverlap: 400,
-      separators: ['{', '['],
-    });
-
-    const output = await splitter.createDocuments([jsonString]);
-    return output.map((doc) => doc.pageContent);
+    const jsonStr = JSON.stringify(response.data);
+    return await context.processor.processJson(jsonStr);
   } catch (err) {
     await context.createActivityLog({
       level: 'warn',
@@ -372,10 +306,6 @@ async function processJson(file: GoogleDriveFile, context: SyncContext): Promise
 
 async function processImage(file: GoogleDriveFile, context: SyncContext): Promise<string | null> {
   try {
-    if (!context.multimodalEnabled) {
-      return null;
-    }
-
     const response = await context.get({
       endpoint: `drive/v3/files/${file.id}`,
       params: { alt: 'media' },
@@ -383,7 +313,8 @@ async function processImage(file: GoogleDriveFile, context: SyncContext): Promis
       responseType: 'arraybuffer',
     });
 
-    return Buffer.from(response.data, 'binary').toString('base64');
+    const buffer = Buffer.from(response.data, 'binary');
+    return context.processor.processImage(buffer);
   } catch (err) {
     await context.createActivityLog({
       level: 'warn',
@@ -398,10 +329,6 @@ async function processImage(file: GoogleDriveFile, context: SyncContext): Promis
 
 async function processAudio(file: GoogleDriveFile, context: SyncContext): Promise<string[]> {
   try {
-    if (!context.multimodalEnabled) {
-      return [];
-    }
-
     const response = await context.get({
       endpoint: `drive/v3/files/${file.id}`,
       params: { alt: 'media' },
@@ -410,7 +337,7 @@ async function processAudio(file: GoogleDriveFile, context: SyncContext): Promis
     });
 
     const buffer = Buffer.from(response.data, 'binary');
-    return await context.processAudio(buffer);
+    return await context.processor.processAudio(buffer);
   } catch (err) {
     await context.createActivityLog({
       level: 'warn',
@@ -425,10 +352,6 @@ async function processAudio(file: GoogleDriveFile, context: SyncContext): Promis
 
 async function processVideo(file: GoogleDriveFile, context: SyncContext): Promise<string[]> {
   try {
-    if (!context.multimodalEnabled) {
-      return [];
-    }
-
     const response = await context.get({
       endpoint: `drive/v3/files/${file.id}`,
       params: { alt: 'media' },
@@ -437,7 +360,7 @@ async function processVideo(file: GoogleDriveFile, context: SyncContext): Promis
     });
 
     const buffer = Buffer.from(response.data, 'binary');
-    return await context.processVideo(buffer);
+    return await context.processor.processVideo(buffer);
   } catch (err) {
     await context.createActivityLog({
       level: 'warn',
