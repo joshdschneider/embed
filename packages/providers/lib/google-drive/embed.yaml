@@ -49,11 +49,11 @@ schemas:
         description: The MIME type of the file.
         keyword_searchable: false
         vector_searchable: false
-      base64:
+      image_base64:
         type: string
         filterable: false
         keyword_searchable: false
-        multimodal: true
+        image: true
         hidden: true
       content:
         type: nested

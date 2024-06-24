@@ -1,5 +1,5 @@
 import { MAX_CONNECTIONS_IN_STAGING } from '../utils/constants';
-import { MeterEvent } from '../utils/enums';
+import { MeterEvent, UsageAction, UsageType } from '../utils/enums';
 import {
   ActionUsageObject,
   ConnectionUsageObject,
@@ -7,9 +7,7 @@ import {
   ProxyRequestUsageObject,
   QueryUsageObject,
   SyncUsageObject,
-  UsageAction,
   UsageObject,
-  UsageType,
 } from '../utils/types';
 import billingService from './billing.service';
 import connectionService from './connection.service';

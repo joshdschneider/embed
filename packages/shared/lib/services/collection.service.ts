@@ -1,9 +1,14 @@
 import { Collection, Connection } from '@prisma/client';
 import ElasticClient from '../clients/elastic.client';
 import { database } from '../utils/database';
-import { MultimodalEmbeddingModel, SyncStatus, TextEmbeddingModel } from '../utils/enums';
+import {
+  MultimodalEmbeddingModel,
+  SyncStatus,
+  TextEmbeddingModel,
+  UsageType,
+} from '../utils/enums';
 import { now } from '../utils/helpers';
-import { ImageSearchOptions, QueryOptions, UsageType } from '../utils/types';
+import { ImageSearchOptions, QueryOptions } from '../utils/types';
 import errorService from './error.service';
 import recordService from './record.service';
 import syncService from './sync.service';
@@ -234,7 +239,6 @@ class CollectionService {
   }): Promise<{
     textEmbeddingModel: TextEmbeddingModel;
     multimodalEmbeddingModel: MultimodalEmbeddingModel;
-    multimodalEnabled: boolean;
   } | null> {
     try {
       const collection = await database.collection.findUnique({
@@ -255,7 +259,6 @@ class CollectionService {
       return {
         textEmbeddingModel: collection.text_embedding_model as TextEmbeddingModel,
         multimodalEmbeddingModel: collection.multimodal_embedding_model as MultimodalEmbeddingModel,
-        multimodalEnabled: collection.multimodal_enabled,
       };
     } catch (err) {
       await errorService.reportError(err);

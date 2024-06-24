@@ -195,7 +195,6 @@ export const DEFAULT_AUTO_ENABLE_COLLECTIONS = true;
 export const DEFAULT_AUTO_ENABLE_ACTIONS = true;
 export const DEFAULT_AUTO_START_SYNCS = false;
 export const DEFAULT_SYNC_FREQUENCY = SyncFrequency.Daily;
-export const DEFAULT_MULTIMODAL_ENABLED = true;
 
 export const DEFAULT_QUERY_LIMIT = 10;
 export const DEFAULT_KNN_NUM_CANDIDATES = 100;

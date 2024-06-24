@@ -4,14 +4,11 @@ import {
   MappingProperty,
   SearchHit,
 } from '@elastic/elasticsearch/lib/api/types';
-import { CollectionProperty } from '@embed/providers';
 import { Connection } from '@prisma/client';
 import collectionService from '../services/collection.service';
 import errorService from '../services/error.service';
 import providerService from '../services/provider.service';
 import { getElasticApiKey, getElasticApiKeyId, getElasticEndpoint } from '../utils/constants';
-import { MultimodalEmbeddingModel, TextEmbeddingModel } from '../utils/enums';
-import { deconstructObject, reconstructObject } from '../utils/helpers';
 import { ImageSearchOptions, QueryOptions, SourceObjectWithHash } from '../utils/types';
 import { EmbeddingClient } from './embedding.client';
 import { IndexClient } from './index.client';
@@ -127,7 +124,7 @@ class ElasticClient {
       throw new Error('Failed to get collection model settings');
     }
 
-    const { textEmbeddingModel, multimodalEmbeddingModel, multimodalEnabled } = modelSettings;
+    const { textEmbeddingModel, multimodalEmbeddingModel } = modelSettings;
 
     if (
       queryOptions.type === 'vector' ||
@@ -140,7 +137,6 @@ class ElasticClient {
         queryOptions,
         textEmbeddingModel,
         multimodalEmbeddingModel,
-        multimodalEnabled,
       });
     }
 
@@ -151,7 +147,6 @@ class ElasticClient {
       queryOptions,
       textEmbeddingModel,
       multimodalEmbeddingModel,
-      multimodalEnabled,
     });
   }
 
@@ -189,10 +184,7 @@ class ElasticClient {
       throw new Error('Failed to get collection model settings');
     }
 
-    const { multimodalEmbeddingModel, multimodalEnabled } = modelSettings;
-    if (!multimodalEnabled) {
-      throw new Error('Multimodal search is not enabled for this collection');
-    }
+    const { multimodalEmbeddingModel } = modelSettings;
 
     return this.queries.imageSearch({
       connectionId: connection.id,
@@ -270,122 +262,16 @@ class ElasticClient {
     }
   }
 
-  private async vectorizeObject({
-    textEmbeddingModel,
-    multimodalEmbeddingModel,
-    schemaProperties,
-    obj,
-  }: {
-    textEmbeddingModel: TextEmbeddingModel;
-    multimodalEmbeddingModel: MultimodalEmbeddingModel;
-    schemaProperties: Record<string, CollectionProperty>;
-    obj: Record<string, any>;
-  }): Promise<Record<string, any>> {
-    const objProperties = deconstructObject(obj);
-
-    const textProperties: [string, any][] = [];
-    const multimodalProperties: [string, any][] = [];
-
-    for (const [k, v] of objProperties) {
-      if (!v) {
-        continue;
-      }
-
-      const path = k.split('.').shift()!;
-      const property = schemaProperties[path];
-
-      if (property && property.type === 'string' && property.vector_searchable) {
-        if (property.multimodal) {
-          multimodalProperties.push([k, v]);
-        } else {
-          textProperties.push([k, v]);
-        }
-      } else if (property && property.type === 'nested' && property.properties) {
-        let nestedPath = k.split('.')[1]!;
-        if (!isNaN(Number(nestedPath))) {
-          nestedPath = k.split('.')[2]!;
-        }
-
-        const nestedProperty = property.properties[nestedPath];
-        if (
-          nestedProperty &&
-          nestedProperty.type === 'string' &&
-          nestedProperty.vector_searchable
-        ) {
-          if (nestedProperty.multimodal) {
-            multimodalProperties.push([k, v]);
-          } else {
-            textProperties.push([k, v]);
-          }
-        }
-      }
-    }
-
-    if (textProperties.length === 0 && multimodalProperties.length === 0) {
-      return obj;
-    }
-
-    const textValues = textProperties.map(([k, v]) => v);
-    const multimodalValues = multimodalProperties.map(([k, v]) => v);
-
-    let textVectorsPromise;
-    let multimodalVectorsPromise;
-
-    if (textValues.length > 0) {
-      textVectorsPromise = this.embeddings.embedText({
-        model: textEmbeddingModel,
-        text: textValues,
-        purpose: 'object',
-      });
-    }
-
-    if (multimodalValues.length > 0) {
-      multimodalVectorsPromise = this.embeddings.embedMultimodal({
-        model: multimodalEmbeddingModel,
-        content: multimodalValues,
-        type: 'images',
-      });
-    }
-
-    const [textVectors, multimodalVectors] = await Promise.all([
-      textVectorsPromise,
-      multimodalVectorsPromise,
-    ]);
-
-    const textVectorProperties: [string, any][] = [];
-    const multimodalVectorProperties: [string, any][] = [];
-
-    if (textVectors) {
-      textProperties.forEach(([k, v], i) => {
-        textVectorProperties.push([`${k}_vector`, textVectors[i]]);
-      });
-    }
-
-    if (multimodalVectors) {
-      multimodalProperties.forEach(([k, v], i) => {
-        multimodalVectorProperties.push([`${k}_vector`, multimodalVectors[i]]);
-      });
-    }
-
-    return reconstructObject([
-      ...objProperties,
-      ...textVectorProperties,
-      ...multimodalVectorProperties,
-    ]);
-  }
-
   public async batchUpsertObjects({
     connectionId,
     integrationId,
     environmentId,
-    providerKey,
     collectionKey,
     objects,
   }: {
     connectionId: string;
     integrationId: string;
     environmentId: string;
-    providerKey: string;
     collectionKey: string;
     objects: SourceObjectWithHash[];
   }): Promise<boolean> {
@@ -394,42 +280,8 @@ class ElasticClient {
     }
 
     try {
-      const providerCollection = await providerService.getProviderCollection(
-        providerKey,
-        collectionKey
-      );
-
-      if (!providerCollection) {
-        throw new Error(`Failed to get collection schema for ${collectionKey}`);
-      }
-
-      const modelSettings = await collectionService.getCollectionModelSettings({
-        collectionKey,
-        integrationId,
-        environmentId,
-      });
-
-      if (!modelSettings) {
-        throw new Error('Failed to get collection model settings');
-      }
-
-      const { textEmbeddingModel, multimodalEmbeddingModel } = modelSettings;
-      const schemaProperties = providerCollection.schema.properties;
-      const vectorizedObjects: Record<string, any>[] = [];
-
-      for (const obj of objects) {
-        const vectorizedObject = await this.vectorizeObject({
-          textEmbeddingModel,
-          multimodalEmbeddingModel,
-          schemaProperties,
-          obj,
-        });
-
-        vectorizedObjects.push(vectorizedObject);
-      }
-
       const indexName = ElasticClient.formatIndexName(environmentId, integrationId, collectionKey);
-      const operations = vectorizedObjects.flatMap((obj) => [
+      const operations = objects.flatMap((obj) => [
         { index: { _index: indexName } },
         { ...obj, connection_id: connectionId },
       ]);
@@ -440,64 +292,6 @@ class ElasticClient {
       });
 
       return bulkResponse.errors === false;
-    } catch (err) {
-      await errorService.reportError(err);
-      return false;
-    }
-  }
-
-  public async upsertObject({
-    connectionId,
-    integrationId,
-    environmentId,
-    providerKey,
-    collectionKey,
-    object,
-  }: {
-    connectionId: string;
-    integrationId: string;
-    environmentId: string;
-    providerKey: string;
-    collectionKey: string;
-    object: SourceObjectWithHash;
-  }): Promise<boolean> {
-    try {
-      const providerCollection = await providerService.getProviderCollection(
-        providerKey,
-        collectionKey
-      );
-
-      if (!providerCollection) {
-        throw new Error(`Failed to get collection schema for ${collectionKey}`);
-      }
-
-      const modelSettings = await collectionService.getCollectionModelSettings({
-        collectionKey,
-        integrationId,
-        environmentId,
-      });
-
-      if (!modelSettings) {
-        throw new Error('Failed to get collection model settings');
-      }
-
-      const { textEmbeddingModel, multimodalEmbeddingModel } = modelSettings;
-      const schemaProperties = providerCollection.schema.properties;
-
-      const vectorObj = await this.vectorizeObject({
-        textEmbeddingModel,
-        multimodalEmbeddingModel,
-        schemaProperties,
-        obj: object,
-      });
-
-      const indexName = ElasticClient.formatIndexName(environmentId, integrationId, collectionKey);
-      const response = await this.elastic.index({
-        index: indexName,
-        document: { ...vectorObj, connection_id: connectionId },
-      });
-
-      return response.result === 'created' || response.result === 'updated';
     } catch (err) {
       await errorService.reportError(err);
       return false;
@@ -524,29 +318,7 @@ class ElasticClient {
     }
 
     try {
-      const providerCollection = await providerService.getProviderCollection(
-        providerKey,
-        collectionKey
-      );
-
-      if (!providerCollection) {
-        throw new Error(`Failed to get collection schema for ${collectionKey}`);
-      }
-
-      const modelSettings = await collectionService.getCollectionModelSettings({
-        collectionKey,
-        integrationId,
-        environmentId,
-      });
-
-      if (!modelSettings) {
-        throw new Error('Failed to get collection model settings');
-      }
-
-      const { textEmbeddingModel, multimodalEmbeddingModel } = modelSettings;
-      const schemaProperties = providerCollection.schema.properties;
       const indexName = ElasticClient.formatIndexName(environmentId, integrationId, collectionKey);
-
       const results = await this.elastic.search({
         index: indexName,
         query: {
@@ -569,16 +341,11 @@ class ElasticClient {
 
       const operations: object[] = [];
       for (const { id, _id } of matchingObjects) {
-        const obj = objects.find((obj) => obj.id === id)!;
-        const vectorObj = await this.vectorizeObject({
-          textEmbeddingModel,
-          multimodalEmbeddingModel,
-          schemaProperties,
-          obj,
-        });
-
-        operations.push({ update: { _index: indexName, _id } });
-        operations.push({ doc: { ...vectorObj, connection_id: connectionId } });
+        const obj = objects.find((obj) => obj.id === id);
+        if (obj) {
+          operations.push({ update: { _index: indexName, _id } });
+          operations.push({ doc: { ...obj, connection_id: connectionId } });
+        }
       }
 
       const bulkResponse = await this.elastic.bulk({

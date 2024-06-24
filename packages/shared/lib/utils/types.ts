@@ -1,7 +1,7 @@
 import { AuthScheme, SourceObject } from '@embed/providers';
 import { Invitation, Organization, OrganizationMembership, User } from '@workos-inc/node';
 import { z } from 'zod';
-import { MeterEvent } from './enums';
+import { MeterEvent, UsageType } from './enums';
 
 export enum EnvironmentType {
   Staging = 'staging',
@@ -155,18 +155,6 @@ export interface SyncWebhookBody {
 }
 
 export type WebhookBody = ConnectionWebhookBody | SyncWebhookBody;
-
-export enum UsageAction {
-  CreateConnection = 'create_connection',
-}
-
-export enum UsageType {
-  Connection = 'connection',
-  Query = 'query',
-  Action = 'action',
-  ProxyRequest = 'proxy_request',
-  Sync = 'sync',
-}
 
 export interface BaseUsageObject {
   usageType: UsageType;

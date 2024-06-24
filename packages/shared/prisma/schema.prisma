@@ -87,7 +87,6 @@ model Environment {
   default_sync_frequency             String
   default_text_embedding_model       String
   default_multimodal_embedding_model String
-  multimodal_enabled_by_default      Boolean
   branding                           Json
   created_at                         Int
   updated_at                         Int
@@ -206,7 +205,6 @@ model Collection {
   exclude_properties_from_syncs String[]
   text_embedding_model          String
   multimodal_embedding_model    String
-  multimodal_enabled            Boolean
   configuration                 Json?
   created_at                    Int
   updated_at                    Int
@@ -261,17 +259,21 @@ model Sync {
 }
 
 model SyncRun {
-  id              String  @id
-  collection_key  String
-  connection_id   String
-  integration_id  String
-  status          String
-  temporal_run_id String?
-  records_added   Int?
-  records_updated Int?
-  records_deleted Int?
-  timestamp       Int
-  duration        Int?
+  id                  String  @id
+  collection_key      String
+  connection_id       String
+  integration_id      String
+  status              String
+  temporal_run_id     String?
+  records_added       Int?
+  records_updated     Int?
+  records_deleted     Int?
+  usage_words         Int?
+  usage_images        Int?
+  usage_video_seconds Int?
+  usage_audio_seconds Int?
+  timestamp           Int
+  duration            Int?
 
   sync Sync @relation(fields: [collection_key, connection_id, integration_id], references: [collection_key, connection_id, integration_id])
 }

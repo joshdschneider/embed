@@ -26,10 +26,6 @@ class CollectionHook {
       shouldResync = true;
     }
 
-    if (initialCollection.multimodal_enabled !== updatedCollection.multimodal_enabled) {
-      shouldResync = true;
-    }
-
     if (
       JSON.stringify(initialCollection.exclude_properties_from_syncs) !==
       JSON.stringify(updatedCollection.exclude_properties_from_syncs)

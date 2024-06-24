@@ -1,7 +1,7 @@
 import { Action, ActionRun } from '@prisma/client';
 import { database } from '../utils/database';
+import { UsageType } from '../utils/enums';
 import { now } from '../utils/helpers';
-import { UsageType } from '../utils/types';
 import errorService from './error.service';
 import usageService from './usage.service';
 
