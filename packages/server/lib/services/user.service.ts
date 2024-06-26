@@ -1,5 +1,5 @@
 import type { OrganizationMembership, User } from '@embed/shared';
-import { database, errorService, now } from '@embed/shared';
+import { database, errorService, getWorkOS, now } from '@embed/shared';
 
 class UserService {
   public async persistUser(user: User): Promise<User | null> {
@@ -27,6 +27,13 @@ class UserService {
 
   public async updateUser(userId: string, payload: Partial<User>): Promise<User | null> {
     try {
+      const workos = getWorkOS();
+      await workos.userManagement.updateUser({
+        userId,
+        ...(payload.first_name && { firstName: payload.first_name }),
+        ...(payload.last_name && { lastName: payload.last_name }),
+      });
+
       return await database.user.update({
         where: { id: userId, deleted_at: null },
         data: {

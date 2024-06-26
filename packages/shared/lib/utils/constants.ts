@@ -225,4 +225,5 @@ export const DEFAULT_BRANDING = {
   },
 };
 
+export const DEFAULT_LOCKED_REASON = 'Your account is under review';
 export const DEFAULT_ERROR_MESSAGE = 'Something went wrong';

@@ -1,4 +1,5 @@
 import { AuthScheme, SourceObject } from '@embed/providers';
+import { PaymentMethod } from '@prisma/client';
 import { Invitation, Organization, OrganizationMembership, User } from '@workos-inc/node';
 import { z } from 'zod';
 import { MeterEvent, UsageType } from './enums';
@@ -247,3 +248,34 @@ export const StripePriceIdsSchema = z.object({
 });
 
 export type StripePriceIds = z.infer<typeof StripePriceIdsSchema>;
+
+export type UpcomingInvoice = {
+  collection_method: 'charge_automatically' | 'send_invoice';
+  period_start: number;
+  period_end: number;
+  total: number;
+  total_excluding_tax: number | null;
+  currency: string;
+  next_payment_attempt: number | null;
+  lines: {
+    description: string | null;
+    amount: number;
+    amount_excluding_tax: number | null;
+  }[];
+};
+
+export type BillingDetails = {
+  plan: string | null;
+  payment_method: PaymentMethod | null;
+  upcoming_invoice: UpcomingInvoice | null;
+};
+
+export type Invoice = {
+  total: number;
+  period_start: number;
+  period_end: number;
+  currency: string;
+  status: string | null;
+  invoice_pdf?: string | null;
+  hosted_invoice_url?: string | null;
+};

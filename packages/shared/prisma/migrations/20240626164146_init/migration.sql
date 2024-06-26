@@ -47,7 +47,6 @@ CREATE TABLE "Subscription" (
     "price_ids" JSONB NOT NULL,
     "created_at" INTEGER NOT NULL,
     "updated_at" INTEGER NOT NULL,
-    "deleted_at" INTEGER,
 
     CONSTRAINT "Subscription_pkey" PRIMARY KEY ("id")
 );
@@ -64,7 +63,6 @@ CREATE TABLE "PaymentMethod" (
     "card_exp_year" INTEGER,
     "created_at" INTEGER NOT NULL,
     "updated_at" INTEGER NOT NULL,
-    "deleted_at" INTEGER,
 
     CONSTRAINT "PaymentMethod_pkey" PRIMARY KEY ("id")
 );
@@ -81,6 +79,8 @@ CREATE TABLE "Environment" (
     "default_text_embedding_model" TEXT NOT NULL,
     "default_multimodal_embedding_model" TEXT NOT NULL,
     "branding" JSONB NOT NULL,
+    "locked" BOOLEAN NOT NULL,
+    "locked_reason" TEXT,
     "created_at" INTEGER NOT NULL,
     "updated_at" INTEGER NOT NULL,
     "deleted_at" INTEGER,

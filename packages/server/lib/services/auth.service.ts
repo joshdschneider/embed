@@ -1,5 +1,6 @@
 import {
   DEFAULT_ERROR_MESSAGE,
+  DEFAULT_LOCKED_REASON,
   EMBED_AUTH_TOKEN_KEY,
   EMBED_ENVIRONMENT_KEY,
   ENVIRONMENT_ID_LOCALS_KEY,
@@ -24,6 +25,13 @@ class AuthService {
         });
       }
 
+      if (environment.locked) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.Forbidden,
+          message: environment.locked_reason || DEFAULT_LOCKED_REASON,
+        });
+      }
+
       const { organization_id: organizationId, id: environmentId } = environment;
       res.locals[ORGANIZATION_ID_LOCALS_KEY] = organizationId;
       res.locals[ENVIRONMENT_ID_LOCALS_KEY] = environmentId;
@@ -43,7 +51,7 @@ class AuthService {
     req: Request,
     res: Response,
     next: NextFunction,
-    options?: { verifyEnvironment: boolean }
+    options?: { verifyEnvironment?: boolean }
   ) {
     try {
       const authTokenSecret = getAuthTokenSecret();
@@ -84,6 +92,13 @@ class AuthService {
           return errorService.errorResponse(res, {
             code: ErrorCode.Forbidden,
             message: 'Environment does not exist',
+          });
+        }
+
+        if (environment.locked) {
+          return errorService.errorResponse(res, {
+            code: ErrorCode.Forbidden,
+            message: environment.locked_reason || DEFAULT_LOCKED_REASON,
           });
         }
 

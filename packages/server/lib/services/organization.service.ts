@@ -1,4 +1,10 @@
-import type { Organization, OrganizationMembership, User, WorkOSInvitation } from '@embed/shared';
+import type {
+  Environment,
+  Organization,
+  OrganizationMembership,
+  User,
+  WorkOSInvitation,
+} from '@embed/shared';
 import { billingService, database, errorService, getWorkOS, now } from '@embed/shared';
 
 class OrganizationService {
@@ -151,10 +157,35 @@ class OrganizationService {
         name: organizationName,
       });
 
-      return await database.organization.update({
+      const organization = await database.organization.update({
         where: { id: organizationId },
         data: { name: organizationName, updated_at: now() },
       });
+
+      await billingService.updateCustomer({
+        organizationId: organization.id,
+        name: organizationName,
+      });
+
+      return organization;
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
+    }
+  }
+
+  public async getOrganizationEnvironments(organizationId: string): Promise<Environment[] | null> {
+    try {
+      const organization = await database.organization.findUnique({
+        where: { id: organizationId },
+        select: { environments: true },
+      });
+
+      if (!organization) {
+        throw new Error('Organization not found');
+      }
+
+      return organization.environments;
     } catch (err) {
       await errorService.reportError(err);
       return null;

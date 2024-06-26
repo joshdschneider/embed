@@ -33,15 +33,33 @@ class StripeClient {
   public async createCustomer({
     organizationId,
     name,
+    email,
   }: {
     organizationId: string;
     name: string;
+    email?: string;
   }): Promise<Stripe.Customer | null> {
     try {
       return await this.stripe.customers.create({
         name,
+        email,
         metadata: { organization_id: organizationId },
       });
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
+    }
+  }
+
+  public async updateCustomer({
+    stripeCustomerId,
+    name,
+  }: {
+    stripeCustomerId: string;
+    name: string;
+  }): Promise<Stripe.Customer | null> {
+    try {
+      return await this.stripe.customers.update(stripeCustomerId, { name });
     } catch (err) {
       await errorService.reportError(err);
       return null;
@@ -67,16 +85,36 @@ class StripeClient {
     stripePaymentMethodId: string;
   }): Promise<Stripe.PaymentMethod | null> {
     try {
-      return await this.stripe.paymentMethods.attach(stripePaymentMethodId, {
+      const paymentMethod = await this.stripe.paymentMethods.attach(stripePaymentMethodId, {
         customer: stripeCustomerId,
       });
+
+      await this.stripe.customers.update(stripeCustomerId, {
+        invoice_settings: { default_payment_method: stripePaymentMethodId },
+      });
+
+      // if (action === 'update') {
+      //   const paymentMethods = await this.stripe.paymentMethods.list({
+      //     customer: stripeCustomer.id,
+      //   });
+
+      //   const notDefault = paymentMethods.data.filter(
+      //     (method) => method.id !== stripePaymentMethodId
+      //   );
+
+      //   for (const method of notDefault) {
+      //     await this.stripe.paymentMethods.detach(method.id);
+      //   }
+      // }
+
+      return paymentMethod;
     } catch (err) {
       await errorService.reportError(err);
       return null;
     }
   }
 
-  public async deletePaymentMethod(
+  public async detachPaymentMethod(
     stripePaymentMethodId: string
   ): Promise<Stripe.PaymentMethod | null> {
     try {
@@ -108,7 +146,6 @@ class StripeClient {
         items: items,
         billing_thresholds: { amount_gte: 25000 },
         billing_cycle_anchor_config: { day_of_month: 1 },
-        automatic_tax: { enabled: true },
         description: 'Embed API usage',
         collection_method: 'charge_automatically',
       });
@@ -171,6 +208,38 @@ class StripeClient {
       }
 
       return await this.stripe.billing.meterEvents.create(meterEvent);
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
+    }
+  }
+
+  public async getUpcomingInvoice(
+    stripeCustomerId: string,
+    stripeSubscriptionId: string
+  ): Promise<Stripe.UpcomingInvoice | null> {
+    try {
+      return await this.stripe.invoices.retrieveUpcoming({
+        customer: stripeCustomerId,
+        subscription: stripeSubscriptionId,
+      });
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
+    }
+  }
+
+  public async listInvoices(
+    stripeCustomerId: string,
+    stripeSubscriptionId: string
+  ): Promise<Stripe.Invoice[] | null> {
+    try {
+      const invoices = await this.stripe.invoices.list({
+        customer: stripeCustomerId,
+        subscription: stripeSubscriptionId,
+        limit: 20,
+      });
+      return invoices.data;
     } catch (err) {
       await errorService.reportError(err);
       return null;

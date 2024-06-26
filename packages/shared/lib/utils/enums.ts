@@ -149,3 +149,9 @@ export enum MeterEvent {
   Actions = 'actions',
   ProxyRequests = 'proxy_requests',
 }
+
+export enum LockedReason {
+  PaymentMethodRequired = 'payment_method_required',
+  PaymentMethodInvalid = 'payment_method_invalid',
+  AccountSuspended = 'account_suspended',
+}
