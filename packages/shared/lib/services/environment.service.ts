@@ -1,6 +1,7 @@
 import { Environment } from '@prisma/client';
 import { DEFAULT_BRANDING } from '../utils/constants';
 import { database } from '../utils/database';
+import { LockedReason } from '../utils/enums';
 import { now } from '../utils/helpers';
 import { Branding } from '../utils/types';
 import encryptionService from './encryption.service';
@@ -119,6 +120,32 @@ class EnvironmentService {
     } catch (err) {
       await errorService.reportError(err);
       return DEFAULT_BRANDING;
+    }
+  }
+
+  public async lockEnvironment(environmentId: string, reason: LockedReason): Promise<boolean> {
+    try {
+      await database.environment.update({
+        where: { id: environmentId },
+        data: { locked: true, locked_reason: reason, updated_at: now() },
+      });
+      return true;
+    } catch (err) {
+      await errorService.reportError(err);
+      return false;
+    }
+  }
+
+  public async unlockEnvironment(environmentId: string): Promise<boolean> {
+    try {
+      await database.environment.update({
+        where: { id: environmentId },
+        data: { locked: false, locked_reason: null, updated_at: now() },
+      });
+      return true;
+    } catch (err) {
+      await errorService.reportError(err);
+      return false;
     }
   }
 }

@@ -1,14 +1,6 @@
 import { MAX_CONNECTIONS_IN_STAGING } from '../utils/constants';
 import { MeterEvent, UsageAction, UsageType } from '../utils/enums';
-import {
-  ActionUsageObject,
-  ConnectionUsageObject,
-  EnvironmentType,
-  ProxyRequestUsageObject,
-  QueryUsageObject,
-  SyncUsageObject,
-  UsageObject,
-} from '../utils/types';
+import { EnvironmentType, SyncUsageObject, UsageObject } from '../utils/types';
 import billingService from './billing.service';
 import connectionService from './connection.service';
 import environmentService from './environment.service';
@@ -45,17 +37,26 @@ class UsageService {
   }
 
   public async reportUsage(usageObject: UsageObject): Promise<boolean> {
+    const environment = await environmentService.getEnvironmentById(usageObject.environmentId);
+    if (!environment) {
+      throw new Error('Failed to retrieve environment');
+    }
+
+    if (environment.type === EnvironmentType.Staging) {
+      return true;
+    }
+
     switch (usageObject.usageType) {
       case UsageType.Connection:
-        return this.reportConnectionUsage(usageObject);
+        return this.reportConnectionUsage(environment.organization_id, environment.id);
       case UsageType.Sync:
-        return this.reportSyncUsage(usageObject);
+        return this.reportSyncUsage(usageObject, environment.organization_id);
       case UsageType.Query:
-        return this.reportQueryUsage(usageObject);
+        return this.reportQueryUsage(usageObject.queryType, environment.organization_id);
       case UsageType.Action:
-        return this.reportActionUsage(usageObject);
+        return this.reportActionUsage(environment.organization_id);
       case UsageType.ProxyRequest:
-        return this.reportProxyRequestUsage(usageObject);
+        return this.reportProxyRequestUsage(environment.organization_id);
       default:
         const err = new Error('Invalid usage type');
         await errorService.reportError(err);
@@ -63,20 +64,18 @@ class UsageService {
     }
   }
 
-  private async reportConnectionUsage(usageObject: ConnectionUsageObject): Promise<boolean> {
+  private async reportConnectionUsage(
+    organizationId: string,
+    environmentId: string
+  ): Promise<boolean> {
     try {
-      const environment = await environmentService.getEnvironmentById(usageObject.environmentId);
-      if (!environment) {
-        throw new Error('Failed to retrieve environment');
-      }
-
-      const connectionCount = await connectionService.getConnectionCount(environment.id);
+      const connectionCount = await connectionService.getConnectionCount(environmentId);
       if (!connectionCount) {
         throw new Error('Failed to retrieve connection count');
       }
 
       return await billingService.updateSubscriptionConnectionsQuantity({
-        organizationId: environment.organization_id,
+        organizationId,
         connectionCount,
       });
     } catch (err) {
@@ -85,17 +84,15 @@ class UsageService {
     }
   }
 
-  private async reportSyncUsage(usageObject: SyncUsageObject): Promise<boolean> {
+  private async reportSyncUsage(
+    usageObject: SyncUsageObject,
+    organizationId: string
+  ): Promise<boolean> {
     try {
-      const environment = await environmentService.getEnvironmentById(usageObject.environmentId);
-      if (!environment) {
-        throw new Error('Failed to retrieve environment');
-      }
-
       let reported = true;
       if (usageObject.syncedWords > 0) {
         const syncedWordsReported = await billingService.reportUsage({
-          organizationId: environment.organization_id,
+          organizationId,
           meterEvent: MeterEvent.SyncedWords,
           value: usageObject.syncedWords,
         });
@@ -110,7 +107,7 @@ class UsageService {
 
       if (usageObject.syncedImages > 0) {
         const syncedImagesReported = await billingService.reportUsage({
-          organizationId: environment.organization_id,
+          organizationId,
           meterEvent: MeterEvent.SyncedImages,
           value: usageObject.syncedImages,
         });
@@ -125,7 +122,7 @@ class UsageService {
 
       if (usageObject.syncedAudioSeconds > 0) {
         const syncedAudioSecondsReported = await billingService.reportUsage({
-          organizationId: environment.organization_id,
+          organizationId,
           meterEvent: MeterEvent.SyncedAudio,
           value: usageObject.syncedAudioSeconds,
         });
@@ -140,7 +137,7 @@ class UsageService {
 
       if (usageObject.syncedVideoSeconds > 0) {
         const syncedVideoSecondsReported = await billingService.reportUsage({
-          organizationId: environment.organization_id,
+          organizationId,
           meterEvent: MeterEvent.SyncedVideo,
           value: usageObject.syncedVideoSeconds,
         });
@@ -160,24 +157,22 @@ class UsageService {
     }
   }
 
-  private async reportQueryUsage(usageObject: QueryUsageObject): Promise<boolean> {
+  private async reportQueryUsage(
+    queryType: 'image' | 'text',
+    organizationId: string
+  ): Promise<boolean> {
     try {
-      const environment = await environmentService.getEnvironmentById(usageObject.environmentId);
-      if (!environment) {
-        throw new Error('Failed to retrieve environment');
-      }
-
       let meterEvent: MeterEvent;
-      if (usageObject.queryType === 'image') {
+      if (queryType === 'image') {
         meterEvent = MeterEvent.ImageQueries;
-      } else if (usageObject.queryType === 'text') {
+      } else if (queryType === 'text') {
         meterEvent = MeterEvent.TextQueries;
       } else {
         throw new Error('Invalid query type');
       }
 
       return await billingService.reportUsage({
-        organizationId: environment.organization_id,
+        organizationId,
         meterEvent,
       });
     } catch (err) {
@@ -186,15 +181,10 @@ class UsageService {
     }
   }
 
-  private async reportActionUsage(usageObject: ActionUsageObject): Promise<boolean> {
+  private async reportActionUsage(organizationId: string): Promise<boolean> {
     try {
-      const environment = await environmentService.getEnvironmentById(usageObject.environmentId);
-      if (!environment) {
-        throw new Error('Failed to retrieve environment');
-      }
-
       return await billingService.reportUsage({
-        organizationId: environment.organization_id,
+        organizationId,
         meterEvent: MeterEvent.Actions,
       });
     } catch (err) {
@@ -203,15 +193,10 @@ class UsageService {
     }
   }
 
-  private async reportProxyRequestUsage(usageObject: ProxyRequestUsageObject): Promise<boolean> {
+  private async reportProxyRequestUsage(organizationId: string): Promise<boolean> {
     try {
-      const environment = await environmentService.getEnvironmentById(usageObject.environmentId);
-      if (!environment) {
-        throw new Error('Failed to retrieve environment');
-      }
-
       return await billingService.reportUsage({
-        organizationId: environment.organization_id,
+        organizationId,
         meterEvent: MeterEvent.ProxyRequests,
       });
     } catch (err) {

@@ -56,7 +56,6 @@ model Subscription {
   price_ids       Json
   created_at      Int
   updated_at      Int
-  deleted_at      Int?
 
   organization Organization @relation(fields: [organization_id], references: [id])
 }
@@ -72,7 +71,6 @@ model PaymentMethod {
   card_exp_year   Int?
   created_at      Int
   updated_at      Int
-  deleted_at      Int?
 
   organization Organization @relation(fields: [organization_id], references: [id])
 }
@@ -88,6 +86,8 @@ model Environment {
   default_text_embedding_model       String
   default_multimodal_embedding_model String
   branding                           Json
+  locked                             Boolean
+  locked_reason                      String?
   created_at                         Int
   updated_at                         Int
   deleted_at                         Int?

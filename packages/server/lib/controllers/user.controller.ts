@@ -10,10 +10,12 @@ import {
   DEFAULT_TEXT_EMBEDDING_MODEL,
   EnvironmentType,
   ErrorCode,
+  LockedReason,
   Organization,
   Resource,
   User,
   apiKeyService,
+  billingService,
   environmentService,
   errorService,
   generateId,
@@ -157,6 +159,8 @@ class UserController {
         default_multimodal_embedding_model: DEFAULT_MULTIMODAL_EMBEDDING_MODEL,
         default_text_embedding_model: DEFAULT_TEXT_EMBEDDING_MODEL,
         branding: DEFAULT_BRANDING,
+        locked: false,
+        locked_reason: null,
         created_at: now(),
         updated_at: now(),
         deleted_at: null,
@@ -169,11 +173,36 @@ class UserController {
         });
       }
 
-      const key = generateSecretKey(EnvironmentType.Staging);
-      const apiKey = await apiKeyService.createApiKey({
+      const productionEnvironment = await environmentService.createEnvironment({
+        id: generateId(Resource.Environment),
+        organization_id: _organization.id,
+        type: EnvironmentType.Production,
+        auto_enable_collections: DEFAULT_AUTO_ENABLE_COLLECTIONS,
+        auto_enable_actions: DEFAULT_AUTO_ENABLE_ACTIONS,
+        auto_start_syncs: DEFAULT_AUTO_START_SYNCS,
+        default_sync_frequency: DEFAULT_SYNC_FREQUENCY,
+        default_multimodal_embedding_model: DEFAULT_MULTIMODAL_EMBEDDING_MODEL,
+        default_text_embedding_model: DEFAULT_TEXT_EMBEDDING_MODEL,
+        branding: DEFAULT_BRANDING,
+        locked: true,
+        locked_reason: LockedReason.PaymentMethodRequired,
+        created_at: now(),
+        updated_at: now(),
+        deleted_at: null,
+      });
+
+      if (!productionEnvironment) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.InternalServerError,
+          message: DEFAULT_ERROR_MESSAGE,
+        });
+      }
+
+      const stagingKey = generateSecretKey(EnvironmentType.Staging);
+      const stagingApiKey = await apiKeyService.createApiKey({
         id: generateId(Resource.ApiKey),
         environment_id: stagingEnvironment.id,
-        key,
+        key: stagingKey,
         key_hash: null,
         key_iv: null,
         key_tag: null,
@@ -183,7 +212,28 @@ class UserController {
         deleted_at: null,
       });
 
-      if (!apiKey) {
+      if (!stagingApiKey) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.InternalServerError,
+          message: DEFAULT_ERROR_MESSAGE,
+        });
+      }
+
+      const prodKey = generateSecretKey(EnvironmentType.Production);
+      const prodApiKey = await apiKeyService.createApiKey({
+        id: generateId(Resource.ApiKey),
+        environment_id: productionEnvironment.id,
+        key: prodKey,
+        key_hash: null,
+        key_iv: null,
+        key_tag: null,
+        display_name: null,
+        created_at: now(),
+        updated_at: now(),
+        deleted_at: null,
+      });
+
+      if (!prodApiKey) {
         return errorService.errorResponse(res, {
           code: ErrorCode.InternalServerError,
           message: DEFAULT_ERROR_MESSAGE,
@@ -210,6 +260,17 @@ class UserController {
       if (!integration) {
         const err = new Error('Failed to create initial integration');
         await errorService.reportError(err);
+      }
+
+      const defaultSubscription = await billingService.createDefaultSubscription(
+        productionEnvironment.organization_id
+      );
+
+      if (!defaultSubscription) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.InternalServerError,
+          message: DEFAULT_ERROR_MESSAGE,
+        });
       }
 
       return res.status(200).json({
