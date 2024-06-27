@@ -253,7 +253,7 @@ class FilePickerController {
         level: LogLevel.Info,
         message: `Saving selected files to connection`,
         payload: {
-          connection: connectionId,
+          connection_id: connectionId,
           selected_files: selectedFiles,
         },
       });

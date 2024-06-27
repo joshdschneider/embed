@@ -4,13 +4,14 @@ import ElasticClient from '../clients/elastic.client';
 import { getFreshOAuth2Credentials } from '../clients/oauth2.client';
 import { DEFAULT_LIMIT, MAX_LIMIT, MIN_LIMIT } from '../utils/constants';
 import { database } from '../utils/database';
-import { QueryMode } from '../utils/enums';
+import { QueryMode, UsageType } from '../utils/enums';
 import { now } from '../utils/helpers';
 import encryptionService from './encryption.service';
 import errorService from './error.service';
 import integrationService from './integration.service';
 import recordService from './record.service';
 import syncService from './sync.service';
+import usageService from './usage.service';
 
 class ConnectionService {
   public async upsertConnection(connection: Connection): Promise<{
@@ -22,7 +23,7 @@ class ConnectionService {
       const duplicate = await database.connection.findUnique({
         where: {
           id_integration_id: {
-            id: encryptedConnection.integration_id,
+            id: encryptedConnection.id,
             integration_id: encryptedConnection.integration_id,
           },
           deleted_at: null,
@@ -33,7 +34,7 @@ class ConnectionService {
         const existingConnection = await database.connection.update({
           where: {
             id_integration_id: {
-              id: encryptedConnection.integration_id,
+              id: encryptedConnection.id,
               integration_id: encryptedConnection.integration_id,
             },
           },
@@ -63,6 +64,14 @@ class ConnectionService {
           exclusions: encryptedConnection.exclusions || undefined,
           metadata: encryptedConnection.metadata || undefined,
         },
+      });
+
+      usageService.reportUsage({
+        usageType: UsageType.Connection,
+        environmentId: newConnection.environment_id,
+        connectionId: newConnection.id,
+        integrationId: newConnection.integration_id,
+        action: 'created',
       });
 
       return {
@@ -283,6 +292,14 @@ class ConnectionService {
           deleted_at: null,
         },
         data: { deleted_at: now() },
+      });
+
+      usageService.reportUsage({
+        usageType: UsageType.Connection,
+        environmentId: deletedConnection.environment_id,
+        connectionId: deletedConnection.id,
+        integrationId: deletedConnection.integration_id,
+        action: 'deleted',
       });
 
       return encryptionService.decryptConnection(deletedConnection);

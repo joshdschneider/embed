@@ -24,7 +24,7 @@ class UsageService {
 
     if (environment.type === EnvironmentType.Staging) {
       const connectionCount = await connectionService.getConnectionCount(environmentId);
-      if (!connectionCount) {
+      if (connectionCount == null) {
         throw new Error('Failed to retrieve connection count');
       }
 
@@ -37,30 +37,33 @@ class UsageService {
   }
 
   public async reportUsage(usageObject: UsageObject): Promise<boolean> {
-    const environment = await environmentService.getEnvironmentById(usageObject.environmentId);
-    if (!environment) {
-      throw new Error('Failed to retrieve environment');
-    }
+    try {
+      const environment = await environmentService.getEnvironmentById(usageObject.environmentId);
+      if (!environment) {
+        throw new Error('Failed to retrieve environment');
+      }
 
-    if (environment.type === EnvironmentType.Staging) {
-      return true;
-    }
+      if (environment.type === EnvironmentType.Staging) {
+        return true;
+      }
 
-    switch (usageObject.usageType) {
-      case UsageType.Connection:
-        return this.reportConnectionUsage(environment.organization_id, environment.id);
-      case UsageType.Sync:
-        return this.reportSyncUsage(usageObject, environment.organization_id);
-      case UsageType.Query:
-        return this.reportQueryUsage(usageObject.queryType, environment.organization_id);
-      case UsageType.Action:
-        return this.reportActionUsage(environment.organization_id);
-      case UsageType.ProxyRequest:
-        return this.reportProxyRequestUsage(environment.organization_id);
-      default:
-        const err = new Error('Invalid usage type');
-        await errorService.reportError(err);
-        return false;
+      switch (usageObject.usageType) {
+        case UsageType.Connection:
+          return this.reportConnectionUsage(environment.organization_id, environment.id);
+        case UsageType.Sync:
+          return this.reportSyncUsage(usageObject, environment.organization_id);
+        case UsageType.Query:
+          return this.reportQueryUsage(usageObject.queryType, environment.organization_id);
+        case UsageType.Action:
+          return this.reportActionUsage(environment.organization_id);
+        case UsageType.ProxyRequest:
+          return this.reportProxyRequestUsage(environment.organization_id);
+        default:
+          throw new Error('Invalid usage type');
+      }
+    } catch (err) {
+      await errorService.reportError(err);
+      return false;
     }
   }
 
