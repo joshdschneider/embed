@@ -93,20 +93,6 @@ class StripeClient {
         invoice_settings: { default_payment_method: stripePaymentMethodId },
       });
 
-      // if (action === 'update') {
-      //   const paymentMethods = await this.stripe.paymentMethods.list({
-      //     customer: stripeCustomer.id,
-      //   });
-
-      //   const notDefault = paymentMethods.data.filter(
-      //     (method) => method.id !== stripePaymentMethodId
-      //   );
-
-      //   for (const method of notDefault) {
-      //     await this.stripe.paymentMethods.detach(method.id);
-      //   }
-      // }
-
       return paymentMethod;
     } catch (err) {
       await errorService.reportError(err);
@@ -144,6 +130,7 @@ class StripeClient {
       return await this.stripe.subscriptions.create({
         customer: stripeCustomerId,
         items: items,
+        proration_behavior: 'none',
         billing_thresholds: { amount_gte: 25000 },
         billing_cycle_anchor_config: { day_of_month: 1 },
         description: 'Embed API usage',
@@ -176,8 +163,18 @@ class StripeClient {
     connectionCount: number;
   }): Promise<Stripe.Subscription | null> {
     try {
+      const subscription = await this.stripe.subscriptions.retrieve(stripeSubscriptionId);
+      const subscriptionItem = subscription.items.data.find(
+        (item) => item.price.id === stripeConnectionsPriceId
+      );
+
+      if (!subscriptionItem) {
+        throw new Error('Failed to lookup subscription item by price ID');
+      }
+
       return await this.stripe.subscriptions.update(stripeSubscriptionId, {
-        items: [{ price: stripeConnectionsPriceId, quantity: connectionCount }],
+        proration_behavior: 'none',
+        items: [{ id: subscriptionItem.id, quantity: connectionCount }],
       });
     } catch (err) {
       await errorService.reportError(err);

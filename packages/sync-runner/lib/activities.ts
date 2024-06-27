@@ -54,9 +54,9 @@ export async function triggerSync(args: SyncArgs): Promise<void> {
     level: LogLevel.Info,
     timestamp: now(),
     payload: {
-      integration: args.integrationId,
-      collection: args.collectionKey,
-      connection: args.connectionId,
+      integration_id: args.integrationId,
+      collection_id: args.collectionKey,
+      connection_key: args.connectionId,
     },
   });
 

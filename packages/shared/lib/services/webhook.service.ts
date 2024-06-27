@@ -1,3 +1,4 @@
+import { AuthScheme } from '@embed/providers';
 import { Connection, Sync, Webhook, WebhookEvent } from '@prisma/client';
 import { backOff } from 'exponential-backoff';
 import { database } from '../utils/database';
@@ -5,7 +6,6 @@ import { LogLevel, Resource } from '../utils/enums';
 import { generateId, getWebhookSignatureHeader, now } from '../utils/helpers';
 import {
   ConnectionWebhookEvent,
-  Metadata,
   SyncWebhookBody,
   SyncWebhookEvent,
   WebhookBody,
@@ -224,10 +224,13 @@ class WebhookService {
         if (webhook.event_subscriptions.includes(event)) {
           const delivered = await this.sendWebhook(webhook, {
             event: event,
-            integration: connection.integration_id,
-            connection: connection.id,
-            metadata: connection.metadata as Metadata,
-            configuration: connection.configuration as Record<string, any>,
+            integration_id: connection.integration_id,
+            connection_id: connection.id,
+            auth_scheme: connection.auth_scheme as AuthScheme,
+            configuration: connection.configuration as Record<string, any> | null,
+            inclusions: connection.inclusions as Record<string, any> | null,
+            exclusions: connection.exclusions as Record<string, any> | null,
+            metadata: connection.metadata as Record<string, any> | null,
             created_at: connection.created_at,
             updated_at: connection.updated_at,
           });
@@ -333,9 +336,9 @@ class WebhookService {
         if (webhook.event_subscriptions.includes(event)) {
           const body: SyncWebhookBody = {
             event: event,
-            integration: sync.integration_id,
-            connection: sync.connection_id,
-            collection: sync.collection_key,
+            integration_id: sync.integration_id,
+            connection_id: sync.connection_id,
+            collection_key: sync.collection_key,
             timestamp: now(),
           };
 

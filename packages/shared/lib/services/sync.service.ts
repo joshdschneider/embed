@@ -62,9 +62,9 @@ class SyncService {
         message: 'Failed to initialize sync due to an internal error',
         timestamp: now(),
         payload: {
-          connection: connectionId,
-          integration: collection.integration_id,
-          collection: collection.unique_key,
+          connection_id: connectionId,
+          integration_id: collection.integration_id,
+          collection_key: collection.unique_key,
         },
       });
     }

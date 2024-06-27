@@ -125,16 +125,17 @@ export type NestedHitObject = {
   _source: NestedSourceObjectWithHash;
 };
 
-export type Metadata = Record<string, any> | null;
-
 export type ConnectionWebhookEvent = 'connection.created' | 'connection.updated';
 
 export interface ConnectionWebhookBody {
   event: ConnectionWebhookEvent;
-  integration: string;
-  connection: string;
-  configuration: Record<string, any>;
-  metadata: Metadata;
+  connection_id: string;
+  integration_id: string;
+  auth_scheme: AuthScheme;
+  configuration: Record<string, any> | null;
+  inclusions: Record<string, any> | null;
+  exclusions: Record<string, any> | null;
+  metadata: Record<string, any> | null;
   created_at: number;
   updated_at: number;
 }
@@ -143,9 +144,9 @@ export type SyncWebhookEvent = 'sync.succeeded' | 'sync.failed';
 
 export interface SyncWebhookBody {
   event: SyncWebhookEvent;
-  integration: string;
-  connection: string;
-  collection: string;
+  integration_id: string;
+  connection_id: string;
+  collection_key: string;
   results?: {
     records_added: number;
     records_updated: number;
