@@ -1,9 +1,9 @@
 unique_key: github
 name: GitHub
 base_url: https://api.github.com
-docs_url: https://docs.github.com/en/rest
 logo_url: https://embed-integrations.s3.amazonaws.com/github.svg
 logo_url_dark_mode: https://embed-integrations.s3.amazonaws.com/github-dark.svg
+docs_url: https://docs.useembed.com/integrations/github
 
 auth:
   - scheme: oauth2

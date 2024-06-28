@@ -210,7 +210,7 @@ export const ProviderSpecificationSchema = z.object({
   retry: RetrySchema.optional(),
   logo_url: z.string(),
   logo_url_dark_mode: z.string().optional(),
-  docs_url: z.string().optional(),
+  docs_url: z.string(),
   collections: z.array(CollectionSchema).optional(),
   actions: z.array(ActionSchema).optional(),
 });

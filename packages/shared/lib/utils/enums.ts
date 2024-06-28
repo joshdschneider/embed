@@ -35,9 +35,8 @@ export enum LogLevel {
 
 export enum LogAction {
   Connect = 'connect',
-  Sync = 'sync',
   SyncRun = 'sync_run',
-  Action = 'action',
+  ActionRun = 'action_run',
 }
 
 export enum SyncStatus {

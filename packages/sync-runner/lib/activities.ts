@@ -39,7 +39,7 @@ export async function triggerSync(args: SyncArgs): Promise<void> {
 
   if (!sync) {
     await activityService.createActivityLog(activityId, {
-      message: 'Sync failed',
+      message: 'Sync run failed',
       level: LogLevel.Error,
       timestamp: now(),
       payload: { error: 'Sync does not exist' },
@@ -81,7 +81,7 @@ export async function triggerSync(args: SyncArgs): Promise<void> {
 
   if (!syncRun) {
     await activityService.createActivityLog(activityId, {
-      message: 'Sync failed',
+      message: 'Sync run failed',
       level: LogLevel.Error,
       timestamp: now(),
       payload: { error: 'Internal server error' },

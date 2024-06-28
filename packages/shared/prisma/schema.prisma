@@ -273,7 +273,7 @@ model SyncRun {
   usage_video_seconds Int?
   usage_audio_seconds Int?
   timestamp           Int
-  duration            Int?
+  duration            Float?
 
   sync Sync @relation(fields: [collection_key, connection_id, integration_id], references: [collection_key, connection_id, integration_id])
 }
@@ -303,9 +303,9 @@ model ActionRun {
   environment_id String
   status         String
   input          Json
-  output         Json
+  output         Json?
   timestamp      Int
-  duration       Int
+  duration       Float?
 
   action     Action     @relation(fields: [action_key, integration_id, environment_id], references: [unique_key, integration_id, environment_id])
   connection Connection @relation(fields: [connection_id, integration_id], references: [id, integration_id])
