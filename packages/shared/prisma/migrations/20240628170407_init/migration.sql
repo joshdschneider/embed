@@ -228,7 +228,7 @@ CREATE TABLE "SyncRun" (
     "usage_video_seconds" INTEGER,
     "usage_audio_seconds" INTEGER,
     "timestamp" INTEGER NOT NULL,
-    "duration" INTEGER,
+    "duration" DOUBLE PRECISION,
 
     CONSTRAINT "SyncRun_pkey" PRIMARY KEY ("id")
 );
@@ -258,9 +258,9 @@ CREATE TABLE "ActionRun" (
     "environment_id" TEXT NOT NULL,
     "status" TEXT NOT NULL,
     "input" JSONB NOT NULL,
-    "output" JSONB NOT NULL,
+    "output" JSONB,
     "timestamp" INTEGER NOT NULL,
-    "duration" INTEGER NOT NULL,
+    "duration" DOUBLE PRECISION,
 
     CONSTRAINT "ActionRun_pkey" PRIMARY KEY ("id")
 );

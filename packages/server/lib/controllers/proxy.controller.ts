@@ -1,5 +1,13 @@
 import { HttpMethod, ProxyOptions, ResponseType } from '@embed/providers';
-import { DEFAULT_ERROR_MESSAGE, ErrorCode, errorService, proxyService } from '@embed/shared';
+import {
+  DEFAULT_ERROR_MESSAGE,
+  ENVIRONMENT_ID_LOCALS_KEY,
+  ErrorCode,
+  UsageType,
+  errorService,
+  proxyService,
+  usageService,
+} from '@embed/shared';
 import axios, { AxiosError } from 'axios';
 import type { Request, Response } from 'express';
 import type { OutgoingHttpHeaders } from 'http';
@@ -8,6 +16,7 @@ import { PassThrough } from 'stream';
 class ProxyController {
   public async routeRequest(req: Request, res: Response): Promise<void> {
     try {
+      const environmentId = res.locals[ENVIRONMENT_ID_LOCALS_KEY];
       const integrationId = req.get('Integration-Id');
       const connectionId = req.get('Connection-Id');
 
@@ -47,6 +56,15 @@ class ProxyController {
 
       try {
         const axiosResponse = await proxyService.proxy(options);
+        if (axiosResponse.status.toString().startsWith('2')) {
+          usageService.reportUsage({
+            usageType: UsageType.ProxyRequest,
+            environmentId: environmentId,
+            integrationId: integrationId,
+            connectionId: connectionId,
+          });
+        }
+
         if (axiosResponse.data instanceof Buffer) {
           res.writeHead(axiosResponse.status, axiosResponse.headers as OutgoingHttpHeaders);
           res.end(axiosResponse.data);

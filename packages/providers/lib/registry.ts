@@ -1,7 +1,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import { Provider } from './provider';
-import { ProviderSpecification, SyncContext } from './types';
+import { ActionContext, ProviderSpecification, SyncContext } from './types';
 
 export class Registry {
   private providers: {
@@ -49,5 +49,19 @@ export class Registry {
     }
 
     return provider.syncCollection(collectionKey, context);
+  }
+
+  public async triggerProviderAction(
+    providerKey: string,
+    actionKey: string,
+    context: ActionContext
+  ): Promise<void> {
+    await this.load(providerKey);
+    const provider = this.providers[providerKey];
+    if (!provider) {
+      throw new Error(`Failed to load provider ${providerKey}`);
+    }
+
+    return provider.triggerAction(actionKey, context);
   }
 }

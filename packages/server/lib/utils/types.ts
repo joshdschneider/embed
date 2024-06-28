@@ -284,7 +284,7 @@ export interface ActionRunObject {
   input: Record<string, any>;
   output: Record<string, any>;
   timestamp: number;
-  duration: number;
+  duration: number | null;
 }
 
 export interface SessionTokenObject {
