@@ -1,5 +1,6 @@
 import type { ProviderSpecification } from '@embed/providers';
 import { Registry } from '@embed/providers';
+import { ActionContext } from '../context/action.context';
 import { SyncContext } from '../context/sync.context';
 import errorService from './error.service';
 
@@ -49,6 +50,14 @@ class ProviderService {
     syncContext: SyncContext
   ): Promise<void> {
     return this.registry.syncProviderCollection(providerKey, collectionKey, syncContext);
+  }
+
+  public async triggerProviderAction(
+    providerKey: string,
+    actionKey: string,
+    actionContext: ActionContext
+  ): Promise<void> {
+    return this.registry.triggerProviderAction(providerKey, actionKey, actionContext);
   }
 }
 

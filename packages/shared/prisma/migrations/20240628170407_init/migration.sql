@@ -16,6 +16,7 @@ CREATE TABLE "User" (
 CREATE TABLE "Organization" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
+    "stripe_id" TEXT NOT NULL,
     "created_at" INTEGER NOT NULL,
     "updated_at" INTEGER NOT NULL,
     "deleted_at" INTEGER,
@@ -36,6 +37,37 @@ CREATE TABLE "OrganizationMembership" (
 );
 
 -- CreateTable
+CREATE TABLE "Subscription" (
+    "id" TEXT NOT NULL,
+    "organization_id" TEXT NOT NULL,
+    "stripe_id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "status" TEXT NOT NULL,
+    "plan" TEXT NOT NULL,
+    "price_ids" JSONB NOT NULL,
+    "created_at" INTEGER NOT NULL,
+    "updated_at" INTEGER NOT NULL,
+
+    CONSTRAINT "Subscription_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PaymentMethod" (
+    "id" TEXT NOT NULL,
+    "organization_id" TEXT NOT NULL,
+    "stripe_id" TEXT NOT NULL,
+    "type" TEXT NOT NULL,
+    "card_brand" TEXT,
+    "card_last4" TEXT,
+    "card_exp_month" INTEGER,
+    "card_exp_year" INTEGER,
+    "created_at" INTEGER NOT NULL,
+    "updated_at" INTEGER NOT NULL,
+
+    CONSTRAINT "PaymentMethod_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "Environment" (
     "id" TEXT NOT NULL,
     "organization_id" TEXT NOT NULL,
@@ -46,8 +78,9 @@ CREATE TABLE "Environment" (
     "default_sync_frequency" TEXT NOT NULL,
     "default_text_embedding_model" TEXT NOT NULL,
     "default_multimodal_embedding_model" TEXT NOT NULL,
-    "multimodal_enabled_by_default" BOOLEAN NOT NULL,
     "branding" JSONB NOT NULL,
+    "locked" BOOLEAN NOT NULL,
+    "locked_reason" TEXT,
     "created_at" INTEGER NOT NULL,
     "updated_at" INTEGER NOT NULL,
     "deleted_at" INTEGER,
@@ -145,7 +178,6 @@ CREATE TABLE "Collection" (
     "exclude_properties_from_syncs" TEXT[],
     "text_embedding_model" TEXT NOT NULL,
     "multimodal_embedding_model" TEXT NOT NULL,
-    "multimodal_enabled" BOOLEAN NOT NULL,
     "configuration" JSONB,
     "created_at" INTEGER NOT NULL,
     "updated_at" INTEGER NOT NULL,
@@ -191,8 +223,12 @@ CREATE TABLE "SyncRun" (
     "records_added" INTEGER,
     "records_updated" INTEGER,
     "records_deleted" INTEGER,
+    "usage_words" INTEGER,
+    "usage_images" INTEGER,
+    "usage_video_seconds" INTEGER,
+    "usage_audio_seconds" INTEGER,
     "timestamp" INTEGER NOT NULL,
-    "duration" INTEGER,
+    "duration" DOUBLE PRECISION,
 
     CONSTRAINT "SyncRun_pkey" PRIMARY KEY ("id")
 );
@@ -222,9 +258,9 @@ CREATE TABLE "ActionRun" (
     "environment_id" TEXT NOT NULL,
     "status" TEXT NOT NULL,
     "input" JSONB NOT NULL,
-    "output" JSONB NOT NULL,
+    "output" JSONB,
     "timestamp" INTEGER NOT NULL,
-    "duration" INTEGER NOT NULL,
+    "duration" DOUBLE PRECISION,
 
     CONSTRAINT "ActionRun_pkey" PRIMARY KEY ("id")
 );
@@ -237,9 +273,6 @@ CREATE TABLE "Record" (
     "connection_id" TEXT NOT NULL,
     "environment_id" TEXT NOT NULL,
     "external_id" TEXT NOT NULL,
-    "object" TEXT NOT NULL,
-    "object_iv" TEXT,
-    "object_tag" TEXT,
     "hash" TEXT NOT NULL,
     "created_at" INTEGER NOT NULL,
     "updated_at" INTEGER NOT NULL,
@@ -337,6 +370,12 @@ ALTER TABLE "OrganizationMembership" ADD CONSTRAINT "OrganizationMembership_orga
 
 -- AddForeignKey
 ALTER TABLE "OrganizationMembership" ADD CONSTRAINT "OrganizationMembership_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Subscription" ADD CONSTRAINT "Subscription_organization_id_fkey" FOREIGN KEY ("organization_id") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PaymentMethod" ADD CONSTRAINT "PaymentMethod_organization_id_fkey" FOREIGN KEY ("organization_id") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Environment" ADD CONSTRAINT "Environment_organization_id_fkey" FOREIGN KEY ("organization_id") REFERENCES "Organization"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

@@ -23,12 +23,15 @@ model User {
 model Organization {
   id         String @id
   name       String
+  stripe_id  String
   created_at Int
   updated_at Int
   deleted_at Int?
 
-  memberships  OrganizationMembership[]
-  environments Environment[]
+  environments    Environment[]
+  memberships     OrganizationMembership[]
+  subscriptions   Subscription[]
+  payment_methods PaymentMethod[]
 }
 
 model OrganizationMembership {
@@ -43,6 +46,35 @@ model OrganizationMembership {
   user         User         @relation(fields: [user_id], references: [id])
 }
 
+model Subscription {
+  id              String @id
+  organization_id String
+  stripe_id       String
+  name            String
+  status          String
+  plan            String
+  price_ids       Json
+  created_at      Int
+  updated_at      Int
+
+  organization Organization @relation(fields: [organization_id], references: [id])
+}
+
+model PaymentMethod {
+  id              String  @id
+  organization_id String
+  stripe_id       String
+  type            String
+  card_brand      String?
+  card_last4      String?
+  card_exp_month  Int?
+  card_exp_year   Int?
+  created_at      Int
+  updated_at      Int
+
+  organization Organization @relation(fields: [organization_id], references: [id])
+}
+
 model Environment {
   id                                 String  @id
   organization_id                    String
@@ -53,8 +85,9 @@ model Environment {
   default_sync_frequency             String
   default_text_embedding_model       String
   default_multimodal_embedding_model String
-  multimodal_enabled_by_default      Boolean
   branding                           Json
+  locked                             Boolean
+  locked_reason                      String?
   created_at                         Int
   updated_at                         Int
   deleted_at                         Int?
@@ -172,7 +205,6 @@ model Collection {
   exclude_properties_from_syncs String[]
   text_embedding_model          String
   multimodal_embedding_model    String
-  multimodal_enabled            Boolean
   configuration                 Json?
   created_at                    Int
   updated_at                    Int
@@ -227,17 +259,21 @@ model Sync {
 }
 
 model SyncRun {
-  id              String  @id
-  collection_key  String
-  connection_id   String
-  integration_id  String
-  status          String
-  temporal_run_id String?
-  records_added   Int?
-  records_updated Int?
-  records_deleted Int?
-  timestamp       Int
-  duration        Int?
+  id                  String  @id
+  collection_key      String
+  connection_id       String
+  integration_id      String
+  status              String
+  temporal_run_id     String?
+  records_added       Int?
+  records_updated     Int?
+  records_deleted     Int?
+  usage_words         Int?
+  usage_images        Int?
+  usage_video_seconds Int?
+  usage_audio_seconds Int?
+  timestamp           Int
+  duration            Float?
 
   sync Sync @relation(fields: [collection_key, connection_id, integration_id], references: [collection_key, connection_id, integration_id])
 }
@@ -267,24 +303,21 @@ model ActionRun {
   environment_id String
   status         String
   input          Json
-  output         Json
+  output         Json?
   timestamp      Int
-  duration       Int
+  duration       Float?
 
   action     Action     @relation(fields: [action_key, integration_id, environment_id], references: [unique_key, integration_id, environment_id])
   connection Connection @relation(fields: [connection_id, integration_id], references: [id, integration_id])
 }
 
 model Record {
-  id             String  @id
+  id             String @id
   collection_key String
   integration_id String
   connection_id  String
   environment_id String
   external_id    String
-  object         String
-  object_iv      String?
-  object_tag     String?
   hash           String
   created_at     Int
   updated_at     Int

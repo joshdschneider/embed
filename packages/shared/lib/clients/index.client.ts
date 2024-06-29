@@ -29,7 +29,7 @@ export class IndexClient {
 
     if (prop.vector_searchable) {
       let dims: number;
-      if (prop.multimodal) {
+      if (prop.image) {
         dims = embeddingModelDimensions[multimodalEmbeddingModel];
       } else {
         dims = embeddingModelDimensions[textEmbeddingModel];

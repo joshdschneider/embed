@@ -1,19 +1,21 @@
-import { SourceObject } from '@embed/providers';
+import { FileProcessor, SourceObject } from '@embed/providers';
 import { Record as DataRecord } from '@prisma/client';
 import { Context } from '@temporalio/activity';
 import md5 from 'md5';
 import ElasticClient from '../clients/elastic.client';
 import activityService from '../services/activity.service';
+import collectionService from '../services/collection.service';
+import ingestService from '../services/ingest.service';
 import providerService from '../services/provider.service';
 import recordService from '../services/record.service';
-import { LogLevel, Resource } from '../utils/enums';
-import { generateId, hashObjects, now } from '../utils/helpers';
+import usageService from '../services/usage.service';
+import { LogLevel, Resource, UsageType } from '../utils/enums';
+import { generateId, now } from '../utils/helpers';
 import { BaseContext, BaseContextOptions } from './base.context';
 
 export type SyncContextOptions = BaseContextOptions & {
   providerKey: string;
   collectionKey: string;
-  multimodalEnabled: boolean;
   syncRunId: string;
   lastSyncedAt: number | null;
   temporalContext: Context;
@@ -22,31 +24,59 @@ export type SyncContextOptions = BaseContextOptions & {
 export class SyncContext extends BaseContext {
   public providerKey: string;
   public collectionKey: string;
-  public multimodalEnabled: boolean;
   public syncRunId: string;
   public lastSyncedAt: number | null;
   private addedKeys: string[];
   private updatedKeys: string[];
   private deletedKeys: string[];
+  private syncedWords: number;
+  private syncedImages: number;
+  private syncedAudioSeconds: number;
+  private syncedVideoSeconds: number;
+  public processor: FileProcessor;
   private interval?: NodeJS.Timeout;
 
   constructor(options: SyncContextOptions) {
     super(options);
     this.providerKey = options.providerKey;
     this.collectionKey = options.collectionKey;
-    this.multimodalEnabled = options.multimodalEnabled;
     this.syncRunId = options.syncRunId;
     this.activityId = options.activityId;
     this.lastSyncedAt = options.lastSyncedAt;
     this.addedKeys = [];
     this.updatedKeys = [];
     this.deletedKeys = [];
-
+    this.syncedWords = 0;
+    this.syncedImages = 0;
+    this.syncedAudioSeconds = 0;
+    this.syncedVideoSeconds = 0;
+    this.processor = this.mountFileProcessor();
     const temporal = options.temporalContext;
     const heartbeat = 1000 * 60 * 5;
     this.interval = setInterval(() => {
       temporal.heartbeat();
     }, heartbeat);
+  }
+
+  private mountFileProcessor() {
+    return {
+      processText: ingestService.processText,
+      processJson: ingestService.processJson,
+      processPdf: ingestService.processPdf,
+      processDocx: ingestService.processDocx,
+      processPptx: ingestService.processPptx,
+      processImage: ingestService.processImage,
+      processAudio: async (buffer: Buffer) => {
+        const { chunks, duration } = await ingestService.processAudio(buffer);
+        this.syncedAudioSeconds += duration;
+        return chunks;
+      },
+      processVideo: async (buffer: Buffer) => {
+        const { chunks, duration } = await ingestService.processVideo(buffer);
+        this.syncedVideoSeconds += duration;
+        return chunks;
+      },
+    };
   }
 
   public async batchSave(objects: SourceObject[]): Promise<boolean> {
@@ -68,42 +98,6 @@ export class SyncContext extends BaseContext {
         const obj = { ...originalObj };
         const hash = md5(JSON.stringify(obj));
 
-        Object.entries(collection.schema.properties).forEach(([k, v]) => {
-          if (v.hidden) {
-            delete obj[k];
-          }
-
-          if (v.return_by_default === false) {
-            delete obj[k];
-          }
-
-          if (v.type === 'nested' && v.properties) {
-            Object.entries(v.properties).forEach(([nestedKey, nestedValue]) => {
-              const nestedObjOrArray = obj[k];
-              if (Array.isArray(nestedObjOrArray) && nestedObjOrArray.length > 0) {
-                nestedObjOrArray.forEach((nestedObj) => {
-                  if (nestedValue.hidden) {
-                    delete nestedObj[nestedKey];
-                  }
-
-                  if (nestedValue.return_by_default === false) {
-                    delete nestedObj[nestedKey];
-                  }
-                });
-                obj[k] = nestedObjOrArray;
-              } else if (nestedObjOrArray && typeof nestedObjOrArray === 'object') {
-                if (nestedValue.hidden) {
-                  delete obj[k][nestedKey];
-                }
-
-                if (nestedValue.return_by_default === false) {
-                  delete obj[k][nestedKey];
-                }
-              }
-            });
-          }
-        });
-
         return {
           id: generateId(Resource.Record),
           external_id: obj.id,
@@ -111,9 +105,6 @@ export class SyncContext extends BaseContext {
           connection_id: this.connectionId,
           integration_id: this.integrationId,
           collection_key: this.collectionKey,
-          object: JSON.stringify(obj),
-          object_iv: null,
-          object_tag: null,
           hash,
           created_at: now(),
           updated_at: now(),
@@ -142,17 +133,40 @@ export class SyncContext extends BaseContext {
       this.addedKeys.push(...addedKeys);
       this.updatedKeys.push(...updatedKeys);
 
-      const elastic = ElasticClient.getInstance();
-      const objectsToCreate = objects.filter((obj) => addedKeys.includes(obj.id));
-      const hashedObjectsToCreate = hashObjects(objectsToCreate, collection.schema.properties);
+      const collectionModelSettings = await collectionService.getCollectionModelSettings({
+        environmentId: this.environmentId,
+        integrationId: this.integrationId,
+        collectionKey: this.collectionKey,
+      });
 
+      if (!collectionModelSettings) {
+        throw new Error(`Failed to get collection model settings for ${this.collectionKey}`);
+      }
+
+      const { textEmbeddingModel, multimodalEmbeddingModel } = collectionModelSettings;
+      const objectsToCreate = objects.filter((obj) => addedKeys.includes(obj.id));
+      const hashedObjectsToCreate = ingestService.hashSourceObjects({
+        objects: objectsToCreate,
+        schemaProperties: collection.schema.properties,
+      });
+
+      const vectorizedObjectsToCreate = await ingestService.vectorizeSourceObjects({
+        objects: hashedObjectsToCreate,
+        schemaProperties: collection.schema.properties,
+        textEmbeddingModel,
+        multimodalEmbeddingModel,
+      });
+
+      this.syncedWords += vectorizedObjectsToCreate.wordCount;
+      this.syncedImages += vectorizedObjectsToCreate.imageCount;
+
+      const elastic = ElasticClient.getInstance();
       const didCreate = await elastic.batchUpsertObjects({
         environmentId: this.environmentId,
         collectionKey: this.collectionKey,
         integrationId: this.integrationId,
-        providerKey: this.providerKey,
         connectionId: this.connectionId,
-        objects: hashedObjectsToCreate,
+        objects: vectorizedObjectsToCreate.objects,
       });
 
       if (!didCreate) {
@@ -174,7 +188,20 @@ export class SyncContext extends BaseContext {
       }
 
       const objectsToUpdate = objects.filter((obj) => updatedKeys.includes(obj.id));
-      const hashedObjectsToUpdate = hashObjects(objectsToUpdate, collection.schema.properties);
+      const hashedObjectsToUpdate = ingestService.hashSourceObjects({
+        objects: objectsToUpdate,
+        schemaProperties: collection.schema.properties,
+      });
+
+      const vectorizedObjectsToUpdate = await ingestService.vectorizeSourceObjects({
+        objects: hashedObjectsToUpdate,
+        schemaProperties: collection.schema.properties,
+        textEmbeddingModel,
+        multimodalEmbeddingModel,
+      });
+
+      this.syncedWords += vectorizedObjectsToUpdate.wordCount;
+      this.syncedImages += vectorizedObjectsToUpdate.imageCount;
 
       const didUpdate = await elastic.updateObjects({
         environmentId: this.environmentId,
@@ -182,7 +209,7 @@ export class SyncContext extends BaseContext {
         integrationId: this.integrationId,
         providerKey: this.providerKey,
         connectionId: this.connectionId,
-        objects: hashedObjectsToUpdate,
+        objects: vectorizedObjectsToUpdate.objects,
       });
 
       if (!didUpdate) {
@@ -275,11 +302,31 @@ export class SyncContext extends BaseContext {
     records_added: number;
     records_updated: number;
     records_deleted: number;
+    usage_words: number;
+    usage_images: number;
+    usage_audio_seconds: number;
+    usage_video_seconds: number;
   }> {
+    usageService.reportUsage({
+      usageType: UsageType.Sync,
+      environmentId: this.environmentId,
+      integrationId: this.integrationId,
+      connectionId: this.connectionId,
+      syncedWords: this.syncedWords,
+      syncedImages: this.syncedImages,
+      syncedAudioSeconds: this.syncedAudioSeconds,
+      syncedVideoSeconds: this.syncedVideoSeconds,
+      syncRunId: this.syncRunId,
+    });
+
     return {
       records_added: this.addedKeys.length,
       records_updated: this.updatedKeys.length,
       records_deleted: this.deletedKeys.length,
+      usage_words: this.syncedWords,
+      usage_images: this.syncedImages,
+      usage_audio_seconds: this.syncedAudioSeconds,
+      usage_video_seconds: this.syncedVideoSeconds,
     };
   }
 

@@ -1,15 +1,34 @@
-import type { Organization, OrganizationMembership, User, WorkOSInvitation } from '@embed/shared';
-import { database, errorService, getWorkOS, now } from '@embed/shared';
+import type {
+  Environment,
+  Organization,
+  OrganizationMembership,
+  User,
+  WorkOSInvitation,
+} from '@embed/shared';
+import { billingService, database, errorService, getWorkOS, now } from '@embed/shared';
 
 class OrganizationService {
   public async createOrganization(organizationName: string): Promise<Organization | null> {
     try {
       const workos = getWorkOS();
-      const workosOrg = await workos.organizations.createOrganization({ name: organizationName });
+      const workosOrg = await workos.organizations.createOrganization({
+        name: organizationName,
+      });
+
+      const stripeCustomer = await billingService.createCustomer({
+        name: organizationName,
+        organizationId: workosOrg.id,
+      });
+
+      if (!stripeCustomer) {
+        return null;
+      }
+
       return await database.organization.create({
         data: {
           id: workosOrg.id,
           name: workosOrg.name,
+          stripe_id: stripeCustomer,
           created_at: now(),
           updated_at: now(),
           deleted_at: null,
@@ -138,10 +157,35 @@ class OrganizationService {
         name: organizationName,
       });
 
-      return await database.organization.update({
+      const organization = await database.organization.update({
         where: { id: organizationId },
         data: { name: organizationName, updated_at: now() },
       });
+
+      await billingService.updateCustomer({
+        organizationId: organization.id,
+        name: organizationName,
+      });
+
+      return organization;
+    } catch (err) {
+      await errorService.reportError(err);
+      return null;
+    }
+  }
+
+  public async getOrganizationEnvironments(organizationId: string): Promise<Environment[] | null> {
+    try {
+      const organization = await database.organization.findUnique({
+        where: { id: organizationId },
+        select: { environments: true },
+      });
+
+      if (!organization) {
+        throw new Error('Organization not found');
+      }
+
+      return organization.environments;
     } catch (err) {
       await errorService.reportError(err);
       return null;

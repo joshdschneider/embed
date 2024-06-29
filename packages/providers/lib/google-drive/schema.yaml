@@ -1,8 +1,8 @@
 unique_key: google-drive
 name: Google Drive
 base_url: https://www.googleapis.com
-docs_url: https://developers.google.com/drive/api/reference/rest/v3
 logo_url: https://embed-integrations.s3.amazonaws.com/google-drive.svg
+docs_url: https://docs.useembed.com/integrations/google-drive
 
 auth:
   - scheme: oauth2
@@ -49,11 +49,11 @@ schemas:
         description: The MIME type of the file.
         keyword_searchable: false
         vector_searchable: false
-      base64:
+      image_base64:
         type: string
         filterable: false
         keyword_searchable: false
-        multimodal: true
+        image: true
         hidden: true
       content:
         type: nested

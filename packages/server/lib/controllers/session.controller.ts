@@ -3,6 +3,7 @@ import {
   DEFAULT_ERROR_MESSAGE,
   LogLevel,
   Resource,
+  UsageAction,
   activityService,
   collectionService,
   connectionService,
@@ -13,6 +14,7 @@ import {
   integrationService,
   now,
   providerService,
+  usageService,
 } from '@embed/shared';
 import type { Request, Response } from 'express';
 import publisher from '../clients/publisher.client';
@@ -76,6 +78,28 @@ class SessionController {
     const branding = await environmentService.getEnvironmentBranding(sessionToken.environment_id);
 
     try {
+      const limitExceeded = await usageService.usageLimitExceeded(
+        sessionToken.environment_id,
+        UsageAction.CreateConnection
+      );
+
+      if (limitExceeded) {
+        const errorMessage = 'Connection limit reached';
+        await activityService.createActivityLog(activityId, {
+          timestamp: now(),
+          level: LogLevel.Error,
+          message: errorMessage,
+        });
+
+        return await publisher.publishError(res, {
+          error: errorMessage,
+          wsClientId,
+          flow,
+          redirectUrl,
+          prefersDarkMode,
+        });
+      }
+
       if (sessionToken.expires_at < now()) {
         const errorMessage = 'Session token expired';
         await activityService.createActivityLog(activityId, {
@@ -262,6 +286,28 @@ class SessionController {
     const branding = await environmentService.getEnvironmentBranding(sessionToken.environment_id);
 
     try {
+      const limitExceeded = await usageService.usageLimitExceeded(
+        sessionToken.environment_id,
+        UsageAction.CreateConnection
+      );
+
+      if (limitExceeded) {
+        const errorMessage = 'Connection limit reached';
+        await activityService.createActivityLog(activityId, {
+          timestamp: now(),
+          level: LogLevel.Error,
+          message: errorMessage,
+        });
+
+        return await publisher.publishError(res, {
+          error: errorMessage,
+          wsClientId,
+          flow,
+          redirectUrl,
+          prefersDarkMode,
+        });
+      }
+
       if (sessionToken.expires_at < now()) {
         const errorMessage = 'Session token expired';
         await activityService.createActivityLog(activityId, {
@@ -503,6 +549,28 @@ class SessionController {
     const branding = await environmentService.getEnvironmentBranding(sessionToken.environment_id);
 
     try {
+      const limitExceeded = await usageService.usageLimitExceeded(
+        sessionToken.environment_id,
+        UsageAction.CreateConnection
+      );
+
+      if (limitExceeded) {
+        const errorMessage = 'Connection limit reached';
+        await activityService.createActivityLog(activityId, {
+          timestamp: now(),
+          level: LogLevel.Error,
+          message: errorMessage,
+        });
+
+        return await publisher.publishError(res, {
+          error: errorMessage,
+          wsClientId,
+          flow,
+          redirectUrl,
+          prefersDarkMode,
+        });
+      }
+
       if (sessionToken.expires_at < now()) {
         const errorMessage = 'Session token expired';
         await activityService.createActivityLog(activityId, {
@@ -770,6 +838,28 @@ class SessionController {
     const branding = await environmentService.getEnvironmentBranding(sessionToken.environment_id);
 
     try {
+      const limitExceeded = await usageService.usageLimitExceeded(
+        sessionToken.environment_id,
+        UsageAction.CreateConnection
+      );
+
+      if (limitExceeded) {
+        const errorMessage = 'Connection limit reached';
+        await activityService.createActivityLog(activityId, {
+          timestamp: now(),
+          level: LogLevel.Error,
+          message: errorMessage,
+        });
+
+        return await publisher.publishError(res, {
+          error: errorMessage,
+          wsClientId,
+          flow,
+          redirectUrl,
+          prefersDarkMode,
+        });
+      }
+
       if (sessionToken.expires_at < now()) {
         const errorMessage = 'Session token expired';
         await activityService.createActivityLog(activityId, {

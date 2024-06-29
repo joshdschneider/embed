@@ -13,6 +13,8 @@ export enum Resource {
   Webhook = 'web',
   WebhookEvent = 'web_ev',
   Record = 'rec',
+  PaymentMethod = 'pm',
+  Subscription = 'sub',
 }
 
 export enum ErrorCode {
@@ -33,9 +35,8 @@ export enum LogLevel {
 
 export enum LogAction {
   Connect = 'connect',
-  Sync = 'sync',
   SyncRun = 'sync_run',
-  Action = 'action',
+  ActionRun = 'action_run',
 }
 
 export enum SyncStatus {
@@ -109,7 +110,47 @@ export const embeddingModelDimensions = {
   [MultimodalEmbeddingModel.GoogleVertexMultimodalEmbedding001]: 1408,
 };
 
+export enum UsageAction {
+  CreateConnection = 'create_connection',
+}
+
+export enum UsageType {
+  Connection = 'connection',
+  Query = 'query',
+  Action = 'action',
+  ProxyRequest = 'proxy_request',
+  Sync = 'sync',
+}
+
 export enum QueryMode {
   default = 'default',
   insensitive = 'insensitive',
+}
+
+export enum SubscriptionPlan {
+  PayAsYouGo = 'pay_as_you_go',
+  Custom = 'custom',
+  Enterprise = 'enterprise',
+}
+
+export enum SubscriptionStatus {
+  Active = 'active',
+  Cancelled = 'cancelled',
+}
+
+export enum MeterEvent {
+  TextQueries = 'text_queries',
+  ImageQueries = 'image_queries',
+  SyncedWords = 'synced_words',
+  SyncedImages = 'synced_images',
+  SyncedAudio = 'synced_audio',
+  SyncedVideo = 'synced_video',
+  Actions = 'actions',
+  ProxyRequests = 'proxy_requests',
+}
+
+export enum LockedReason {
+  PaymentMethodRequired = 'payment_method_required',
+  PaymentMethodInvalid = 'payment_method_invalid',
+  AccountSuspended = 'account_suspended',
 }

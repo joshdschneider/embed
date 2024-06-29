@@ -3,6 +3,7 @@ import {
   ActionRunStatus,
   Branding,
   DEFAULT_LIMIT,
+  EnvironmentType,
   LogAction,
   LogLevel,
   SyncFrequency,
@@ -10,11 +11,6 @@ import {
   SyncStatus,
 } from '@embed/shared';
 import { z } from 'zod';
-
-export enum EnvironmentType {
-  Staging = 'staging',
-  Production = 'production',
-}
 
 export interface DefaultTemplateData {
   branding: Branding;
@@ -126,8 +122,9 @@ export interface EnvironmentObject {
   default_sync_frequency: string;
   default_text_embedding_model: string;
   default_multimodal_embedding_model: string;
-  multimodal_enabled_by_default: boolean;
   branding: any;
+  locked: boolean;
+  locked_reason: string | null;
   created_at: number;
   updated_at: number;
 }
@@ -138,6 +135,60 @@ export interface OrganizationObject {
   name: string;
   created_at: number;
   updated_at: number;
+}
+
+export interface PaymentMethodObject {
+  object: 'payment_method';
+  id: string;
+  organization_id: string;
+  stripe_id: string;
+  type: string;
+  card_brand: string | null;
+  card_last4: string | null;
+  card_exp_month: number | null;
+  card_exp_year: number | null;
+  created_at: number;
+  updated_at: number;
+}
+
+export const AddPaymentMethodRequestSchema = z.object({
+  stripe_payment_method_id: z.string(),
+});
+
+export type AddPaymentMethodRequest = z.infer<typeof AddPaymentMethodRequestSchema>;
+
+export interface BillingDetailsObject {
+  object: 'billing_details';
+  plan: string | null;
+  payment_method: PaymentMethodObject | null;
+  upcoming_invoice: UpcomingInvoiceObject | null;
+}
+
+export interface UpcomingInvoiceObject {
+  object: 'upcoming_invoice';
+  collection_method: 'charge_automatically' | 'send_invoice';
+  total: number;
+  total_excluding_tax: number | null;
+  currency: string;
+  period_start: number;
+  period_end: number;
+  next_payment_attempt: number | null;
+  lines: {
+    description: string | null;
+    amount: number;
+    amount_excluding_tax: number | null;
+  }[];
+}
+
+export interface InvoiceObject {
+  object: 'invoice';
+  total: number;
+  period_start: number;
+  period_end: number;
+  currency: string;
+  status: string | null;
+  invoice_pdf?: string | null;
+  hosted_invoice_url?: string | null;
 }
 
 export interface IntegrationObject {
@@ -233,7 +284,7 @@ export interface ActionRunObject {
   input: Record<string, any>;
   output: Record<string, any>;
   timestamp: number;
-  duration: number;
+  duration: number | null;
 }
 
 export interface SessionTokenObject {

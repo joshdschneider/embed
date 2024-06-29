@@ -39,7 +39,7 @@ export async function triggerSync(args: SyncArgs): Promise<void> {
 
   if (!sync) {
     await activityService.createActivityLog(activityId, {
-      message: 'Sync failed',
+      message: 'Sync run failed',
       level: LogLevel.Error,
       timestamp: now(),
       payload: { error: 'Sync does not exist' },
@@ -54,9 +54,9 @@ export async function triggerSync(args: SyncArgs): Promise<void> {
     level: LogLevel.Info,
     timestamp: now(),
     payload: {
-      integration: args.integrationId,
-      collection: args.collectionKey,
-      connection: args.connectionId,
+      integration_id: args.integrationId,
+      collection_id: args.collectionKey,
+      connection_key: args.connectionId,
     },
   });
 
@@ -71,13 +71,17 @@ export async function triggerSync(args: SyncArgs): Promise<void> {
     records_added: 0,
     records_updated: 0,
     records_deleted: 0,
+    usage_words: 0,
+    usage_images: 0,
+    usage_audio_seconds: 0,
+    usage_video_seconds: 0,
     timestamp: now(),
     duration: null,
   });
 
   if (!syncRun) {
     await activityService.createActivityLog(activityId, {
-      message: 'Sync failed',
+      message: 'Sync run failed',
       level: LogLevel.Error,
       timestamp: now(),
       payload: { error: 'Internal server error' },
@@ -113,7 +117,6 @@ export async function triggerSync(args: SyncArgs): Promise<void> {
       providerKey: sync.provider_key,
       collectionKey: sync.collection_key,
       activityId: activityId,
-      multimodalEnabled: modelSettings.multimodalEnabled,
       syncRunId: syncRun.id,
       lastSyncedAt: lastSyncedAt,
       temporalContext,

@@ -45,6 +45,62 @@ webRouter
     environmentController.retrieveEnvironment.bind(environmentController)
   );
 
+webRouter
+  .route('/organizations/:organization_id')
+  .put(
+    authMiddleware.webUserAuth.bind(authMiddleware),
+    organizationController.updateOrganization.bind(organizationController)
+  );
+
+webRouter
+  .route('/organizations/:organization_id/members')
+  .get(
+    authMiddleware.webUserAuth.bind(authMiddleware),
+    organizationController.getOrganizationMembers.bind(organizationController)
+  );
+
+webRouter
+  .route('/organizations/:organization_id/invitations')
+  .get(
+    authMiddleware.webUserAuth.bind(authMiddleware),
+    organizationController.getOrganizationInvitations.bind(organizationController)
+  );
+
+webRouter
+  .route('/organizations/:organization_id/invitations/:invitation_id/revoke')
+  .post(
+    authMiddleware.webUserAuth.bind(authMiddleware),
+    organizationController.revokeOrganizationInvitation.bind(organizationController)
+  );
+
+webRouter
+  .route('/organizations/:organization_id/invitations')
+  .post(
+    authMiddleware.webUserAuth.bind(authMiddleware),
+    organizationController.inviteUserToOrganization.bind(organizationController)
+  );
+
+webRouter
+  .route('/organizations/:organization_id/payment-methods')
+  .post(
+    authMiddleware.webUserAuth.bind(authMiddleware),
+    organizationController.addPaymentMethod.bind(organizationController)
+  );
+
+webRouter
+  .route('/organizations/:organization_id/billing-details')
+  .get(
+    authMiddleware.webUserAuth.bind(authMiddleware),
+    organizationController.getBillingDetails.bind(organizationController)
+  );
+
+webRouter
+  .route('/organizations/:organization_id/invoices')
+  .get(
+    authMiddleware.webUserAuth.bind(authMiddleware),
+    organizationController.listInvoices.bind(organizationController)
+  );
+
 webRouter.use(authMiddleware.webEnvironmentAuth.bind(authMiddleware));
 
 webRouter
@@ -54,26 +110,6 @@ webRouter
 webRouter
   .route('/environments/:environment_id')
   .put(environmentController.modifyEnvironment.bind(environmentController));
-
-webRouter
-  .route('/organizations/:organization_id')
-  .put(organizationController.updateOrganization.bind(organizationController));
-
-webRouter
-  .route('/organizations/:organization_id/members')
-  .get(organizationController.getOrganizationMembers.bind(organizationController));
-
-webRouter
-  .route('/organizations/:organization_id/invitations')
-  .get(organizationController.getOrganizationInvitations.bind(organizationController));
-
-webRouter
-  .route('/organizations/:organization_id/invitations/:invitation_id/revoke')
-  .post(organizationController.revokeOrganizationInvitation.bind(organizationController));
-
-webRouter
-  .route('/organizations/:organization_id/invitations')
-  .post(organizationController.inviteUserToOrganization.bind(organizationController));
 
 webRouter.route('/activities').get(activityController.listActivities.bind(activityController));
 

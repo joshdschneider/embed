@@ -1,8 +1,8 @@
 unique_key: slack
 name: Slack
 base_url: https://slack.com/api
-docs_url: https://api.slack.com/apis
 logo_url: https://embed-integrations.s3.amazonaws.com/slack.svg
+docs_url: https://docs.useembed.com/integrations/slack
 
 auth:
   - scheme: oauth2

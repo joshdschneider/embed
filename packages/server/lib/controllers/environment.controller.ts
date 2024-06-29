@@ -2,13 +2,14 @@ import type { Environment } from '@embed/shared';
 import {
   DEFAULT_ERROR_MESSAGE,
   ENVIRONMENT_ID_LOCALS_KEY,
+  EnvironmentType,
   ErrorCode,
   environmentService,
   errorService,
   now,
 } from '@embed/shared';
 import type { Request, Response } from 'express';
-import { EnvironmentObject, EnvironmentType } from '../utils/types';
+import { EnvironmentObject } from '../utils/types';
 
 class EnvironmentController {
   public async listEnvironments(req: Request, res: Response) {
@@ -41,7 +42,8 @@ class EnvironmentController {
           default_sync_frequency: env.default_sync_frequency,
           default_multimodal_embedding_model: env.default_multimodal_embedding_model,
           default_text_embedding_model: env.default_text_embedding_model,
-          multimodal_enabled_by_default: env.multimodal_enabled_by_default,
+          locked: env.locked,
+          locked_reason: env.locked_reason,
           branding: env.branding,
           created_at: env.created_at,
           updated_at: env.updated_at,
@@ -82,7 +84,8 @@ class EnvironmentController {
         default_sync_frequency: environment.default_sync_frequency,
         default_multimodal_embedding_model: environment.default_multimodal_embedding_model,
         default_text_embedding_model: environment.default_text_embedding_model,
-        multimodal_enabled_by_default: environment.multimodal_enabled_by_default,
+        locked: environment.locked,
+        locked_reason: environment.locked_reason,
         branding: environment.branding,
         created_at: environment.created_at,
         updated_at: environment.updated_at,
@@ -146,10 +149,6 @@ class EnvironmentController {
         data.default_text_embedding_model = default_text_embedding_model;
       }
 
-      if (typeof multimodal_enabled_by_default === 'boolean') {
-        data.multimodal_enabled_by_default = multimodal_enabled_by_default;
-      }
-
       if (branding && typeof branding === 'object') {
         data.branding = branding;
       }
@@ -176,8 +175,9 @@ class EnvironmentController {
         default_sync_frequency: environment.default_sync_frequency,
         default_multimodal_embedding_model: environment.default_multimodal_embedding_model,
         default_text_embedding_model: environment.default_text_embedding_model,
-        multimodal_enabled_by_default: environment.multimodal_enabled_by_default,
         branding: environment.branding,
+        locked: environment.locked,
+        locked_reason: environment.locked_reason,
         created_at: environment.created_at,
         updated_at: environment.updated_at,
       };

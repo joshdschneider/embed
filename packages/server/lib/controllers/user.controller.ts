@@ -6,14 +6,16 @@ import {
   DEFAULT_BRANDING,
   DEFAULT_ERROR_MESSAGE,
   DEFAULT_MULTIMODAL_EMBEDDING_MODEL,
-  DEFAULT_MULTIMODAL_ENABLED,
   DEFAULT_SYNC_FREQUENCY,
   DEFAULT_TEXT_EMBEDDING_MODEL,
+  EnvironmentType,
   ErrorCode,
+  LockedReason,
   Organization,
   Resource,
   User,
   apiKeyService,
+  billingService,
   environmentService,
   errorService,
   generateId,
@@ -25,7 +27,7 @@ import organizationService from '../services/organization.service';
 import userService from '../services/user.service';
 import { DEFAULT_EMAIL_SUBSCRIPTIONS, DEFAULT_ORGANIZATION_NAME } from '../utils/constants';
 import { generateSecretKey, zodError } from '../utils/helpers';
-import { EnvironmentType, UpdateUserRequestSchema } from '../utils/types';
+import { UpdateUserRequestSchema } from '../utils/types';
 
 class UserController {
   public async handleUserAuth(req: Request, res: Response) {
@@ -156,8 +158,9 @@ class UserController {
         default_sync_frequency: DEFAULT_SYNC_FREQUENCY,
         default_multimodal_embedding_model: DEFAULT_MULTIMODAL_EMBEDDING_MODEL,
         default_text_embedding_model: DEFAULT_TEXT_EMBEDDING_MODEL,
-        multimodal_enabled_by_default: DEFAULT_MULTIMODAL_ENABLED,
         branding: DEFAULT_BRANDING,
+        locked: false,
+        locked_reason: null,
         created_at: now(),
         updated_at: now(),
         deleted_at: null,
@@ -170,11 +173,36 @@ class UserController {
         });
       }
 
-      const key = generateSecretKey(EnvironmentType.Staging);
-      const apiKey = await apiKeyService.createApiKey({
+      const productionEnvironment = await environmentService.createEnvironment({
+        id: generateId(Resource.Environment),
+        organization_id: _organization.id,
+        type: EnvironmentType.Production,
+        auto_enable_collections: DEFAULT_AUTO_ENABLE_COLLECTIONS,
+        auto_enable_actions: DEFAULT_AUTO_ENABLE_ACTIONS,
+        auto_start_syncs: DEFAULT_AUTO_START_SYNCS,
+        default_sync_frequency: DEFAULT_SYNC_FREQUENCY,
+        default_multimodal_embedding_model: DEFAULT_MULTIMODAL_EMBEDDING_MODEL,
+        default_text_embedding_model: DEFAULT_TEXT_EMBEDDING_MODEL,
+        branding: DEFAULT_BRANDING,
+        locked: true,
+        locked_reason: LockedReason.PaymentMethodRequired,
+        created_at: now(),
+        updated_at: now(),
+        deleted_at: null,
+      });
+
+      if (!productionEnvironment) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.InternalServerError,
+          message: DEFAULT_ERROR_MESSAGE,
+        });
+      }
+
+      const stagingKey = generateSecretKey(EnvironmentType.Staging);
+      const stagingApiKey = await apiKeyService.createApiKey({
         id: generateId(Resource.ApiKey),
         environment_id: stagingEnvironment.id,
-        key,
+        key: stagingKey,
         key_hash: null,
         key_iv: null,
         key_tag: null,
@@ -184,14 +212,35 @@ class UserController {
         deleted_at: null,
       });
 
-      if (!apiKey) {
+      if (!stagingApiKey) {
         return errorService.errorResponse(res, {
           code: ErrorCode.InternalServerError,
           message: DEFAULT_ERROR_MESSAGE,
         });
       }
 
-      await integrationService.createIntegration({
+      const prodKey = generateSecretKey(EnvironmentType.Production);
+      const prodApiKey = await apiKeyService.createApiKey({
+        id: generateId(Resource.ApiKey),
+        environment_id: productionEnvironment.id,
+        key: prodKey,
+        key_hash: null,
+        key_iv: null,
+        key_tag: null,
+        display_name: null,
+        created_at: now(),
+        updated_at: now(),
+        deleted_at: null,
+      });
+
+      if (!prodApiKey) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.InternalServerError,
+          message: DEFAULT_ERROR_MESSAGE,
+        });
+      }
+
+      const integration = await integrationService.createIntegration({
         id: 'github-test',
         environment_id: stagingEnvironment.id,
         is_enabled: true,
@@ -207,6 +256,22 @@ class UserController {
         updated_at: now(),
         deleted_at: null,
       });
+
+      if (!integration) {
+        const err = new Error('Failed to create initial integration');
+        await errorService.reportError(err);
+      }
+
+      const defaultSubscription = await billingService.createDefaultSubscription(
+        productionEnvironment.organization_id
+      );
+
+      if (!defaultSubscription) {
+        return errorService.errorResponse(res, {
+          code: ErrorCode.InternalServerError,
+          message: DEFAULT_ERROR_MESSAGE,
+        });
+      }
 
       return res.status(200).json({
         object: 'user',
