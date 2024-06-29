@@ -34,8 +34,8 @@ export class ActionContext extends BaseContext {
   }
 
   public async reportResults(): Promise<{
-    status: number | null;
-    output: Record<string, any> | null;
+    status: number;
+    output: Record<string, any>;
   }> {
     usageService.reportUsage({
       usageType: UsageType.Action,
@@ -44,6 +44,10 @@ export class ActionContext extends BaseContext {
       connectionId: this.connectionId,
       actionRunId: this.actionRunId,
     });
+
+    if (this.status === null || this.output === null) {
+      throw new Error('Action output not saved');
+    }
 
     return { status: this.status, output: this.output };
   }
