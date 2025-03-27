@@ -2,11 +2,8 @@
   "name": "embed",
   "private": true,
   "workspaces": [
-    "packages/providers",
-    "packages/shared",
-    "packages/server",
-    "packages/sync-runner",
-    "packages/action-runner"
+    "apps/*",
+    "packages/*"
   ],
   "scripts": {
     "install:all": "npm i",
